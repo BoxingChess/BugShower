@@ -14,6 +14,7 @@ ACharacterBase::ACharacterBase()
 // Called when the game starts or when spawned
 void ACharacterBase::BeginPlay()
 {
+	//Test
 	Super::BeginPlay();
 	
 }
