@@ -32,3 +32,27 @@ void AMonsterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 }
 
+float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	HP -= DamageAmount;
+	if (HP <= 0)
+	{
+		DeSpawn();
+	}
+	return DamageAmount;
+}
+
+void AMonsterBase::Spawn(FVector SpawnLocation)
+{
+	SetActorLocation(SpawnLocation);
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	SetActorTickEnabled(true);
+}
+
+void AMonsterBase::DeSpawn()
+{
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+}

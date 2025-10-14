@@ -6,6 +6,16 @@
 #include "GameFramework/Character.h"
 #include "MonsterBase.generated.h"
 
+
+UENUM()
+enum class Grade : uint8
+{
+	NORMAL,
+	ELITE,
+	BOSS
+};
+
+
 UCLASS()
 class BUGSHOWER_API AMonsterBase : public ACharacter
 {
@@ -26,4 +36,24 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	void Spawn(FVector SpawnLocation);
+	void DeSpawn();
+
+
+private:
+
+	//stat
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	FString Name;
+
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	Grade MonsterGrade;
+
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	uint8 HP;
+
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	uint8 Damage;
 };
