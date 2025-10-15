@@ -38,22 +38,34 @@ public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
-	void Spawn(FVector SpawnLocation);
-	void DeSpawn();
-
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
 
+	//돌진 공격 기능
+	//장판 공격 기능
+	//원겨리 투사체 공격 기능
+	//공중 이동 기능
+
+
+	//애니메이션 자체 담당
+	
+
+
+	//behaviortree 동작
+
+
+
 	//stat
-	UPROPERTY(EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
 	FString Name;
 
-	UPROPERTY(EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
 	Grade MonsterGrade;
 
-	UPROPERTY(EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
 	uint8 HP;
 
-	UPROPERTY(EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
 	uint8 Damage;
 };

@@ -14,7 +14,7 @@ ASpawnMonster::ASpawnMonster()
 	PrimaryActorTick.bCanEverTick = true;
 
 
-	PoolSize = 1000;
+	PoolSize = 100;
 	SpawnRadius = 1500.f;
 	MonsterClass = AMonsterBase::StaticClass();
 	SpawnTime = 3.0f;
@@ -26,12 +26,20 @@ void ASpawnMonster::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (!HasAuthority())
+		return;
+
 	for (int i = 0; i < PoolSize; i++)
 	{
 		if (GetWorld())
 		{
 
-			AMonsterBase* Monster = GetWorld()->SpawnActor<AMonsterBase>(MonsterClass, FVector::ZeroVector, FRotator::ZeroRotator);
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			SpawnParams.Owner = this;
+			SpawnParams.Instigator = GetInstigator();
+
+			AMonsterBase* Monster = GetWorld()->SpawnActor<AMonsterBase>(MonsterClass, FVector::ZeroVector, FRotator::ZeroRotator,SpawnParams);
 			if (Monster)
 			{
 				Monster->SetActorHiddenInGame(true);
@@ -51,6 +59,7 @@ void ASpawnMonster::BeginPlay()
 // Called every frame
 void ASpawnMonster::Tick(float DeltaTime)
 {
+	
 	Super::Tick(DeltaTime);
 
 	DrawDebugSphere(GetWorld(), GetActorLocation(), SpawnRadius, 12, FColor::Yellow, false, 2.f);
@@ -60,14 +69,17 @@ void ASpawnMonster::Tick(float DeltaTime)
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			SpawnMonster();
+			Spawn();
 			CheckTime -= SpawnTime;
 		}
 	}
 }
 
-void ASpawnMonster::SpawnMonster()
+void ASpawnMonster::Spawn()
 {
+	if (!HasAuthority())
+		return;
+
 	AMonsterBase* Monster = FindInActiveMonster();
 	if (Monster)
 	{
@@ -88,13 +100,16 @@ void ASpawnMonster::SpawnMonster()
 
 			SpawnPos.Location.Z = 90;
 
-
-			Monster->Spawn(SpawnPos.Location);
+			Monster->SetActorLocation(SpawnPos.Location);
+			Monster->SetActorHiddenInGame(false);
+			Monster->SetActorEnableCollision(true);
+			Monster->SetActorTickEnabled(true);
 		}
 
 
 	}
 }
+
 
 AMonsterBase* ASpawnMonster::FindInActiveMonster()
 {
@@ -111,11 +126,16 @@ AMonsterBase* ASpawnMonster::FindInActiveMonster()
 
 void ASpawnMonster::InActiveAll()
 {
+	if (!HasAuthority())
+		return;
+
 	for (auto& Monster : MonsterPool)
 	{
 		if (!Monster->IsHidden())
 		{
-			Monster->DeSpawn();
+			Monster->SetActorHiddenInGame(true);
+			Monster->SetActorEnableCollision(false);
+			Monster->SetActorTickEnabled(false);
 		}
 	}
 }

@@ -23,20 +23,26 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	void SpawnMonster();
+	void Spawn();
+	
 
 protected:
 	class AMonsterBase* FindInActiveMonster();
 	void InActiveAll();
 
+	//소환될 몬스터 클래스
 	UPROPERTY(EditAnywhere)
     TSubclassOf<class AMonsterBase> MonsterClass;
 
 	TArray<class AMonsterBase*> MonsterPool;
+	UPROPERTY(EditAnywhere)
 	int32 PoolSize;
-	float SpawnRadius;
-	float SpawnTime;
-	float CheckTime;
 
-	TObjectPtr<class AChaosDungeonGameMode> GameMode;
+	// Spawn Parameters
+	UPROPERTY(EditAnywhere)
+	float SpawnRadius;
+	UPROPERTY(EditAnywhere)
+	float SpawnTime;
+	UPROPERTY(EditAnywhere)
+	float CheckTime;
 };
