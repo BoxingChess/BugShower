@@ -17,8 +17,8 @@ ASpawnMonster::ASpawnMonster()
 	PoolSize = 100;
 	SpawnRadius = 1500.f;
 	MonsterClass = AMonsterBase::StaticClass();
-	SpawnTime = 3.0f;
-	CheckTime = 0.0f;
+	SpawnInterval	= 3.0f;
+	SpawnTimer = 0.0f;
 }
 
 // Called when the game starts or when spawned
@@ -64,14 +64,11 @@ void ASpawnMonster::Tick(float DeltaTime)
 
 	DrawDebugSphere(GetWorld(), GetActorLocation(), SpawnRadius, 12, FColor::Yellow, false, 2.f);
 
-	CheckTime += DeltaTime;
-	if (CheckTime > SpawnTime)
+	SpawnTimer += DeltaTime;
+	if (SpawnTimer >= SpawnInterval)
 	{
-		for (int j = 0; j < 3; j++)
-		{
-			Spawn();
-			CheckTime -= SpawnTime;
-		}
+		Spawn();
+		SpawnTimer -= SpawnInterval;
 	}
 }
 
@@ -98,7 +95,7 @@ void ASpawnMonster::Spawn()
 				UE_LOG(LogTemp, Warning, TEXT("Name : %s, X: %f, Y: %f,Z: %f"), *Monster->GetName(), SpawnPos.Location.X, SpawnPos.Location.Y, SpawnPos.Location.Z);
 			}
 
-			SpawnPos.Location.Z = 90;
+			SpawnPos.Location.Z = 0;
 
 			Monster->SetActorLocation(SpawnPos.Location);
 			Monster->SetActorHiddenInGame(false);

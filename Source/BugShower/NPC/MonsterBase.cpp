@@ -27,7 +27,7 @@ void AMonsterBase::BeginPlay()
 void AMonsterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	DrawDebugSphere(GetWorld(), GetActorLocation(), 100, 12, FColor::Red, false, 2.f);
+	//DrawDebugSphere(GetWorld(), GetActorLocation(), 100, 12, FColor::Red, false, 2.f);
 }
 
 // Called to bind functionality to input

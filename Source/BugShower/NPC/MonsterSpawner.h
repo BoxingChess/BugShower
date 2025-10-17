@@ -23,12 +23,12 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	void Spawn();
 	
 
 protected:
 	class AMonsterBase* FindInActiveMonster();
 	void InActiveAll();
+	void Spawn();
 
 	//소환될 몬스터 클래스
 	UPROPERTY(EditAnywhere)
@@ -42,7 +42,6 @@ protected:
 	UPROPERTY(EditAnywhere)
 	float SpawnRadius;
 	UPROPERTY(EditAnywhere)
-	float SpawnTime;
-	UPROPERTY(EditAnywhere)
-	float CheckTime;
+	float SpawnInterval;
+	float SpawnTimer;
 };
