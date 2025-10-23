@@ -3,9 +3,9 @@
 
 #include "NPC/MonsterSpawner.h"
 #include "NPC/MonsterBase.h"
-#include "NPC/MonsterAIController.h"
 #include "NavigationSystem.h"
 
+#include "NPC/MonsterAIController.h"
 
 // Sets default values
 ASpawnMonster::ASpawnMonster()
@@ -46,10 +46,11 @@ void ASpawnMonster::BeginPlay()
 				Monster->SetActorEnableCollision(false);
 				Monster->SetActorTickEnabled(false);
 				MonsterPool.Add(Monster);
+				UE_LOG(LogTemp, Warning, TEXT("Create Monster %d"),i);
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Monster is Not Spawn"));
+				UE_LOG(LogTemp, Warning, TEXT("Monster is not Create"));
 			}
 
 		}
@@ -59,7 +60,6 @@ void ASpawnMonster::BeginPlay()
 // Called every frame
 void ASpawnMonster::Tick(float DeltaTime)
 {
-	
 	Super::Tick(DeltaTime);
 
 	DrawDebugSphere(GetWorld(), GetActorLocation(), SpawnRadius, 12, FColor::Yellow, false, 2.f);
@@ -90,17 +90,20 @@ void ASpawnMonster::Spawn()
 		FNavLocation SpawnPos;
 		if (NavSystem->GetRandomPointInNavigableRadius(GetActorLocation(), SpawnRadius, SpawnPos))
 		{
-			if (SpawnPos.Location.Z <= 0)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("Name : %s, X: %f, Y: %f,Z: %f"), *Monster->GetName(), SpawnPos.Location.X, SpawnPos.Location.Y, SpawnPos.Location.Z);
-			}
-
 			SpawnPos.Location.Z = 0;
+			UE_LOG(LogTemp, Warning, TEXT("Name : %s, X: %f, Y: %f,Z: %f"), *Monster->GetName(), SpawnPos.Location.X, SpawnPos.Location.Y, SpawnPos.Location.Z);
 
 			Monster->SetActorLocation(SpawnPos.Location);
 			Monster->SetActorHiddenInGame(false);
 			Monster->SetActorEnableCollision(true);
 			Monster->SetActorTickEnabled(true);
+
+			AAIController* AI = Cast<AAIController>(Monster->GetController());
+			if (AI)
+			{
+				AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
+				MonsterAI->RunAI();
+			}
 		}
 
 
@@ -133,6 +136,13 @@ void ASpawnMonster::InActiveAll()
 			Monster->SetActorHiddenInGame(true);
 			Monster->SetActorEnableCollision(false);
 			Monster->SetActorTickEnabled(false);
+
+			AAIController* AI = Cast<AAIController>(Monster->GetController());
+			if (AI)
+			{
+				AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
+				MonsterAI->StopAI();
+			}
 		}
 	}
 }

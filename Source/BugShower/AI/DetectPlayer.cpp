@@ -1,79 +1,86 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "AI/DetectPlayer.h"
-#include "NPC/MonsterBase.h"
-#include "AIController.h"
+#include "AI/MonsterBlackBoardKey.h"
+#include "Logging/BugShowerLog.h"
+#include "Kismet/GameplayStatics.h"
+
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"	
+
+
+#include "NPC/MonsterBase.h"
+#include "AIController.h"
 #include "Engine/OverlapResult.h"
-#include "AI/MonsterBlackBoardKey.h"
+
+
+
 
 
 UDetectPlayer::UDetectPlayer()
 {
 	bNotifyTick = true;
-	NodeName = TEXT("Detect");	//노드이름
-	Interval = 1.0f;	//간격
+	NodeName = TEXT("DetectClosetPlayer");
+	Interval = 0.1f;
 }
 
 void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	//UE_LOG(LogTemp, Log, TEXT("DetectPlayer::TickNode called."));
-	//Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
 
+	APawn* Monster = OwnerComp.GetAIOwner()->GetPawn();
+	UBlackboardComponent* BlackBoard = OwnerComp.GetBlackboardComponent();
+	if (!Monster)
+	{
+		LOG_BT(TEXT("Monster is Null"));
+		return;
+	}
 
-	//APawn* Monster = OwnerComp.GetAIOwner()->GetPawn();
+	if (!Monster->HasAuthority())
+	{
+		LOG_BT(TEXT("Monster has not Authority"));
+		return;
+	}
 
-	//if (!Monster)
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("Monster is Null in UDetectePlayer"));
-	//	return;
-	//}
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		LOG_BT(TEXT("World is Null"));
+		return;
+	}
 
-	//UWorld* World = GetWorld();
-	//if (!World)
-	//{
-	//	UE_LOG(LogTemp, Warning, TEXT("World is Null in UDetectePlayer"));
-	//	return;
-	//}
+	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
 
-	//UMonsterStatComponent* MonsterStat = Monster->FindComponentByClass<UMonsterStatComponent>();
+	// Find the closest player pawn
+	{
+		AActor* ClosestPlayer = nullptr;
+		float ClosestDist = FLT_MAX;
 
-	//if (MonsterStat == nullptr)
-	//{
-	//	return;
-	//}
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			APlayerController* PC = It->Get();
+			if (PC)
+			{
+				APawn* PlayerPawn = PC->GetPawn();
+				if (PlayerPawn)
+				{
+					float Dist = FVector::Dist(Monster->GetActorLocation(), PlayerPawn->GetActorLocation());
 
+					if (Dist < ClosestDist)
+					{
+						ClosestDist = Dist;
+						ClosestPlayer = PlayerPawn;
+					}
+				}
+			}
+		}
 
-	//FVector Center = Monster->GetActorLocation();
-	//float DetectRadius = MonsterStat->GetPlayerDetectedRadius();
+		if (ClosestPlayer)
+		{
+			BlackBoard->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, ClosestPlayer);
+			//BlackBoard->ClearValue(MONSTER_BOARD_KEY_TARGETPOS);
+			BlackBoard->SetValueAsVector(MONSTER_BOARD_KEY_TARGETPOS, ClosestPlayer->GetActorLocation());
 
-	//TArray<FOverlapResult> OverlapResults;
-	//FCollisionShape CollisionShape = FCollisionShape::MakeSphere(DetectRadius);
-	//FCollisionQueryParams CollisionQueryParam(SCENE_QUERY_STAT(Detect), false, Monster); //ingnor ovelap self
-
-	//bool IsHit = World->OverlapMultiByChannel(OverlapResults, Center, FQuat::Identity, CHANNEL_HITCHECK, CollisionShape, CollisionQueryParam);
-
-	//if (IsHit)
-	//{
-	//	for (const FOverlapResult& overlap : OverlapResults)
-	//	{
-	//		APlayerCharacter* Player = Cast<APlayerCharacter>(overlap.GetActor());
-	//		if (Player)
-	//		{
-	//			OwnerComp.GetBlackboardComponent()->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, Player);
-
-	//			//DrawDebugSphere(World, Center, DetectRadius, 12, FColor::Green, false, 2.f);
-	//			//DrawDebugLine(World, Center, Player->GetActorLocation(), FColor::Red, false, 2.f, 0, 2.f);
-	//			//UE_LOG(LogTemp, Log, TEXT("Detected Player: %s"), *Player->GetName());
-	//			// Here you can add logic to handle the detected player
-	//			return;
-	//		}
-
-	//	}
-	//}
-
- //  	OwnerComp.GetBlackboardComponent()->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, nullptr);
-	//DrawDebugSphere(World, Center, DetectRadius, 12, FColor::Green, false, 2.f);
+			LOG_BT(TEXT("Closest Player Found! Distance: %f"), ClosestDist);
+		}
+	}
 }

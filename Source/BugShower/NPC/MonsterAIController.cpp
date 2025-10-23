@@ -12,11 +12,8 @@ void AMonsterAIController::RunAI()
 {
 	if (BP_BehaviorTree && BP_BlackBoard)
 	{
-		UE_LOG(LogTemp, Log, TEXT("MonsterAIController OnPossess called."));
-
 		UBlackboardComponent* BlackboardPtr = Blackboard.Get();
 		UseBlackboard(BP_BlackBoard, BlackboardPtr);
-		BlackboardPtr->SetValueAsVector(MONSTER_BOARD_KEY_HOMEPOS, GetPawn()->GetActorLocation());
 
 		bool isRun = RunBehaviorTree(BP_BehaviorTree);
 		ensure(isRun);

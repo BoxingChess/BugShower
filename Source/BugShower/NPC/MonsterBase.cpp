@@ -2,6 +2,7 @@
 
 
 #include "NPC/MonsterBase.h"
+#include "NPC/MonsterAIController.h"
 #include "Net/UnrealNetwork.h"	
 
 // Sets default values
@@ -9,11 +10,12 @@ AMonsterBase::AMonsterBase()
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
 	
 	bReplicates = true;	//Replicate setting
 	SetReplicateMovement(true);	//sync with position
 
+	AIControllerClass = AMonsterAIController::StaticClass();
+	AutoPossessAI = EAutoPossessAI::Spawned;
 }
 
 // Called when the game starts or when spawned
