@@ -3,8 +3,8 @@
 
 #include "NPC/MonsterSpawner.h"
 #include "NPC/MonsterBase.h"
+#include "NPC/MonsterStatComponent.h"
 #include "NavigationSystem.h"
-
 #include "NPC/MonsterAIController.h"
 
 // Sets default values
@@ -46,6 +46,17 @@ void ASpawnMonster::BeginPlay()
 				Monster->SetActorEnableCollision(false);
 				Monster->SetActorTickEnabled(false);
 				MonsterPool.Add(Monster);
+
+				// Subscribe to monster death event
+				UMonsterStatComponent* StatComp = Monster->GetMonsterStatComponent();
+				if (StatComp)
+				{
+					StatComp->OnMonsterDeath.AddDynamic(this, &ASpawnMonster::OnMonsterDied);
+				}
+
+				// Add to available queue
+				AvailableMonsters.Enqueue(Monster);
+
 				UE_LOG(LogTemp, Warning, TEXT("Create Monster %d"),i);
 			}
 			else
@@ -80,6 +91,13 @@ void ASpawnMonster::Spawn()
 	AMonsterBase* Monster = FindInActiveMonster();
 	if (Monster)
 	{
+		UMonsterStatComponent* stat = Monster->GetMonsterStatComponent();
+		if (stat)
+		{
+			stat->ResetHP();
+		}
+
+
 		UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetNavigationSystem(GetWorld());
 		if (NavSystem == nullptr)
 		{
@@ -92,6 +110,8 @@ void ASpawnMonster::Spawn()
 		{
 			SpawnPos.Location.Z = 0;
 			UE_LOG(LogTemp, Warning, TEXT("Name : %s, X: %f, Y: %f,Z: %f"), *Monster->GetName(), SpawnPos.Location.X, SpawnPos.Location.Y, SpawnPos.Location.Z);
+
+			
 
 			Monster->SetActorLocation(SpawnPos.Location);
 			Monster->SetActorHiddenInGame(false);
@@ -113,15 +133,44 @@ void ASpawnMonster::Spawn()
 
 AMonsterBase* ASpawnMonster::FindInActiveMonster()
 {
-	for (auto& Monster : MonsterPool)
+	AMonsterBase* Monster = nullptr;
+	if (AvailableMonsters.Dequeue(Monster))
 	{
-		if (Monster->IsHidden())
-		{
-			return Monster;
-		}
+		return Monster;
 	}
 
 	return nullptr;
+}
+
+void ASpawnMonster::OnMonsterDied(AActor* DeadMonster)
+{
+	if (!HasAuthority())
+		return;
+
+	AMonsterBase* Monster = Cast<AMonsterBase>(DeadMonster);
+	if (!Monster)
+		return;
+
+	// Deactivate monster (return to pool)
+	Monster->SetActorHiddenInGame(true);
+	Monster->SetActorEnableCollision(false);
+	Monster->SetActorTickEnabled(false);
+
+	// Stop AI
+	AAIController* AI = Cast<AAIController>(Monster->GetController());
+	if (AI)
+	{
+		AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
+		if (MonsterAI)
+		{
+			MonsterAI->StopAI();
+		}
+	}
+
+	// Add back to available queue
+	AvailableMonsters.Enqueue(Monster);
+
+	UE_LOG(LogTemp, Log, TEXT("Monster died and returned to pool: %s"), *Monster->GetName());
 }
 
 void ASpawnMonster::InActiveAll()

@@ -30,11 +30,17 @@ protected:
 	void InActiveAll();
 	void Spawn();
 
-	//╪рх╞╣и ╦С╫╨ем е╛╥║╫╨
+	// Called when a monster dies
+	UFUNCTION()
+	void OnMonsterDied(AActor* DeadMonster);
+
+	//О©╫О©╫х╞О©╫О©╫ О©╫О©╫О©╫О©╫ е╛О©╫О©╫О©╫О©╫
 	UPROPERTY(EditAnywhere)
     TSubclassOf<class AMonsterBase> MonsterClass;
 
 	TArray<class AMonsterBase*> MonsterPool;
+	TQueue<class AMonsterBase*> AvailableMonsters;
+
 	UPROPERTY(EditAnywhere)
 	int32 PoolSize;
 
