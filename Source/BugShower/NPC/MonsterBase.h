@@ -33,34 +33,17 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Get MonsterStatComponent
+	UFUNCTION(BlueprintCallable, Category = "Stat")
+	class UMonsterStatComponent* GetMonsterStatComponent() const { return MonsterStatComp; }
 
 private:
 
-	//돌진 공격 기능
-	//장판 공격 기능
-	//원겨리 투사체 공격 기능
-	//공중 이동 기능
+	
 
-	//behaviortree 동작
-
-
-
-	//stat
-	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
-	FString Name;
-
-	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
-	Grade MonsterGrade;
-
-	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
-	uint8 HP;
-
-	UPROPERTY(Replicated,EditAnywhere, Category = "Stat")
-	uint8 Damage;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	class UMonsterStatComponent* MonsterStatComp;
 };
