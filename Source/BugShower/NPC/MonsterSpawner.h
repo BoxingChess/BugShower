@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "MonsterSpawner.generated.h"
 
+//spawner that uses object pooling to manage monsters
+//on off monster state in world(Activate,Rendering,Collision,RunBT...)
 UCLASS()
 class BUGSHOWER_API ASpawnMonster : public AActor
 {
@@ -34,7 +36,7 @@ protected:
 	UFUNCTION()
 	void OnMonsterDied(AActor* DeadMonster);
 
-	//��ȯ�� ���� Ŭ����
+	//monster class to spawn
 	UPROPERTY(EditAnywhere)
     TSubclassOf<class AMonsterBase> MonsterClass;
 

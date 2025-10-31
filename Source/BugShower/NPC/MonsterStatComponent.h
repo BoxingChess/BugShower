@@ -20,6 +20,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMonsterDeath, AActor*, DeadMonste
 // Delegate for HP changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, float, CurrentHP, float, MaxHP);
 
+
+
+//management of monster stats(hp,death...)
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class BUGSHOWER_API UMonsterStatComponent : public UActorComponent
 {

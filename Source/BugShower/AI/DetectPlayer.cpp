@@ -80,7 +80,7 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 			//BlackBoard->ClearValue(MONSTER_BOARD_KEY_TARGETPOS);
 			BlackBoard->SetValueAsVector(MONSTER_BOARD_KEY_TARGETPOS, ClosestPlayer->GetActorLocation());
 
-			LOG_BT(TEXT("Closest Player Found! Distance: %f"), ClosestDist);
+			//LOG_BT(TEXT("Closest Player Found! Distance: %f"), ClosestDist);
 		}
 	}
 }

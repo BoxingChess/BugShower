@@ -91,7 +91,7 @@ void UMonsterStatComponent::ApplyDamage(float DamageAmount)
 	if (IsDead())
 		return;
 
-	UE_LOG(LogTemp, Warning, TEXT("Monster %s takes Damage: %f, CurHP : %f"), *GetOwner()->GetName(), DamageAmount,CurHP);
+	//UE_LOG(LogTemp, Warning, TEXT("Monster %s takes Damage: %f, CurHP : %f"), *GetOwner()->GetName(), DamageAmount,CurHP);
 	
 	float ActualDamage = FMath::Max(DamageAmount - Defense, 0.f);
 	CurHP = FMath::Max(CurHP - ActualDamage, 0.f);
