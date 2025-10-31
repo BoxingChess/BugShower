@@ -15,7 +15,7 @@ enum class Grade : uint8
 	BOSS
 };
 
-
+// Base class for all monsters
 UCLASS()
 class BUGSHOWER_API AMonsterBase : public ACharacter
 {
@@ -40,10 +40,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	class UMonsterStatComponent* GetMonsterStatComponent() const { return MonsterStatComp; }
 
+	// Drop item on death
+	UFUNCTION()
+	void OnDeath(AActor* DeadMonster);
+
+
+protected:
+	// Item drop table - set in Blueprint
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	TArray<TSubclassOf<class AItemBase>> DropTable;
+
+	// Drop chance (0.0 - 1.0)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	float DropChance;
+
+	// Number of items to drop
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	int32 MinDropCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	int32 MaxDropCount;
+
+	// Drop items at monster location
+	void DropItems();
+
 private:
-
-	
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class UMonsterStatComponent* MonsterStatComp;
+
+	//need animation comp
 };

@@ -9,7 +9,7 @@ AItemBase::AItemBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// Enable replication
+	// Enable replication(pos,life span, type)
 	bReplicates = true;
 	SetReplicateMovement(true);
 
@@ -70,9 +70,16 @@ void AItemBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor*
 		return;
 
 	// Check if overlapping actor is a player
-	if (OtherActor && OtherActor->IsA(APawn::StaticClass()))
+	if (OtherActor && OtherActor->IsA(APawn::StaticClass() ))
 	{
-		OnPickup(OtherActor);
+		//test if it's player controller
+		APawn* Pawn = Cast<APawn>(OtherActor);
+
+		if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
+		{
+
+			OnPickup(OtherActor);
+		}
 	}
 }
 

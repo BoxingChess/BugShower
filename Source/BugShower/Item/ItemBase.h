@@ -9,10 +9,10 @@
 UENUM(BlueprintType)
 enum class EItemType : uint8
 {
-	CONSUMABLE UMETA(DisplayName = "Consumable"),
-	EQUIPMENT UMETA(DisplayName = "Equipment"),
-	QUEST UMETA(DisplayName = "Quest"),
-	MATERIAL UMETA(DisplayName = "Material")
+	CONSUMABLE UMETA(DisplayName = "Consumable"),//소비
+	EQUIPMENT UMETA(DisplayName = "Equipment"),//장비
+	QUEST UMETA(DisplayName = "Quest"),//퀘스트
+	MATERIAL UMETA(DisplayName = "Material")//재료
 };
 
 UCLASS()
