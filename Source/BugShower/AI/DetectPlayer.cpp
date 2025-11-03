@@ -17,6 +17,7 @@
 
 
 
+
 UDetectPlayer::UDetectPlayer()
 {
 	bNotifyTick = true;
@@ -31,20 +32,20 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 	UBlackboardComponent* BlackBoard = OwnerComp.GetBlackboardComponent();
 	if (!Monster)
 	{
-		LOG_BT(TEXT("Monster is Null"));
+		LOG_BT_WARNING(TEXT("Monster is Null"));
 		return;
 	}
 
 	if (!Monster->HasAuthority())
 	{
-		LOG_BT(TEXT("Monster has not Authority"));
+		LOG_BT_WARNING(TEXT("Monster has not Authority"));
 		return;
 	}
 
 	UWorld* World = GetWorld();
 	if (!World)
 	{
-		LOG_BT(TEXT("World is Null"));
+		LOG_BT_WARNING(TEXT("World is Null"));
 		return;
 	}
 
@@ -52,7 +53,7 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 
 	// Find the closest player pawn
 	{
-		AActor* ClosestPlayer = nullptr;
+		AActor* CurClosestPlayer = nullptr;
 		float ClosestDist = FLT_MAX;
 
 		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
@@ -65,22 +66,40 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 				{
 					float Dist = FVector::Dist(Monster->GetActorLocation(), PlayerPawn->GetActorLocation());
 
+					// Find closest
 					if (Dist < ClosestDist)
 					{
 						ClosestDist = Dist;
-						ClosestPlayer = PlayerPawn;
+						CurClosestPlayer = PlayerPawn;
 					}
 				}
 			}
 		}
 
-		if (ClosestPlayer)
-		{
-			BlackBoard->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, ClosestPlayer);
-			//BlackBoard->ClearValue(MONSTER_BOARD_KEY_TARGETPOS);
-			BlackBoard->SetValueAsVector(MONSTER_BOARD_KEY_TARGETPOS, ClosestPlayer->GetActorLocation());
 
-			//LOG_BT(TEXT("Closest Player Found! Distance: %f"), ClosestDist);
+		if (CurClosestPlayer)
+		{
+			UObject* CurTargetValue = BlackBoard->GetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR);
+			AActor* PreClosest = Cast<AActor>(CurTargetValue);
+
+			// Check if target changed
+			if (PreClosest != CurClosestPlayer)
+			{
+				LOG_BT(TEXT(">>> TARGET CHANGED: %s → %s (%.1f units)"),
+					PreClosest ? *PreClosest->GetName() : TEXT("NONE"),
+					*CurClosestPlayer->GetName(),
+					ClosestDist);
+
+				// Update TargetActor
+				BlackBoard->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, CurClosestPlayer);
+			}
+		}
+		else
+		{
+			LOG_BT_WARNING(TEXT("No target! Monster[%s] found players but none valid"),
+				*Monster->GetName());
+
+			BlackBoard->ClearValue(MONSTER_BOARD_KEY_TARGETACTOR);
 		}
 	}
 }
