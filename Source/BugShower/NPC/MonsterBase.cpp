@@ -6,6 +6,8 @@
 #include "Net/UnrealNetwork.h"
 #include "NPC/MonsterStatComponent.h"
 #include "Item/ItemBase.h"
+#include "Logging/BugShowerLog.h"
+
 
 // Sets default values
 AMonsterBase::AMonsterBase()
@@ -107,7 +109,7 @@ void AMonsterBase::DropItems()
 			AItemBase* DroppedItem = GetWorld()->SpawnActor<AItemBase>(ItemClass, DropLocation + Offset, DropRotation, SpawnParams);
 			if (DroppedItem)
 			{
-				UE_LOG(LogTemp, Log, TEXT("Monster %s dropped item: %s"), *GetName(), *DroppedItem->ItemName);
+				LOG_LOGIC_INFO(TEXT("Monster %s dropped item: %s"), *GetName(), *DroppedItem->ItemName);
 			}
 		}
 	}

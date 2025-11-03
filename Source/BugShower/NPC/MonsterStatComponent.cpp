@@ -3,6 +3,8 @@
 #include "NPC/MonsterStatComponent.h"
 #include "Net/UnrealNetwork.h"
 
+#include "Logging/BugShowerLog.h"
+
 UMonsterStatComponent::UMonsterStatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -26,7 +28,11 @@ void UMonsterStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(UMonsterStatComponent, Name);
+	// Name: never changes -> replicate only on spawn
+	DOREPLIFETIME_CONDITION(UMonsterStatComponent, Name, COND_InitialOnly);
+
+	// Stats: change during waves/upgrades -> replicate when changed (default behavior)
+	// These use delta compression automatically - only sends when value changes
 	DOREPLIFETIME(UMonsterStatComponent, Grade);
 	DOREPLIFETIME(UMonsterStatComponent, CurHP);
 	DOREPLIFETIME(UMonsterStatComponent, MaxHP);
@@ -54,7 +60,7 @@ void UMonsterStatComponent::CheckDeath()
 		// Only broadcast death on server
 		if (GetOwner() && GetOwner()->HasAuthority())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Monster %s is Dead"), *GetOwner()->GetName());
+			LOG_LOGIC_INFO(TEXT("Monster %s is Dead"), *GetOwner()->GetName());
 			OnMonsterDeath.Broadcast(GetOwner());
 		}
 	}

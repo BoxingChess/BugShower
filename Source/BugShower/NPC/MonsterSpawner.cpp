@@ -7,6 +7,8 @@
 #include "NavigationSystem.h"
 #include "NPC/MonsterAIController.h"
 
+#include "Logging/BugShowerLog.h"
+
 // Sets default values
 ASpawnMonster::ASpawnMonster()
 {
@@ -57,11 +59,11 @@ void ASpawnMonster::BeginPlay()
 				// Add to available queue
 				AvailableMonsters.Enqueue(Monster);
 
-				UE_LOG(LogTemp, Warning, TEXT("Create Monster %d"),i);
+				LOG_LOGIC_INFO(TEXT("Create Monster %d"),i);
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("Monster is not Create"));
+				LOG_LOGIC_WARNING(TEXT("Monster is not Create"));
 			}
 
 		}
@@ -101,7 +103,7 @@ void ASpawnMonster::Spawn()
 		UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetNavigationSystem(GetWorld());
 		if (NavSystem == nullptr)
 		{
-			UE_LOG(LogTemp, Log, TEXT("NavSys is Null"));
+			LOG_LOGIC_WARNING(TEXT("NavSys is Null"));
 			return;
 		}
 
@@ -109,7 +111,7 @@ void ASpawnMonster::Spawn()
 		if (NavSystem->GetRandomPointInNavigableRadius(GetActorLocation(), SpawnRadius, SpawnPos))
 		{
 			SpawnPos.Location.Z = 0;
-			UE_LOG(LogTemp, Warning, TEXT("Name : %s, X: %f, Y: %f,Z: %f"), *Monster->GetName(), SpawnPos.Location.X, SpawnPos.Location.Y, SpawnPos.Location.Z);
+			LOG_LOGIC_INFO(TEXT("Name : %s, X: %f, Y: %f,Z: %f"), *Monster->GetName(), SpawnPos.Location.X, SpawnPos.Location.Y, SpawnPos.Location.Z);
 
 			
 
@@ -170,7 +172,7 @@ void ASpawnMonster::OnMonsterDied(AActor* DeadMonster)
 	// Add back to available queue
 	AvailableMonsters.Enqueue(Monster);
 
-	UE_LOG(LogTemp, Log, TEXT("Monster died and returned to pool: %s"), *Monster->GetName());
+	LOG_LOGIC_INFO(TEXT("Monster died and returned to pool: %s"), *Monster->GetName());
 }
 
 void ASpawnMonster::InActiveAll()

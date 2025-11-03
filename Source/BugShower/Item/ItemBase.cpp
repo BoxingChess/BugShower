@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
 #include "Net/UnrealNetwork.h"
+#include "Logging/BugShowerLog.h"
 
 AItemBase::AItemBase()
 {
@@ -60,6 +61,11 @@ void AItemBase::Tick(float DeltaTime)
 		}
 	}
 
+	// Add rotation animation
+	//FRotator NewRotation = GetActorRotation();
+	//NewRotation.Yaw += DeltaTime * 90.f;
+	//SetActorRotation(NewRotation);
+
 
 	//Client
 	{
@@ -97,7 +103,7 @@ void AItemBase::OnPickup(AActor* PickupActor)
 	if (!HasAuthority())
 		return;
 
-	UE_LOG(LogTemp, Log, TEXT("Item %s picked up by %s"), *ItemName, *PickupActor->GetName());
+	LOG_LOGIC_INFO(TEXT("Item %s picked up by %s"), *ItemName, *PickupActor->GetName());
 
 	// TODO: Add item to player inventory and 
 	// TODO: don't runtime destroy change to item pooling
