@@ -49,19 +49,28 @@ void AItemBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	//Server
 	if (HasAuthority())
 	{
 		CurrentLifeTime += DeltaTime;
 		if (CurrentLifeTime >= LifeSpan)
 		{
+			// TODO: don't runtime destroy change to item pooling
 			Destroy();
 		}
 	}
 
-	// Add rotation animation
-	FRotator NewRotation = GetActorRotation();
-	NewRotation.Yaw += DeltaTime * 90.f;
-	SetActorRotation(NewRotation);
+
+	//Client
+	{
+		// Add rotation animation (mesh only, no network replication)
+		if (MeshComponent)
+		{
+			FRotator NewRotation = MeshComponent->GetRelativeRotation();
+			NewRotation.Yaw += DeltaTime * 90.f;
+			MeshComponent->SetRelativeRotation(NewRotation);
+		}
+	}
 }
 
 void AItemBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -90,7 +99,8 @@ void AItemBase::OnPickup(AActor* PickupActor)
 
 	UE_LOG(LogTemp, Log, TEXT("Item %s picked up by %s"), *ItemName, *PickupActor->GetName());
 
-	// TODO: Add item to player inventory
+	// TODO: Add item to player inventory and 
+	// TODO: don't runtime destroy change to item pooling
 	// For now, just destroy the item
 	Destroy();
 }
