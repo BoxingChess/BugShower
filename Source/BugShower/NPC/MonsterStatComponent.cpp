@@ -11,12 +11,15 @@ UMonsterStatComponent::UMonsterStatComponent()
 	SetIsReplicatedByDefault(true);
 
 	// Default values
+	Name = TEXT("Monster");
+	Grade = EMonsterGrade::NORMAL;
 	CurHP = 100.f;
 	MaxHP = 100.f;
 	Damage = 10.f;
 	Defense = 5.f;
-	Grade = EMonsterGrade::NORMAL;
-	Name = TEXT("Monster");
+	MoveSpeed = 100.f;
+	AttackSpeed = 1.f;
+	AttackRange = 150.f;
 }
 
 void UMonsterStatComponent::ReadyForReplication()
@@ -38,6 +41,9 @@ void UMonsterStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(UMonsterStatComponent, MaxHP);
 	DOREPLIFETIME(UMonsterStatComponent, Damage);
 	DOREPLIFETIME(UMonsterStatComponent, Defense);
+	DOREPLIFETIME(UMonsterStatComponent, MoveSpeed);
+	DOREPLIFETIME(UMonsterStatComponent, AttackSpeed);
+	DOREPLIFETIME(UMonsterStatComponent, AttackRange);
 }
 
 void UMonsterStatComponent::BeginPlay()

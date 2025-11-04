@@ -25,6 +25,24 @@ public:
 	// Sets default values for this character's properties
 	AMonsterBase();
 
+
+	//fixed value for monster stats
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	float DashSpeed;
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	float DashDistance;
+
+	// Drop chance (0.0 - 1.0)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	float DropChance;
+
+	// Number of items to drop
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	int32 MinDropCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	int32 MaxDropCount;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -50,16 +68,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
 	TArray<TSubclassOf<class AItemBase>> DropTable;
 
-	// Drop chance (0.0 - 1.0)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
-	float DropChance;
-
-	// Number of items to drop
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
-	int32 MinDropCount;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
-	int32 MaxDropCount;
+	
 
 	// Drop items at monster location
 	void DropItems();

@@ -22,7 +22,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, float, CurrentHP, flo
 
 
 
-//management of monster stats(hp,death...)
+//management of monster changed stats (hp,death...)
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class BUGSHOWER_API UMonsterStatComponent : public UActorComponent
 {
@@ -49,6 +49,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	float GetDefense() const { return Defense; }
+	float GetMoveSpeed() const { return MoveSpeed; }
 
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	FString GetMonsterName() const { return Name; }
@@ -109,4 +110,13 @@ private:
 
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
 	float Defense;
+
+	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	float MoveSpeed;
+
+	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	float AttackSpeed;
+
+	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	float AttackRange;
 };

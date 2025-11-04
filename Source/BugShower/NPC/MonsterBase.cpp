@@ -7,6 +7,8 @@
 #include "NPC/MonsterStatComponent.h"
 #include "Item/ItemBase.h"
 #include "Logging/BugShowerLog.h"
+#include "GameFramework/CharacterMovementComponent.h"
+
 
 
 // Sets default values
@@ -24,10 +26,17 @@ AMonsterBase::AMonsterBase()
 	// Create MonsterStatComponent
 	MonsterStatComp = CreateDefaultSubobject<UMonsterStatComponent>(TEXT("MonsterStatComponent"));
 
-	// Default drop settings
+	// Default fixed value settings
+	DashSpeed = 600.f;
+	DashDistance = 600.f;
 	DropChance = 0.5f;
 	MinDropCount = 1;
 	MaxDropCount = 3;
+
+
+
+	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
+
 }
 
 // Called when the game starts or when spawned
