@@ -32,6 +32,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Stat")
 	float DashDistance;
 
+	// Ranged attack settings
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	float RangedAttackRange;
+	UPROPERTY(EditAnywhere, Category = "Stat")
+	float ProjectileSpeed;
+
 	// Drop chance (0.0 - 1.0)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
 	float DropChance;
@@ -58,6 +64,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	class UMonsterStatComponent* GetMonsterStatComponent() const { return MonsterStatComp; }
 
+	// Fire projectile towards target (called from BT Task)
+	void FireProjectile(AActor* Target);
+
 	// Drop item on death
 	UFUNCTION()
 	void OnDeath(AActor* DeadMonster);
@@ -68,7 +77,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
 	TArray<TSubclassOf<class AItemBase>> DropTable;
 
-	
+	// Projectile class to spawn - set in Blueprint
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	TSubclassOf<class AMonsterProjectile> ProjectileClass;
 
 	// Drop items at monster location
 	void DropItems();
