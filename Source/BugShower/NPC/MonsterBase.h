@@ -7,13 +7,24 @@
 #include "MonsterBase.generated.h"
 
 
-UENUM()
-enum class Grade : uint8
+UENUM(BlueprintType)
+enum class EMonsterGrade : uint8
 {
-	NORMAL,
-	ELITE,
-	BOSS
+	NORMAL UMETA(DisplayName = "Normal"),
+	ELITE UMETA(DisplayName = "Elite"),
+	BOSS UMETA(DisplayName = "Boss")
 };
+
+UENUM(BlueprintType)
+enum class EAttackType : uint8
+{
+	Melee UMETA(DisplayName = "근거리"),
+	Ranged UMETA(DisplayName = "원거리"),
+	Flying UMETA(DisplayName = "공중"),
+};
+
+
+
 
 // Base class for all monsters
 UCLASS()
@@ -48,6 +59,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
 	int32 MaxDropCount;
+
+
+
 
 protected:
 	// Called when the game starts or when spawned

@@ -12,7 +12,7 @@ UMonsterStatComponent::UMonsterStatComponent()
 
 	// Default values
 	Name = TEXT("Monster");
-	Grade = EMonsterGrade::NORMAL;
+
 	CurHP = 100.f;
 	MaxHP = 100.f;
 	Damage = 10.f;
@@ -36,7 +36,6 @@ void UMonsterStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 
 	// Stats: change during waves/upgrades -> replicate when changed (default behavior)
 	// These use delta compression automatically - only sends when value changes
-	DOREPLIFETIME(UMonsterStatComponent, Grade);
 	DOREPLIFETIME(UMonsterStatComponent, CurHP);
 	DOREPLIFETIME(UMonsterStatComponent, MaxHP);
 	DOREPLIFETIME(UMonsterStatComponent, Damage);
@@ -128,7 +127,6 @@ void UMonsterStatComponent::InitStats(FString InName, EMonsterGrade InGrade, flo
 		return;
 
 	Name = InName;
-	Grade = InGrade;
 	MaxHP = InMaxHP;
 	CurHP = InMaxHP;
 	Damage = InDamage;

@@ -38,5 +38,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogLogic, Log, All);
 #define LOG_LOGIC_WARNING(Message, ...) \
     UE_LOG(LogLogic, Warning, TEXT("[LOGIC] " Message), ##__VA_ARGS__)
 
+// Always visible (for errors)
+#define LOG_LOGIC_ERROR(Message, ...) \
+    UE_LOG(LogLogic, Error, TEXT("[LOGIC] " Message), ##__VA_ARGS__)
+
 
 #pragma endregion InLogic

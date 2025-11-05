@@ -93,6 +93,20 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 				// Update TargetActor
 				BlackBoard->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, CurClosestPlayer);
 			}
+
+			// Check if target is in ranged attack range
+			AMonsterBase* MonsterBase = Cast<AMonsterBase>(Monster);
+			if (MonsterBase)
+			{
+				// Target is in ranged range if within RangedAttackRange
+				bool bIsInRangedRange = (ClosestDist <= MonsterBase->RangedAttackRange);
+				BlackBoard->SetValueAsBool(MONSTER_BOARD_KEY_ISINRANGEDRANGE, bIsInRangedRange);
+
+				LOG_BT(TEXT("Distance to target: %.1f, RangedAttackRange: %.1f, IsInRangedRange: %s"),
+					ClosestDist,
+					MonsterBase->RangedAttackRange,
+					bIsInRangedRange ? TEXT("TRUE") : TEXT("FALSE"));
+			}
 		}
 		else
 		{
@@ -100,6 +114,7 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 				*Monster->GetName());
 
 			BlackBoard->ClearValue(MONSTER_BOARD_KEY_TARGETACTOR);
+			BlackBoard->SetValueAsBool(MONSTER_BOARD_KEY_ISINRANGEDRANGE, false);
 		}
 	}
 }

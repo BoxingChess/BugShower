@@ -6,13 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "MonsterStatComponent.generated.h"
 
-UENUM(BlueprintType)
-enum class EMonsterGrade : uint8
-{
-	NORMAL UMETA(DisplayName = "Normal"),
-	ELITE UMETA(DisplayName = "Elite"),
-	BOSS UMETA(DisplayName = "Boss")
-};
+
 
 // Delegate for death event (passes the monster actor as parameter)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMonsterDeath, AActor*, DeadMonster);
@@ -55,9 +49,6 @@ public:
 	FString GetMonsterName() const { return Name; }
 
 	UFUNCTION(BlueprintCallable, Category = "Stat")
-	EMonsterGrade GetGrade() const { return Grade; }
-
-	UFUNCTION(BlueprintCallable, Category = "Stat")
 	bool IsDead() const { return CurHP <= 0.f; }
 
 	// Stat modifiers (server only)
@@ -96,8 +87,7 @@ private:
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
 	FString Name;
 
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
-	EMonsterGrade Grade;
+	
 
 	UPROPERTY(ReplicatedUsing = OnRep_ChangeHP, EditAnywhere, Category = "Stat")
 	float CurHP;
