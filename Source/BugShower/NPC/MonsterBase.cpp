@@ -31,7 +31,7 @@ AMonsterBase::AMonsterBase()
 	// Default fixed value settings
 	DashSpeed = 600.f;
 	DashDistance = 600.f;
-	RangedAttackRange = 1500.f;
+	AttackRange = 1500.f;
 	ProjectileSpeed = 1000.f;
 	DropChance = 0.5f;
 	MinDropCount = 1;
@@ -99,9 +99,35 @@ void AMonsterBase::FireProjectile(AActor* Target)
 	FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.0f;
 	SpawnLocation.Z += 50.0f;  // Spawn at chest height
 
-	// Calculate direction to target
+	// Calculate target location
 	FVector TargetLocation = Target->GetActorLocation();
-	FVector Direction = (TargetLocation - SpawnLocation).GetSafeNormal();
+
+	// Calculate arc velocity (grenade-like trajectory)
+	FVector LaunchVelocity;
+
+	// Use standard SuggestProjectileVelocity with high arc for grenade-like effect
+	bool bHaveArc = UGameplayStatics::SuggestProjectileVelocity(
+		this,
+		LaunchVelocity,
+		SpawnLocation,
+		TargetLocation,
+		ProjectileSpeed,  // Use projectile speed from MonsterBase
+		true,  // use high arc  default is false
+		0.0f,   // No collision radius
+		0.0f,   // Override gravity Z (0 = use world gravity)
+		ESuggestProjVelocityTraceOption::DoNotTrace  // Don't trace for obstacles
+	);
+
+	// If arc calculation succeeded, modify velocity for very high arc trajectory
+	if (bHaveArc)
+	{
+		LOG_LOGIC_INFO(TEXT("FireProjectile: Calculated high-arc mortar trajectory"));
+	}
+	else
+	{
+		LOG_LOGIC_WARNING(TEXT("FireProjectile: Could not calculate arc trajectory, target may be unreachable"));
+		return;  // Don't fire if we can't reach the target
+	}
 
 	// Spawn projectile
 	FActorSpawnParameters SpawnParams;
@@ -112,7 +138,7 @@ void AMonsterBase::FireProjectile(AActor* Target)
 	AMonsterProjectile* Projectile = GetWorld()->SpawnActor<AMonsterProjectile>(
 		ProjectileClass,
 		SpawnLocation,
-		Direction.Rotation(),
+		LaunchVelocity.Rotation(),
 		SpawnParams
 	);
 
@@ -121,10 +147,10 @@ void AMonsterBase::FireProjectile(AActor* Target)
 		// Get damage from MonsterStatComponent
 		float Damage = MonsterStatComp ? MonsterStatComp->GetDamage() : 10.0f;
 
-		// Initialize projectile
-		Projectile->InitializeProjectile(Direction, Damage, this);
+		// Initialize projectile with calculated arc velocity
+		Projectile->InitializeProjectileWithVelocity(LaunchVelocity, Damage, this);
 
-		LOG_LOGIC_INFO(TEXT("Monster %s fired projectile at %s"), *GetName(), *Target->GetName());
+		LOG_LOGIC_INFO(TEXT("Monster %s fired projectile at %s with arc trajectory"), *GetName(), *Target->GetName());
 	}
 	else
 	{

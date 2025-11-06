@@ -32,7 +32,7 @@ AMonsterProjectile::AMonsterProjectile()
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
 	ProjectileMovement->UpdatedComponent = CollisionComp;
 	ProjectileMovement->InitialSpeed = 1000.0f;
-	ProjectileMovement->MaxSpeed = 1000.0f;
+	ProjectileMovement->MaxSpeed = 5000.0f;
 	ProjectileMovement->bRotationFollowsVelocity = true;
 	ProjectileMovement->bShouldBounce = false;
 	ProjectileMovement->ProjectileGravityScale = 1.0f;  // Enable gravity for arc
@@ -62,6 +62,21 @@ void AMonsterProjectile::InitializeProjectile(const FVector& Direction, float In
 
 		LOG_LOGIC_INFO(TEXT("Projectile initialized: Direction=%s, Damage=%.1f, Speed=%.1f"),
 			*Direction.ToString(), Damage, ProjectileMovement->InitialSpeed);
+	}
+}
+
+void AMonsterProjectile::InitializeProjectileWithVelocity(const FVector& Velocity, float InDamage, AActor* InOwner)
+{
+	Damage = InDamage;
+	ProjectileOwner = InOwner;
+
+	if (ProjectileMovement)
+	{
+		// Set exact velocity (already calculated with arc trajectory)
+		ProjectileMovement->Velocity = Velocity;
+
+		LOG_LOGIC_INFO(TEXT("Projectile initialized with velocity: Velocity=%s, Damage=%.1f"),
+			*Velocity.ToString(), Damage);
 	}
 }
 

@@ -21,6 +21,9 @@ public:
 	// Initialize projectile with direction and damage
 	void InitializeProjectile(const FVector& Direction, float InDamage, AActor* InOwner);
 
+	// Initialize projectile with exact velocity (for arc trajectories)
+	void InitializeProjectileWithVelocity(const FVector& Velocity, float InDamage, AActor* InOwner);
+
 protected:
 	// Called when projectile hits something
 	UFUNCTION()
