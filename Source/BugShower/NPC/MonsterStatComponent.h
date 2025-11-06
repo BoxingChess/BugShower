@@ -92,21 +92,18 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_ChangeHP, EditAnywhere, Category = "Stat")
 	float CurHP;
 
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated, EditAnywhere, Category = "BaseStat")
 	float MaxHP;
 
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated, EditAnywhere, Category = "BaseStat")
 	float Damage;
 
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated, EditAnywhere, Category = "BaseStat")
 	float Defense;
 
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated, EditAnywhere, Category = "BaseStat")
 	float MoveSpeed;
 
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated, EditAnywhere, Category = "BaseStat")
 	float AttackSpeed;
-
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
-	float AttackRange;
 };

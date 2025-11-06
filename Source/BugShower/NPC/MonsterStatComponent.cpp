@@ -19,7 +19,6 @@ UMonsterStatComponent::UMonsterStatComponent()
 	Defense = 5.f;
 	MoveSpeed = 100.f;
 	AttackSpeed = 1.f;
-	AttackRange = 150.f;
 }
 
 void UMonsterStatComponent::ReadyForReplication()
@@ -42,7 +41,6 @@ void UMonsterStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>
 	DOREPLIFETIME(UMonsterStatComponent, Defense);
 	DOREPLIFETIME(UMonsterStatComponent, MoveSpeed);
 	DOREPLIFETIME(UMonsterStatComponent, AttackSpeed);
-	DOREPLIFETIME(UMonsterStatComponent, AttackRange);
 }
 
 void UMonsterStatComponent::BeginPlay()

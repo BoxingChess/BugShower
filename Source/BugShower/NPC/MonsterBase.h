@@ -18,9 +18,9 @@ enum class EMonsterGrade : uint8
 UENUM(BlueprintType)
 enum class EAttackType : uint8
 {
-	Melee UMETA(DisplayName = "근거리"),
-	Ranged UMETA(DisplayName = "원거리"),
-	Flying UMETA(DisplayName = "공중"),
+	Melee UMETA(DisplayName = "Melee"),
+	Ranged UMETA(DisplayName = "Ranged"),
+	Flying UMETA(DisplayName = "Flying"),
 };
 
 
@@ -38,30 +38,35 @@ public:
 
 
 	//fixed value for monster stats
-	UPROPERTY(EditAnywhere, Category = "Stat")
+	UPROPERTY(EditAnywhere, Category = "MeleeStat")
 	float DashSpeed;
-	UPROPERTY(EditAnywhere, Category = "Stat")
+	UPROPERTY(EditAnywhere, Category = "MeleeStat")
 	float DashDistance;
 
 	// Ranged attack settings
-	UPROPERTY(EditAnywhere, Category = "Stat")
-	float RangedAttackRange;
-	UPROPERTY(EditAnywhere, Category = "Stat")
+	UPROPERTY(EditAnywhere, Category = "RangedStat")
+	float AttackRange;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RangedStat")
+	float MinAttackRange;
+
+	UPROPERTY(EditAnywhere, Category = "RangedStat")
 	float ProjectileSpeed;
 
 	// Drop chance (0.0 - 1.0)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
 	float DropChance;
 
 	// Number of items to drop
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
 	int32 MinDropCount;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
 	int32 MaxDropCount;
 
-
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
+	EMonsterGrade Grade;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
+	EAttackType Type;
 
 protected:
 	// Called when the game starts or when spawned
