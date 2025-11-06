@@ -6,12 +6,13 @@
 #include "Kismet/GameplayStatics.h"
 
 #include "BehaviorTree/BehaviorTreeComponent.h"
-#include "BehaviorTree/BlackboardComponent.h"	
+#include "BehaviorTree/BlackboardComponent.h"
 
 
 #include "NPC/MonsterBase.h"
 #include "AIController.h"
 #include "Engine/OverlapResult.h"
+#include "DrawDebugHelpers.h"
 
 
 
@@ -94,18 +95,60 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 				BlackBoard->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, CurClosestPlayer);
 			}
 
-			// Check if target is in ranged attack range
+			// Check if target is in attack range (for ranged monsters)
 			AMonsterBase* MonsterBase = Cast<AMonsterBase>(Monster);
-			if (MonsterBase)
+			if (MonsterBase && MonsterBase->Type == EAttackType::Ranged)
 			{
-				// Target is in ranged range if within RangedAttackRange
-				bool bIsInRangedRange = (ClosestDist <= MonsterBase->RangedAttackRange);
+				// Check if distance is within min and max attack range
+				bool bIsInRangedRange = (MonsterBase->MinAttackRange <= ClosestDist && ClosestDist <= MonsterBase->AttackRange);
 				BlackBoard->SetValueAsBool(MONSTER_BOARD_KEY_ISINRANGEDRANGE, bIsInRangedRange);
 
-				LOG_BT(TEXT("Distance to target: %.1f, RangedAttackRange: %.1f, IsInRangedRange: %s"),
+				LOG_BT(TEXT("Distance: %.1f, Min: %.1f, Max: %.1f, InRange: %s"),
 					ClosestDist,
-					MonsterBase->RangedAttackRange,
+					MonsterBase->MinAttackRange,
+					MonsterBase->AttackRange,
 					bIsInRangedRange ? TEXT("TRUE") : TEXT("FALSE"));
+
+				// Draw debug visualization for attack ranges
+				FVector MonsterLocation = Monster->GetActorLocation();
+
+				// Draw minimum attack range (red sphere)
+				DrawDebugSphere(
+					World,
+					MonsterLocation,
+					MonsterBase->MinAttackRange,
+					32,
+					FColor::Red,
+					false,
+					0.2f,
+					0,
+					2.0f
+				);
+
+				// Draw maximum attack range (green sphere)
+				DrawDebugSphere(
+					World,
+					MonsterLocation,
+					MonsterBase->AttackRange,
+					32,
+					FColor::Green,
+					false,
+					0.2f,
+					0,
+					2.0f
+				);
+
+				// Draw line to target (yellow if in range, gray if out of range)
+				DrawDebugLine(
+					World,
+					MonsterLocation,
+					CurClosestPlayer->GetActorLocation(),
+					bIsInRangedRange ? FColor::Yellow : FColor::Silver,
+					false,
+					0.2f,
+					0,
+					3.0f
+				);
 			}
 		}
 		else
