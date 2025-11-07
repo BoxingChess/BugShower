@@ -4,16 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "CharacterBase.generated.h"
+#include "BSCharacterBase.generated.h"
 
 UCLASS()
-class BUGSHOWER_API ACharacterBase : public ACharacter
+class BUGSHOWER_API ABSCharacterBase : public ACharacter
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this character's properties
-	ACharacterBase();
+	ABSCharacterBase();
 
 protected:
 	// Called when the game starts or when spawned
