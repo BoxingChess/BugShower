@@ -69,6 +69,8 @@ void APooling::BeginPlay()
 	}
 
 	// Create Item Pool
+	LOG_LOGIC_INFO(TEXT("Creating Item Pool with size %d, ItemClass: %s"), PoolSize, ItemClass ? *ItemClass->GetName() : TEXT("NULL"));
+
 	for (int i = 0; i < PoolSize; i++)
 	{
 		if (GetWorld())
@@ -91,7 +93,7 @@ void APooling::BeginPlay()
 
 				if (!PoolMap.Contains(EPoolType::Item))
 				{
-					PoolMap.Add(EPoolType::Item, { Item});
+					PoolMap.Add(EPoolType::Item, {Item});
 
 				}
 				else
@@ -184,8 +186,8 @@ TScriptInterface<ISpawnable> APooling::FindInActiveMonster(EPoolType type)
 			{
 				return Monster;
 			}
-			break;
 		}
+		break;
 
 		case EPoolType::Item:
 		{
@@ -194,8 +196,8 @@ TScriptInterface<ISpawnable> APooling::FindInActiveMonster(EPoolType type)
 			{
 				return Item;
 			}
-			break;
 		}
+		break;
 
 		case EPoolType::Bullet:
 		{
@@ -204,13 +206,14 @@ TScriptInterface<ISpawnable> APooling::FindInActiveMonster(EPoolType type)
 			{
 				return Bullet;
 			}
-			break;
 		}
+		break;
 
 		default:
 			break;
 	}
 
+	LOG_LOGIC_INFO("Return null if no spawnable %d object is available",type);
 	// Return null if no spawnable object is available
 	return TScriptInterface<ISpawnable>();
 }
@@ -265,10 +268,7 @@ void APooling::Spawn(const EPoolType type)
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 		if (NavSys && NavSys->GetRandomPointInNavigableRadius(GetActorLocation(), SpawnRadius, SpawnPos))
 		{
-			SpawnPos.Location.Z = 0;
-
-
-			Spawnable->Spawn(SpawnPos);
+			Spawnable->Spawn(SpawnPos.Location);
 			LOG_LOGIC_INFO(TEXT("Spawned %d at location: %s"), (int)type, *SpawnPos.Location.ToString());
 		}
 		else
@@ -280,6 +280,27 @@ void APooling::Spawn(const EPoolType type)
 	{
 		LOG_LOGIC_WARNING(TEXT("No available %d to spawn"), (int)type);
 	}
+}
+
+void APooling::Spawn(const EPoolType type, FVector pos)
+{
+	if (!HasAuthority())
+		return;
+
+	LOG_LOGIC_INFO(TEXT("Trying to spawn type %d at %s"), (int)type, *pos.ToString());
+
+	TScriptInterface<ISpawnable> Spawnable = FindInActiveMonster(type);
+
+	if (Spawnable)
+	{
+		Spawnable->Spawn(pos);
+		LOG_LOGIC_INFO(TEXT("Successfully spawned %d at location: %s"), (int)type, *pos.ToString());
+	}
+	else
+	{
+		LOG_LOGIC_ERROR(TEXT("No available %d in pool! Pool may be empty or not initialized."), (int)type);
+	}
+
 }
 
 void APooling::ReturnPool(TScriptInterface<ISpawnable> spawnable)

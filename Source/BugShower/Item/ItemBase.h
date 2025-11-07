@@ -4,21 +4,35 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NPC/Spawnable.h"
 #include "ItemBase.generated.h"
 
 UENUM(BlueprintType)
 enum class EItemType : uint8
 {
-	CONSUMABLE UMETA(DisplayName = "Consumable"),//¼Òºñ
-	EQUIPMENT UMETA(DisplayName = "Equipment"),//Àåºñ
-	QUEST UMETA(DisplayName = "Quest"),//Äù½ºÆ®
-	MATERIAL UMETA(DisplayName = "Material")//Àç·á
+	CONSUMABLE UMETA(DisplayName = "Consumable"),//ï¿½Òºï¿½
+	EQUIPMENT UMETA(DisplayName = "Equipment"),//ï¿½ï¿½ï¿½
+	QUEST UMETA(DisplayName = "Quest"),//ï¿½ï¿½ï¿½ï¿½Æ®
+	MATERIAL UMETA(DisplayName = "Material")//ï¿½ï¿½ï¿½
 };
 
 UCLASS()
-class BUGSHOWER_API AItemBase : public AActor
+class BUGSHOWER_API AItemBase : public AActor, public ISpawnable
 {
 	GENERATED_BODY()
+
+	// Interface  functions
+public:
+	virtual EPoolType GetPoolType() const override { return EPoolType::Item; }
+	virtual void InitState(AActor* InOwningSpawnPool) override;
+	virtual void Spawn(const FVector pos) override;
+	virtual void ReturnPool() override;
+
+	UFUNCTION()
+	virtual void DeSpawn() override;
+
+protected:
+	TWeakObjectPtr<AActor> OwningPool;
 
 public:
 	AItemBase();
@@ -39,9 +53,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	int32 ItemValue;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
-	float LifeSpan;
-
 	// Components
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	class UStaticMeshComponent* MeshComponent;
@@ -57,6 +68,8 @@ protected:
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	float LifeSpan;
 private:
 	float CurrentLifeTime;
 };

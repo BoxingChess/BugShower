@@ -33,13 +33,17 @@ public:
 	// Called when a object is returned to the pool
 	UFUNCTION()
 	void ReturnPool(TScriptInterface<ISpawnable> spawnable);
+	// Spawn a specified type at pos
+	void Spawn(const EPoolType type, FVector pos);
+
+
 protected:
+	void Spawn(const EPoolType type);	//only server spawning monsters
 
 
 
 	TScriptInterface<ISpawnable>FindInActiveMonster(const EPoolType type);
 	void InActiveAll();
-	void Spawn(const EPoolType type);
 
 
 	TMap<EPoolType, TArray<TScriptInterface<ISpawnable>>> PoolMap;

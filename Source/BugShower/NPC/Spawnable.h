@@ -27,7 +27,7 @@ class BUGSHOWER_API ISpawnable
 public:
 	virtual EPoolType GetPoolType() const = 0;
 	virtual void InitState(class AActor* InOwningSpawnPool) = 0;
-	virtual void Spawn(FNavLocation pos) = 0;
+	virtual void Spawn(const FVector pos) = 0;
 
 	//forcing return to pool
 	virtual void ReturnPool() = 0; 

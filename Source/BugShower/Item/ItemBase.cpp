@@ -5,6 +5,61 @@
 #include "Components/SphereComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Logging/BugShowerLog.h"
+#include "NPC/Pooling.h"
+
+void AItemBase::InitState(AActor* InOwningSpawnPool)
+{
+	//set inactive state
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	//set owning pool
+	OwningPool = InOwningSpawnPool;
+}
+
+void AItemBase::Spawn(const FVector pos)
+{
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	SetActorTickEnabled(true);
+	SetActorLocation(pos);
+
+	// Reset lifetime when spawned from pool
+	CurrentLifeTime = 0.f;
+}
+
+void AItemBase::ReturnPool()
+{
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	if (OwningPool.IsValid())
+	{
+		APooling* PoolActor = Cast<APooling>(OwningPool.Get());
+		if (PoolActor)
+		{
+			PoolActor->ReturnPool(this);
+		}
+	}
+}
+
+void AItemBase::DeSpawn()
+{
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	if (OwningPool.IsValid())
+	{
+		APooling* PoolActor = Cast<APooling>(OwningPool.Get());
+		if (PoolActor)
+		{
+			PoolActor->ReturnPool(this);
+		}
+	}
+}
 
 AItemBase::AItemBase()
 {
@@ -56,8 +111,7 @@ void AItemBase::Tick(float DeltaTime)
 		CurrentLifeTime += DeltaTime;
 		if (CurrentLifeTime >= LifeSpan)
 		{
-			// TODO: don't runtime destroy change to item pooling
-			Destroy();
+			DeSpawn();
 		}
 	}
 
@@ -107,6 +161,5 @@ void AItemBase::OnPickup(AActor* PickupActor)
 
 	// TODO: Add item to player inventory and 
 	// TODO: don't runtime destroy change to item pooling
-	// For now, just destroy the item
-	Destroy();
+	DeSpawn();
 }

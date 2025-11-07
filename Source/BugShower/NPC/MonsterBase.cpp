@@ -29,9 +29,9 @@ void AMonsterBase::InitState(AActor* InOwningSpawnPool)
 	MonsterStatComp->OnDeath.BindDynamic(this, &AMonsterBase::DeSpawn);
 }
 
-void AMonsterBase::Spawn(FNavLocation pos)
+void AMonsterBase::Spawn(const FVector pos)
 {
-	SetActorLocation(pos.Location);
+	SetActorLocation(pos);
 	SetActorHiddenInGame(false);
 	SetActorEnableCollision(true);
 	SetActorTickEnabled(true);
@@ -76,8 +76,11 @@ void AMonsterBase::DeSpawn()
 	if (PoolActor)
 	{
 		PoolActor->ReturnPool(this);
-		return;
 	}
+
+	DropItems();
+
+	return;
 }
 
 void AMonsterBase::ReturnPool()
@@ -269,45 +272,50 @@ void AMonsterBase::DropItems()
 	if (!HasAuthority())
 		return;
 
-	if (DropTable.Num() == 0)
-		return;
+	//if (DropTable.Num() == 0)
+	//	return;
 
-	// Check drop chance
-	float RandomValue = FMath::FRand();
-	if (RandomValue > DropChance)
-		return;
+	//// Check drop chance
+	//float RandomValue = FMath::FRand();
+	//if (RandomValue > DropChance)
+	//	return;
 
-	// Determine number of items to drop
-	int32 DropCount = FMath::RandRange(MinDropCount, MaxDropCount);
-	DropCount = FMath::Min(DropCount, DropTable.Num());
+	//// Determine number of items to drop
+	//int32 DropCount = FMath::RandRange(MinDropCount, MaxDropCount);
+	//DropCount = FMath::Min(DropCount, DropTable.Num());
 
 	FVector DropLocation = GetActorLocation();
+	DropLocation.Z += 50.f; // Slightly above ground
 	FRotator DropRotation = FRotator::ZeroRotator;
 
-	for (int32 i = 0; i < DropCount; i++)
+
+	APooling* PoolActor = Cast<APooling>(OwningPool);
+	if (PoolActor)
 	{
-		// Select random item from drop table
-		int32 RandomIndex = FMath::RandRange(0, DropTable.Num() - 1);
-		TSubclassOf<AItemBase> ItemClass = DropTable[RandomIndex];
-
-		if (ItemClass)
-		{
-			// Add random offset to avoid items stacking
-			FVector Offset = FVector(
-				FMath::RandRange(-100.f, 100.f),
-				FMath::RandRange(-100.f, 100.f),
-				50.f
-			);
-
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
-			AItemBase* DroppedItem = GetWorld()->SpawnActor<AItemBase>(ItemClass, DropLocation + Offset, DropRotation, SpawnParams);
-			if (DroppedItem)
-			{
-				LOG_LOGIC_INFO(TEXT("Monster %s dropped item: %s"), *GetName(), *DroppedItem->ItemName);
-			}
-		}
+		PoolActor->Spawn(EPoolType::Item, DropLocation);
+		LOG_LOGIC_INFO(TEXT("Monster %s dropped item from pool"), *GetName());
 	}
+
+	//for (int32 i = 0; i < DropCount; i++)
+	//{
+	//	// Select random item from drop table
+	//	int32 RandomIndex = FMath::RandRange(0, DropTable.Num() - 1);
+	//	TSubclassOf<AItemBase> ItemClass = DropTable[RandomIndex];
+
+	//	if (ItemClass)
+	//	{
+	//		// Add random offset to avoid items stacking
+	//		FVector Offset = FVector(
+	//			FMath::RandRange(-100.f, 100.f),
+	//			FMath::RandRange(-100.f, 100.f),
+	//			50.f
+	//		);
+
+	//		FActorSpawnParameters SpawnParams;
+	//		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	//		
+	//		
+	//	}
+	//}
 }
 
