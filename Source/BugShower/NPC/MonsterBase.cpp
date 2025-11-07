@@ -10,8 +10,105 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Projectile/MonsterProjectile.h"
 #include "Kismet/GameplayStatics.h"
+#include "NPC/Spawnable.h"
+
+#include "NPC/Pooling.h"
 
 
+void AMonsterBase::InitState(AActor* InOwningSpawnPool)
+{
+	//set inactive state
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	//set owning pool
+	OwningPool = InOwningSpawnPool;
+
+	// Subscribe to death event
+	MonsterStatComp->OnDeath.BindDynamic(this, &AMonsterBase::DeSpawn);
+}
+
+void AMonsterBase::Spawn(FNavLocation pos)
+{
+	SetActorLocation(pos.Location);
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	SetActorTickEnabled(true);
+
+	MonsterStatComp->ResetHP();
+
+	AAIController* AI = Cast<AAIController>(GetController());
+	if (AI)
+	{
+		AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
+		if (MonsterAI)
+		{
+			MonsterAI->RunAI();
+			return;
+		}
+	}
+}
+
+void AMonsterBase::DeSpawn()
+{
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	// Stop AI
+	AAIController* AI = Cast<AAIController>(GetController());
+	if (AI)
+	{
+		AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
+		if (MonsterAI)
+		{
+			MonsterAI->StopAI();
+		}
+	}
+
+	if (!OwningPool.IsValid())
+	{
+		return;
+	}
+
+	APooling* PoolActor = Cast<APooling>(OwningPool);
+	if (PoolActor)
+	{
+		PoolActor->ReturnPool(this);
+		return;
+	}
+}
+
+void AMonsterBase::ReturnPool()
+{
+	if (!OwningPool.IsValid())
+	{
+		return;
+	}
+
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	// Stop AI
+	AAIController* AI = Cast<AAIController>(GetController());
+	if (AI)
+	{
+		AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
+		if (MonsterAI)
+		{
+			MonsterAI->StopAI();
+		}
+	}
+
+	APooling* PoolActor = Cast<APooling>(OwningPool);
+	if (PoolActor)
+	{
+		PoolActor->ReturnPool(this);
+		return;
+	}
+}
 
 // Sets default values
 AMonsterBase::AMonsterBase()

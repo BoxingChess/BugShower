@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "NPC/Spawnable.h"
+#include "NPC/PoolingType.h"
 #include "MonsterBase.generated.h"
-
 
 UENUM(BlueprintType)
 enum class EMonsterGrade : uint8
@@ -28,10 +29,24 @@ enum class EAttackType : uint8
 
 // Base class for all monsters
 UCLASS()
-class BUGSHOWER_API AMonsterBase : public ACharacter
+class BUGSHOWER_API AMonsterBase : public ACharacter, public ISpawnable
 {
 	GENERATED_BODY()
 
+	// Interface  functions
+public:
+	virtual EPoolType GetPoolType() const override { return EPoolType::Monster; }
+	virtual void InitState(AActor* InOwningSpawnPool) override;
+	virtual void Spawn(FNavLocation pos) override;
+
+
+	UFUNCTION()
+	virtual void DeSpawn() override;
+
+	virtual void ReturnPool() override;
+
+protected:
+	TWeakObjectPtr<AActor> OwningPool;
 public:
 	// Sets default values for this character's properties
 	AMonsterBase();

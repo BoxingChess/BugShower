@@ -64,7 +64,8 @@ void UMonsterStatComponent::CheckDeath()
 		if (GetOwner() && GetOwner()->HasAuthority())
 		{
 			LOG_LOGIC_INFO(TEXT("Monster %s is Dead"), *GetOwner()->GetName());
-			OnMonsterDeath.Broadcast(GetOwner());
+			//OnMonsterDeath.Broadcast(GetOwner());
+			OnDeath.Execute();
 		}
 	}
 }

@@ -11,6 +11,9 @@
 // Delegate for death event (passes the monster actor as parameter)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMonsterDeath, AActor*, DeadMonster);
 
+// Simple delegate for death event without parameters
+DECLARE_DYNAMIC_DELEGATE(FOnDeath);
+
 // Delegate for HP changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, float, CurrentHP, float, MaxHP);
 
@@ -74,6 +77,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Stat")
 	FOnMonsterDeath OnMonsterDeath;
 
+	UPROPERTY()
+	FOnDeath OnDeath;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -84,12 +90,10 @@ private:
 	void CheckDeath();
 
 	//stat
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat")
+	UPROPERTY(Replicated, EditAnywhere, Category = "BaseStat")
 	FString Name;
 
-	
-
-	UPROPERTY(ReplicatedUsing = OnRep_ChangeHP, EditAnywhere, Category = "Stat")
+	UPROPERTY(ReplicatedUsing = OnRep_ChangeHP, EditAnywhere, Category = "BaseStat")
 	float CurHP;
 
 	UPROPERTY(Replicated, EditAnywhere, Category = "BaseStat")
