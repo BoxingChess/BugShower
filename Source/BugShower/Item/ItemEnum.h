@@ -9,6 +9,7 @@ enum class EItemType : uint8
     Consumable						UMETA(DisplayName = "아이템 타입 - 소비"),
     Equipment						UMETA(DisplayName = "아이템 타입 - 장비"),
     Quest							UMETA(DisplayName = "아이템 타입 - 퀘스트"),
+	Material						UMETA(DisplayName = "아이템 타입 - 기타")
 };
 
 //소비템 관련 Enum

@@ -5,16 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NPC/Spawnable.h"
+#include "ItemEnum.h"
 #include "ItemBase.generated.h"
 
-UENUM(BlueprintType)
-enum class EItemType : uint8
-{
-	CONSUMABLE UMETA(DisplayName = "Consumable"),//�Һ�
-	EQUIPMENT UMETA(DisplayName = "Equipment"),//���
-	QUEST UMETA(DisplayName = "Quest"),//����Ʈ
-	MATERIAL UMETA(DisplayName = "Material")//���
-};
 
 UCLASS()
 class BUGSHOWER_API AItemBase : public AActor, public ISpawnable

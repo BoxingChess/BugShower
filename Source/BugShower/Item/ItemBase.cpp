@@ -6,6 +6,8 @@
 #include "Net/UnrealNetwork.h"
 #include "Logging/BugShowerLog.h"
 #include "NPC/Pooling.h"
+#include "Player/BSCharacterPlayer.h"
+
 
 void AItemBase::InitState(AActor* InOwningSpawnPool)
 {
@@ -85,7 +87,7 @@ AItemBase::AItemBase()
 
 	// Default values
 	ItemName = TEXT("Item");
-	ItemType = EItemType::MATERIAL;
+	ItemType = EItemType::Material;
 	ItemValue = 1;
 	LifeSpan = 30.f;
 	CurrentLifeTime = 0.f;
@@ -139,7 +141,7 @@ void AItemBase::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor*
 		return;
 
 	// Check if overlapping actor is a player
-	if (OtherActor && OtherActor->IsA(APawn::StaticClass() ))
+	if (OtherActor && OtherActor->IsA(ABSCharacterPlayer::StaticClass() ))
 	{
 		//test if it's player controller
 		APawn* Pawn = Cast<APawn>(OtherActor);
