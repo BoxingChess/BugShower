@@ -29,6 +29,7 @@ void AItemBase::Spawn(const FVector pos)
 
 	// Reset lifetime when spawned from pool
 	CurrentLifeTime = 0.f;
+
 }
 
 void AItemBase::ReturnPool()

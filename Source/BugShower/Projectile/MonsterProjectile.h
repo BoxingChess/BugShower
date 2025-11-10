@@ -4,12 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "NPC/Spawnable.h"
 #include "MonsterProjectile.generated.h"
 
 UCLASS()
-class BUGSHOWER_API AMonsterProjectile : public AActor
+class BUGSHOWER_API AMonsterProjectile : public AActor, public ISpawnable
 {
 	GENERATED_BODY()
+
+public:
+	virtual void InitState(AActor* InOwningSpawnPool) override;
+	virtual void Spawn(const FVector pos) override;
+	virtual void ReturnPool() override;
+	virtual EPoolType GetPoolType() const override { return EPoolType::Bullet; }
+	UFUNCTION()
+	virtual void DeSpawn() override;
+
+protected:
+	TWeakObjectPtr<AActor> OwningPool;
 
 public:
 	AMonsterProjectile();
@@ -23,6 +35,8 @@ public:
 
 	// Initialize projectile with exact velocity (for arc trajectories)
 	void InitializeProjectileWithVelocity(const FVector& Velocity, float InDamage, AActor* InOwner);
+
+	virtual void LifeSpanExpired() override;
 
 protected:
 	// Called when projectile hits something
@@ -50,4 +64,6 @@ private:
 	// Owner of this projectile (the monster that fired it)
 	UPROPERTY()
 	AActor* ProjectileOwner;
+
+	float Life;
 };

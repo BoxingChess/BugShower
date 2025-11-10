@@ -26,137 +26,9 @@ void APooling::BeginPlay()
 	if (!HasAuthority())
 		return;
 
-	// Create Monster Pool
-	for (int i = 0; i < PoolSize; i++)
-	{
-		if (GetWorld())
-		{
-
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			SpawnParams.Owner = this;
-			SpawnParams.Instigator = GetInstigator();
-
-			AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(MonsterClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-
-			if (SpawnedActor && SpawnedActor->Implements<USpawnable>())
-			{
-				TScriptInterface<ISpawnable> Monster;
-				Monster.SetObject(SpawnedActor);
-				Monster.SetInterface(Cast<ISpawnable>(SpawnedActor));
-
-				Monster->InitState(this);
-
-				if (!PoolMap.Contains(EPoolType::Monster))
-				{
-					PoolMap.Add(EPoolType::Monster, {Monster});
-				}
-				else
-				{
-					PoolMap[EPoolType::Monster].Add(Monster);
-				}
-				// Add to available queue
-				AvailableMonsters.Enqueue(Monster);
-
-				LOG_LOGIC_INFO(TEXT("Create Monster %d"), i);
-			}
-			else
-			{
-				LOG_LOGIC_WARNING(TEXT("Monster is not Create"));
-			}
-
-		}
-	}
-
-	// Create Item Pool
-	LOG_LOGIC_INFO(TEXT("Creating Item Pool with size %d, ItemClass: %s"), PoolSize, ItemClass ? *ItemClass->GetName() : TEXT("NULL"));
-
-	for (int i = 0; i < PoolSize; i++)
-	{
-		if (GetWorld())
-		{
-
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			SpawnParams.Owner = this;
-			SpawnParams.Instigator = GetInstigator();
-
-			AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(ItemClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-
-			if (SpawnedActor && SpawnedActor->Implements<USpawnable>())
-			{
-				TScriptInterface<ISpawnable> Item;
-				Item.SetObject(SpawnedActor);
-				Item.SetInterface(Cast<ISpawnable>(SpawnedActor));
-
-				Item->InitState(this);
-
-				if (!PoolMap.Contains(EPoolType::Item))
-				{
-					PoolMap.Add(EPoolType::Item, {Item});
-
-				}
-				else
-				{
-					PoolMap[EPoolType::Item].Add(Item);
-				}
-
-				// Add to available queue
-				AvailableItems.Enqueue(Item);
-
-				LOG_LOGIC_INFO(TEXT("Create item %d"), i);
-			}
-			else
-			{
-				LOG_LOGIC_WARNING(TEXT("Item is not Create"));
-			}
-
-		}
-	}
-
-	// Create Bullet Pool
-	for (int i = 0; i < PoolSize; i++)
-	{
-		if (GetWorld())
-		{
-
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			SpawnParams.Owner = this;
-			SpawnParams.Instigator = GetInstigator();
-
-			AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(BulletClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
-
-			if (SpawnedActor && SpawnedActor->Implements<USpawnable>())
-			{
-				TScriptInterface<ISpawnable> Bullet;
-				Bullet.SetObject(SpawnedActor);
-				Bullet.SetInterface(Cast<ISpawnable>(SpawnedActor));
-
-				Bullet->InitState(this);
-
-				if (!PoolMap.Contains(EPoolType::Item))
-				{
-					PoolMap.Add(EPoolType::Bullet, { Bullet });
-
-				}
-				else
-				{
-					PoolMap[EPoolType::Bullet].Add(Bullet);
-				}
-
-				// Add to available queue
-				AvailableBullets.Enqueue(Bullet);
-
-				LOG_LOGIC_INFO(TEXT("Create Bullet %d"), i);
-			}
-			else
-			{
-				LOG_LOGIC_WARNING(TEXT("Bullet is not Create"));
-			}
-
-		}
-	}
+	CreatePool(EPoolType::Monster, PoolSize);
+	CreatePool(EPoolType::Item, PoolSize);
+	CreatePool(EPoolType::Bullet, PoolSize);
 
 }
 
@@ -254,10 +126,91 @@ void APooling::InActiveAll()
 	}
 }
 
+void APooling::CreatePool(EPoolType InPoolType, int32 InPoolSize)
+{
+	FString PoolingClassName;
+	TSubclassOf<AActor> PoolingClass;
+	switch (InPoolType)
+	{
+		case EPoolType::Monster:
+			PoolingClassName = MonsterClass ? *MonsterClass->GetName() : TEXT("NULL");
+			PoolingClass = MonsterClass;
+			break;
+		case EPoolType::Item:
+			PoolingClassName = ItemClass ? *ItemClass->GetName() : TEXT("NULL");
+			PoolingClass = ItemClass;
+			break;
+		case EPoolType::Bullet:
+			PoolingClassName = BulletClass ? *BulletClass->GetName() : TEXT("NULL");
+			PoolingClass = BulletClass;
+			break;
+		default:
+			break;
+	}
+
+	LOG_LOGIC_INFO(TEXT("Creating Item Pool with size %d, PoolingClass: %s"), PoolSize, PoolingClassName);
+
+	for (int i = 0; i < InPoolSize; i++)
+	{
+		if (GetWorld())
+		{
+
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			SpawnParams.Owner = this;
+			SpawnParams.Instigator = GetInstigator();
+
+			AActor* Spawnable = GetWorld()->SpawnActor<AActor>(PoolingClass, FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+
+			if (Spawnable && Spawnable->Implements<USpawnable>())
+			{
+				TScriptInterface<ISpawnable> SpawnActor;
+				SpawnActor.SetObject(Spawnable);
+				SpawnActor.SetInterface(Cast<ISpawnable>(Spawnable));
+				SpawnActor->InitState(this);
+
+				if (!PoolMap.Contains(InPoolType))
+				{
+					PoolMap.Add(InPoolType, {SpawnActor});
+
+				}
+				else
+				{
+					PoolMap[InPoolType].Add(SpawnActor);
+				}
+
+				// Add to available queue
+				switch (InPoolType)
+				{
+					case EPoolType::Monster:
+						AvailableMonsters.Enqueue(SpawnActor);
+						break;
+					case EPoolType::Item:
+						AvailableItems.Enqueue(SpawnActor);
+						break;
+					case EPoolType::Bullet:
+						AvailableBullets.Enqueue(SpawnActor);
+						break;
+					default:
+						break;
+				}
+
+
+				LOG_LOGIC_INFO(TEXT("Create Pooling Actor %d"), i);
+			}
+			else
+			{
+				LOG_LOGIC_WARNING(TEXT("Pooling Actor is not Create"));
+			}
+
+		}
+	}
+}
+
 void APooling::Spawn(const EPoolType type)
 {
 	if (!HasAuthority())
-		return;
+		return ;
 
 	TScriptInterface<ISpawnable> Spawnable = FindInActiveMonster(type);
 
@@ -282,10 +235,10 @@ void APooling::Spawn(const EPoolType type)
 	}
 }
 
-void APooling::Spawn(const EPoolType type, FVector pos)
+TScriptInterface<ISpawnable> APooling::Spawn(const EPoolType type, FVector pos)
 {
 	if (!HasAuthority())
-		return;
+		return TScriptInterface<ISpawnable>();
 
 	LOG_LOGIC_INFO(TEXT("Trying to spawn type %d at %s"), (int)type, *pos.ToString());
 
@@ -301,6 +254,7 @@ void APooling::Spawn(const EPoolType type, FVector pos)
 		LOG_LOGIC_ERROR(TEXT("No available %d in pool! Pool may be empty or not initialized."), (int)type);
 	}
 
+	return Spawnable;
 }
 
 void APooling::ReturnPool(TScriptInterface<ISpawnable> spawnable)

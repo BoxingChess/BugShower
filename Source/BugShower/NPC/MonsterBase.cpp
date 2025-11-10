@@ -229,18 +229,19 @@ void AMonsterBase::FireProjectile(AActor* Target)
 		return;  // Don't fire if we can't reach the target
 	}
 
-	// Spawn projectile
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.Instigator = GetInstigator();
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
 
-	AMonsterProjectile* Projectile = GetWorld()->SpawnActor<AMonsterProjectile>(
-		ProjectileClass,
-		SpawnLocation,
-		LaunchVelocity.Rotation(),
-		SpawnParams
-	);
+	APooling* PoolActor = Cast<APooling>(OwningPool);
+
+	if (!PoolActor)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: OwningPool is not valid"));
+		return;
+	}
+
+	TScriptInterface<ISpawnable> SpawnActor = PoolActor->Spawn(EPoolType::Bullet, SpawnLocation);
+
+	AMonsterProjectile* Projectile = Cast<AMonsterProjectile>(SpawnActor.GetObject());
 
 	if (Projectile)
 	{

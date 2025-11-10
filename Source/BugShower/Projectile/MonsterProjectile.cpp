@@ -7,6 +7,67 @@
 #include "GameFramework/DamageType.h"
 #include "Kismet/GameplayStatics.h"
 #include "Logging/BugShowerLog.h"
+#include "NPC/Pooling.h"
+
+void AMonsterProjectile::InitState(AActor* InOwningSpawnPool)
+{
+	// Set inactive state
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+	// Set owning pool
+	OwningPool = InOwningSpawnPool;
+}
+
+void AMonsterProjectile::Spawn(const FVector pos)
+{
+	SetActorLocation(pos);
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	SetActorTickEnabled(true);
+	
+	SetLifeSpan(Life);	// Reset lifespan timer
+}
+
+void AMonsterProjectile::ReturnPool()
+{
+	if (!OwningPool.IsValid())
+	{
+		return;
+	}
+
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	APooling* PoolActor = Cast<APooling>(OwningPool);
+	if (PoolActor)
+	{
+		PoolActor->ReturnPool(this);
+		return;
+	}
+}
+
+void AMonsterProjectile::DeSpawn()
+{
+	// Just return to pool
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
+	SetActorTickEnabled(false);
+
+	if (!OwningPool.IsValid())
+	{
+		return;
+	}
+
+	APooling* PoolActor = Cast<APooling>(OwningPool);
+	if (PoolActor)
+	{
+		PoolActor->ReturnPool(this);
+	}
+
+	return;
+}
 
 AMonsterProjectile::AMonsterProjectile()
 {
@@ -41,8 +102,9 @@ AMonsterProjectile::AMonsterProjectile()
 	Damage = 10.0f;
 	ProjectileOwner = nullptr;
 
+	Life = 5.0f;
 	// Auto-destroy after 5 seconds
-	InitialLifeSpan = 5.0f;
+	InitialLifeSpan = Life;
 }
 
 void AMonsterProjectile::BeginPlay()
@@ -80,6 +142,15 @@ void AMonsterProjectile::InitializeProjectileWithVelocity(const FVector& Velocit
 	}
 }
 
+void AMonsterProjectile::LifeSpanExpired()
+{
+	LOG_LOGIC_INFO(TEXT("Projectile lifespan expired"));
+	//Super::LifeSpanExpired();
+
+	// On lifespan expiry, return to pool
+	DeSpawn();
+}
+
 void AMonsterProjectile::OnProjectileHit(UPrimitiveComponent* HitComp, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
@@ -108,5 +179,5 @@ void AMonsterProjectile::OnProjectileHit(UPrimitiveComponent* HitComp, AActor* O
 	}
 
 	// Destroy projectile after hit
-	Destroy();
+	DeSpawn();
 }
