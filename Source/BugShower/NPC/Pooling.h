@@ -38,6 +38,7 @@ public:
 
 
 protected:
+	TQueue<TScriptInterface<ISpawnable>>* GetAvailableQueue(const EPoolType type);
 	void CreatePool(EPoolType InPoolType, int32 InPoolSize);
 
 	void Spawn(const EPoolType type);	//only server spawning 

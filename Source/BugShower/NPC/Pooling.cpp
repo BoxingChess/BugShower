@@ -126,6 +126,21 @@ void APooling::InActiveAll()
 	}
 }
 
+TQueue<TScriptInterface<ISpawnable>>* APooling::GetAvailableQueue(const EPoolType type)
+{
+	switch (type)
+	{
+		case EPoolType::Monster:
+			return &AvailableMonsters;
+		case EPoolType::Item:
+			return &AvailableItems;
+		case EPoolType::Bullet:
+			return &AvailableBullets;
+		default:
+			return &TQueue<TScriptInterface<ISpawnable>>();
+	}
+}
+
 void APooling::CreatePool(EPoolType InPoolType, int32 InPoolSize)
 {
 	FString PoolingClassName;
@@ -180,21 +195,9 @@ void APooling::CreatePool(EPoolType InPoolType, int32 InPoolSize)
 				}
 
 				// Add to available queue
-				switch (InPoolType)
-				{
-					case EPoolType::Monster:
-						AvailableMonsters.Enqueue(SpawnActor);
-						break;
-					case EPoolType::Item:
-						AvailableItems.Enqueue(SpawnActor);
-						break;
-					case EPoolType::Bullet:
-						AvailableBullets.Enqueue(SpawnActor);
-						break;
-					default:
-						break;
-				}
+				TQueue<TScriptInterface<ISpawnable>>* AvailableQueue = GetAvailableQueue(InPoolType);
 
+				AvailableQueue->Enqueue(SpawnActor);
 
 				LOG_LOGIC_INFO(TEXT("Create Pooling Actor %d"), i);
 			}
