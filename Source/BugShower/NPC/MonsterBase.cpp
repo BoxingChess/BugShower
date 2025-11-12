@@ -10,26 +10,9 @@
 #include "Subsystems/PoolingSubsystem.h"
 
 
-void AMonsterBase::InitState()
-{
-	// Set inactive state
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
-
-	// Subscribe to death event
-	if (MonsterStatComp)
-	{
-		MonsterStatComp->OnDeath.BindDynamic(this, &AMonsterBase::DeSpawn);
-	}
-}
-
 void AMonsterBase::Spawn(const FVector pos)
 {
-	SetActorLocation(pos);
-	SetActorHiddenInGame(false);
-	SetActorEnableCollision(true);
-	SetActorTickEnabled(true);
+	Activate(this, pos);
 
 	MonsterStatComp->ResetHP();
 
@@ -140,7 +123,7 @@ void AMonsterBase::BeginPlay()
 	// Subscribe to death event (only on server)
 	if (HasAuthority() && MonsterStatComp)
 	{
-		MonsterStatComp->OnMonsterDeath.AddDynamic(this, &AMonsterBase::OnDeath);
+		MonsterStatComp->OnDeath.BindDynamic(this, &AMonsterBase::DeSpawn);
 	}
 }
 

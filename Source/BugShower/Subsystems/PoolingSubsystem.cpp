@@ -94,7 +94,7 @@ void UPoolingSubsystem::CreatePool(EPoolType Type, TSubclassOf<AActor> ActorClas
 			Spawnable.SetInterface(Cast<ISpawnable>(SpawnedActor));
 
 			// Initialize without OwningPool parameter
-			Spawnable->InitState();
+			Spawnable->Deactivate(SpawnedActor);
 
 			// Add to pool map
 			if (!PoolMap.Contains(Type))

@@ -8,20 +8,9 @@
 #include "Player/BSCharacterPlayer.h"
 #include "Subsystems/PoolingSubsystem.h"
 
-void AItemBase::InitState()
-{
-	// Set inactive state
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
-}
-
 void AItemBase::Spawn(const FVector pos)
 {
-	SetActorHiddenInGame(false);
-	SetActorEnableCollision(true);
-	SetActorTickEnabled(true);
-	SetActorLocation(pos);
+	Activate(this,pos);
 
 	// Reset lifetime when spawned from pool
 	CurrentLifeTime = 0.f;

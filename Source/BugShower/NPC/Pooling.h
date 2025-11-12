@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NPC/PoolingType.h"
-#include "NPC/PoolingHelp.h"
 #include "Pooling.generated.h"
 
 

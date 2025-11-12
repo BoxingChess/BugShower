@@ -9,20 +9,9 @@
 #include "Logging/BugShowerLog.h"
 #include "Subsystems/PoolingSubsystem.h"
 
-void AMonsterProjectile::InitState()
-{
-	// Set inactive state
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
-}
-
 void AMonsterProjectile::Spawn(const FVector pos)
 {
-	SetActorLocation(pos);
-	SetActorHiddenInGame(false);
-	SetActorEnableCollision(true);
-	SetActorTickEnabled(true);
+	Activate(this, pos);
 	
 	SetLifeSpan(Life);	// Reset lifespan timer
 }
@@ -46,9 +35,7 @@ void AMonsterProjectile::ReturnPool()
 void AMonsterProjectile::DeSpawn()
 {
 	// Just return to pool
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
+	Deactivate(this);
 
 	// Return to pool via subsystem
 	if (UWorld* World = GetWorld())
