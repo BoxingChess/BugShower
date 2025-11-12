@@ -17,7 +17,6 @@ class BUGSHOWER_API AItemBase : public AActor, public ISpawnable
 	// Interface functions
 public:
 	virtual EPoolType GetPoolType() const override { return EPoolType::Item; }
-	virtual void InitState() override;
 	virtual void Spawn(const FVector pos) override;
 	virtual void ReturnPool() override;
 

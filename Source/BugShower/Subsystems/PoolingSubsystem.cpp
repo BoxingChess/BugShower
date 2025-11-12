@@ -186,6 +186,7 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromPool(EPoolType Type, co
 	}
 
 	LOG_LOGIC_ERROR(TEXT("Failed to spawn %s - no available objects"), *UEnum::GetValueAsString(Type));
+
 	return TScriptInterface<ISpawnable>();
 }
 

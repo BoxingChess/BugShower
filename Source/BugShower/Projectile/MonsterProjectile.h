@@ -13,7 +13,6 @@ class BUGSHOWER_API AMonsterProjectile : public AActor, public ISpawnable
 	GENERATED_BODY()
 
 public:
-	virtual void InitState() override;
 	virtual void Spawn(const FVector pos) override;
 	virtual void ReturnPool() override;
 	virtual EPoolType GetPoolType() const override { return EPoolType::Bullet; }
@@ -38,6 +37,16 @@ public:
 	virtual void LifeSpanExpired() override;
 
 protected:
+	UFUNCTION()
+	void OnProjectileOverlap(
+		UPrimitiveComponent* OverlappedComp,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex, 
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
+
 	// Called when projectile hits something
 	UFUNCTION()
 	void OnProjectileHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
@@ -56,13 +65,13 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	class UStaticMeshComponent* ProjectileMesh;
 
+	TWeakObjectPtr<AActor> ProjectileOwner;
+
 	// Damage to deal on hit
 	UPROPERTY()
 	float Damage;
 
-	// Owner of this projectile (the monster that fired it)
 	UPROPERTY()
-	AActor* ProjectileOwner;
-
 	float Life;
+
 };

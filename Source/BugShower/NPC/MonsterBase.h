@@ -36,7 +36,6 @@ class BUGSHOWER_API AMonsterBase : public ACharacter, public ISpawnable
 	// Interface functions
 public:
 	virtual EPoolType GetPoolType() const override { return EPoolType::Monster; }
-	virtual void InitState() override;
 	virtual void Spawn(const FVector pos) override;
 
 	UFUNCTION()
