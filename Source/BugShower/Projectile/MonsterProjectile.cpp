@@ -7,16 +7,14 @@
 #include "GameFramework/DamageType.h"
 #include "Kismet/GameplayStatics.h"
 #include "Logging/BugShowerLog.h"
-#include "NPC/Pooling.h"
+#include "Subsystems/PoolingSubsystem.h"
 
-void AMonsterProjectile::InitState(AActor* InOwningSpawnPool)
+void AMonsterProjectile::InitState()
 {
 	// Set inactive state
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
-	// Set owning pool
-	OwningPool = InOwningSpawnPool;
 }
 
 void AMonsterProjectile::Spawn(const FVector pos)
@@ -31,20 +29,17 @@ void AMonsterProjectile::Spawn(const FVector pos)
 
 void AMonsterProjectile::ReturnPool()
 {
-	if (!OwningPool.IsValid())
-	{
-		return;
-	}
-
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
 
-	APooling* PoolActor = Cast<APooling>(OwningPool);
-	if (PoolActor)
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
 	{
-		PoolActor->ReturnPool(this);
-		return;
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
+		{
+			PoolSys->ReturnToPool(this);
+		}
 	}
 }
 
@@ -55,18 +50,14 @@ void AMonsterProjectile::DeSpawn()
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
 
-	if (!OwningPool.IsValid())
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
 	{
-		return;
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
+		{
+			PoolSys->ReturnToPool(this);
+		}
 	}
-
-	APooling* PoolActor = Cast<APooling>(OwningPool);
-	if (PoolActor)
-	{
-		PoolActor->ReturnPool(this);
-	}
-
-	return;
 }
 
 AMonsterProjectile::AMonsterProjectile()
@@ -144,9 +135,6 @@ void AMonsterProjectile::InitializeProjectileWithVelocity(const FVector& Velocit
 
 void AMonsterProjectile::LifeSpanExpired()
 {
-	LOG_LOGIC_INFO(TEXT("Projectile lifespan expired"));
-	//Super::LifeSpanExpired();
-
 	// On lifespan expiry, return to pool
 	DeSpawn();
 }
@@ -178,6 +166,6 @@ void AMonsterProjectile::OnProjectileHit(UPrimitiveComponent* HitComp, AActor* O
 		LOG_LOGIC_INFO(TEXT("Projectile dealt %.1f damage to %s"), Damage, *OtherActor->GetName());
 	}
 
-	// Destroy projectile after hit
+	// return pool projectile after hit
 	DeSpawn();
 }

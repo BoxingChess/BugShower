@@ -13,7 +13,7 @@ class BUGSHOWER_API AMonsterProjectile : public AActor, public ISpawnable
 	GENERATED_BODY()
 
 public:
-	virtual void InitState(AActor* InOwningSpawnPool) override;
+	virtual void InitState() override;
 	virtual void Spawn(const FVector pos) override;
 	virtual void ReturnPool() override;
 	virtual EPoolType GetPoolType() const override { return EPoolType::Bullet; }
@@ -21,7 +21,6 @@ public:
 	virtual void DeSpawn() override;
 
 protected:
-	TWeakObjectPtr<AActor> OwningPool;
 
 public:
 	AMonsterProjectile();

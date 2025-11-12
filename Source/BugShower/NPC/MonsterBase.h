@@ -33,12 +33,11 @@ class BUGSHOWER_API AMonsterBase : public ACharacter, public ISpawnable
 {
 	GENERATED_BODY()
 
-	// Interface  functions
+	// Interface functions
 public:
 	virtual EPoolType GetPoolType() const override { return EPoolType::Monster; }
-	virtual void InitState(AActor* InOwningSpawnPool) override;
+	virtual void InitState() override;
 	virtual void Spawn(const FVector pos) override;
-
 
 	UFUNCTION()
 	virtual void DeSpawn() override;
@@ -46,7 +45,8 @@ public:
 	virtual void ReturnPool() override;
 
 protected:
-	TWeakObjectPtr<AActor> OwningPool;
+	// No longer needed - use GetWorld()->GetSubsystem<UPoolingSubsystem>() instead
+	// TWeakObjectPtr<AActor> OwningPool;
 public:
 	// Sets default values for this character's properties
 	AMonsterBase();

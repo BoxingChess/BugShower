@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NPC/PoolingType.h"
+#include "NPC/PoolingHelp.h"
 #include "Pooling.generated.h"
 
 
@@ -16,6 +17,8 @@ class BUGSHOWER_API APooling : public AActor
 {
 	GENERATED_BODY()
 	
+public:
+
 public:	
 	// Sets default values for this actor's properties
 	APooling();
@@ -28,26 +31,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	
-
-	// Called when a object is returned to the pool
-	UFUNCTION()
-	void ReturnPool(TScriptInterface<ISpawnable> spawnable);
-	// Spawn a specified type at pos
-	TScriptInterface<ISpawnable> Spawn(const EPoolType type, FVector pos);
-
-
 protected:
-	TQueue<TScriptInterface<ISpawnable>>* GetAvailableQueue(const EPoolType type);
-	void CreatePool(EPoolType InPoolType, int32 InPoolSize);
-
-	void Spawn(const EPoolType type);	//only server spawning 
-
-	TScriptInterface<ISpawnable>FindInActiveMonster(const EPoolType type);
-	void InActiveAll();
-
-
-	TMap<EPoolType, TArray<TScriptInterface<ISpawnable>>> PoolMap;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> MonsterClass;
@@ -56,12 +40,9 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> BulletClass;
 
-	TQueue<TScriptInterface<ISpawnable>> AvailableMonsters;
-	TQueue<TScriptInterface<ISpawnable>> AvailableItems;
-	TQueue<TScriptInterface<ISpawnable>> AvailableBullets;
 
 	UPROPERTY(EditAnywhere)
-	int32 PoolSize;
+	uint32 PoolSize;
 
 	// Spawn Parameters
 	UPROPERTY(EditAnywhere)
