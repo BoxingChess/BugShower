@@ -23,7 +23,9 @@ UDetectPlayer::UDetectPlayer()
 {
 	bNotifyTick = true;
 	NodeName = TEXT("DetectClosetPlayer");
-	Interval = 0.1f;
+	Interval = 1.0f;
+
+	bCallTickOnSearchStart = true;
 }
 
 void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
