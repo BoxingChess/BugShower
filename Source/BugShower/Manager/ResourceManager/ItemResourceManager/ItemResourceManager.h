@@ -3,43 +3,91 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "Item/ItemEnum.h"
 #include "Item/BSStaticItemDataAsset.h"
 
 #include "ItemResourceManager.generated.h"
 
-///TODO : ½Ì±ÛÅæÀ¸·Î ¹Ù²Ü »ı°¢À» ÇÏ°íÀÖ´Ù. ¶ÇÇÑ ÀÌÈÄ JsonÀÌ³ª CSV¸¦ ÆÄ½Ì ½ÃÄÑ Åø ¿¬µ¿¿¡ À¯¸®ÇÏ°Ô ¸¸µé°ÍÀÌ´Ù.
-/*
-  ÀÌ Å¬·¡½º´Â Àåºñ¾ÆÀÌÅÛ, ¼Òºñ¾ÆÀÌÅÛ, Äù½ºÆ® ¾ÆÀÌÅÛ¿¡ ´ëÇÑ Mesh³ª TextureµéÀ» °¡Áö°í ÀÖ´Â Å¬·¡½º
-  ¸Ş¸ğ¸®ÀÇ Áßº¹»ç¿ëÀ» ÇÇÇÏ±â À§ÇØ Á¦ÀÛÇÏ¿´´Ù.
+/**
+ * Item Resource Manager Subsystem
+ * ì•„ì´í…œ ë¦¬ì†ŒìŠ¤ ê´€ë¦¬ì ì„œë¸Œì‹œìŠ¤í…œ
+ *
+ * Manages all static item data assets (Consumables, Equipment, Quest items, etc.)
+ * ëª¨ë“  ì •ì  ì•„ì´í…œ ë°ì´í„° ì—ì…‹ì„ ê´€ë¦¬ (ì†Œëª¨í’ˆ, ì¥ë¹„, í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ë“±)
+ *
+ * Prevents memory duplication by caching Mesh and Texture resources
+ * Meshì™€ Texture ë¦¬ì†ŒìŠ¤ë¥¼ ìºì‹±í•˜ì—¬ ë©”ëª¨ë¦¬ ì¤‘ë³µì„ ë°©ì§€
+ *
+ * Automatically loads and registers all BSStaticItemDataAsset on initialization
+ * ì´ˆê¸°í™” ì‹œ ëª¨ë“  BSStaticItemDataAssetì„ ìë™ìœ¼ë¡œ ë¡œë“œ ë° ë“±ë¡
  */
 UCLASS()
-class BUGSHOWER_API UItemResourceManager : public UObject
+class BUGSHOWER_API UItemResourceManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
-	
-protected:
-	// ¼Òºñ ¾ÆÀÌÅÛ Á¤Àû Á¤º¸
-	UPROPERTY()
-	TMap<EConsumableID, UBSStaticItemDataAsset*> ConsumableItems;
-
-	// Àåºñ ¾ÆÀÌÅÛ Á¤Àû Á¤º¸
-	UPROPERTY()
-	TMap<EEquipmentID, UBSStaticItemDataAsset*> EquipmentItems;
 
 public:
+	//~ Begin USubsystem Interface
+	// ì„œë¸Œì‹œìŠ¤í…œ ì´ˆê¸°í™”/í•´ì œ
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	//~ End USubsystem Interface
+
+protected:
+	// Consumable item data registry
+	// ì†Œëª¨í’ˆ ì•„ì´í…œ ë°ì´í„° ë“±ë¡ì†Œ
+	UPROPERTY()
+	TMap<EConsumableID, TObjectPtr<UBSStaticItemDataAsset>> ConsumableItems;
+
+	// Equipment item data registry
+	// ì¥ë¹„ ì•„ì´í…œ ë°ì´í„° ë“±ë¡ì†Œ
+	UPROPERTY()
+	TMap<EEquipmentID, TObjectPtr<UBSStaticItemDataAsset>> EquipmentItems;
+
+public:
+	/**
+	 * Get static item data by type and ID
+	 * ì•„ì´í…œ íƒ€ì…ê³¼ IDë¡œ ì •ì  ì•„ì´í…œ ë°ì´í„° ì¡°íšŒ
+	 *
+	 * @param ItemType Type of item (Consumable, Equipment, etc.) - ì•„ì´í…œ íƒ€ì… (ì†Œëª¨í’ˆ, ì¥ë¹„ ë“±)
+	 * @param ItemID Unique identifier within the type - í•´ë‹¹ íƒ€ì… ë‚´ ê³ ìœ  ì‹ë³„ì
+	 * @return Static item data, or nullptr if not found - ì •ì  ì•„ì´í…œ ë°ì´í„° (ì—†ìœ¼ë©´ nullptr)
+	 */
 	const UBSStaticItemDataAsset* GetStaticItem(EItemType ItemType, int32 ItemID);
 
-	//¼Òºñ ¾ÆÀÌÅÛÀ» µî·ÏÇÑ´Ù.
-	void RegisterConsumableItem(uint8 ItemID, UBSStaticItemDataAsset* Data);
-	//Àåºñ ¾ÆÀÌÅÛÀ» µî·ÏÇÑ´Ù.
-	void RegisterEquipmentItem(uint8 ItemID, UBSStaticItemDataAsset* Data);
+	/**
+	 * Register a consumable item manually (for dynamic loading)
+	 * ì†Œëª¨í’ˆ ì•„ì´í…œì„ ìˆ˜ë™ìœ¼ë¡œ ë“±ë¡ (ë™ì  ë¡œë”©ìš©)
+	 *
+	 * @param ItemID Consumable item ID - ì†Œëª¨í’ˆ ì•„ì´í…œ ID
+	 * @param DataAsset Data asset to register - ë“±ë¡í•  ë°ì´í„° ì—ì…‹
+	 */
+	void RegisterConsumableItem(uint8 ItemID, UBSStaticItemDataAsset* DataAsset);
 
-	/* TODO ÀÌ°Ç ÈÄ¿¡ Ãß°¡ÇÒ°Í. Áö±İÀº Äù½ºÆ® ¾ÆÀÌÅÛÀÌ ¾ø±â ¶§¹®ÀÌ´Ù.
-	// Äù½ºÆ® ¾ÆÀÌÅÛ Á¤Àû Á¤º¸
+	/**
+	 * Register an equipment item manually (for dynamic loading)
+	 * ì¥ë¹„ ì•„ì´í…œì„ ìˆ˜ë™ìœ¼ë¡œ ë“±ë¡ (ë™ì  ë¡œë”©ìš©)
+	 *
+	 * @param ItemID Equipment item ID - ì¥ë¹„ ì•„ì´í…œ ID
+	 * @param DataAsset Data asset to register - ë“±ë¡í•  ë°ì´í„° ì—ì…‹
+	 */
+	void RegisterEquipmentItem(uint8 ItemID, UBSStaticItemDataAsset* DataAsset);
+
+private:
+	/**
+	 * Load all BSStaticItemDataAsset from the project
+	 * í”„ë¡œì íŠ¸ ë‚´ ëª¨ë“  BSStaticItemDataAsset ë¡œë“œ
+	 *
+	 * Called during Initialize()
+	 * Initialize() ì‹œ ìë™ìœ¼ë¡œ í˜¸ì¶œë¨
+	 */
+	void LoadAllItemDataAssets();
+
+	/* TODO: í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ì§€ì›ì´ í•„ìš”í•  ë•Œ ì¶”ê°€
+	// Quest item data registry
+	// í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ë°ì´í„° ë“±ë¡ì†Œ
 	UPROPERTY()
-	TMap<"TODO", FFL_StaticItem> QuestItems; // È¤Àº EQuestItemID
+	TMap<EQuestItemID, TObjectPtr<UBSStaticItemDataAsset>> QuestItems;
 	*/
-
 };

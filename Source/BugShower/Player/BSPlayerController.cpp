@@ -59,3 +59,27 @@ void ABSPlayerController::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("PlayerController is not possessing any pawn"));
 	}
 }
+
+void ABSPlayerController::EnableGameInput()
+{
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		if (InputMappingContext && !Subsystem->HasMappingContext(InputMappingContext))
+		{
+			Subsystem->AddMappingContext(InputMappingContext, 0);
+			UE_LOG(LogTemp, Warning, TEXT("BSPlayerController::EnableGameInput - Added InputMappingContext"));
+		}
+	}
+}
+
+void ABSPlayerController::DisableGameInput()
+{
+	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		if (InputMappingContext && Subsystem->HasMappingContext(InputMappingContext))
+		{
+			Subsystem->RemoveMappingContext(InputMappingContext);
+			UE_LOG(LogTemp, Warning, TEXT("BSPlayerController::DisableGameInput - Removed InputMappingContext"));
+		}
+	}
+}

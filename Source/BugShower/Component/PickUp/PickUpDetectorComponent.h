@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Delegates/DelegateCombinations.h" // µ¨¸®°ÔÀÌÆ® ¸ÅÅ©·Î Á¤ÀÇ
-#include "GameFramework/Actor.h"              // AActor ±âÈ£ º¸Àå (ÀÎÅÚ¸®¼¾½º ¾ÈÁ¤È­)
+#include "Delegates/DelegateCombinations.h" // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+#include "GameFramework/Actor.h"              // AActor ï¿½ï¿½È£ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½Ú¸ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½È­)
 
 
 #include "PickUpDetectorComponent.generated.h"
@@ -15,15 +15,15 @@
 class AItemActor;
 
 /*
-µ¨¸®°ÔÀÌÆ®´Â °£´ÜÈ÷ ¸»ÇØ ¾ð¸®¾ó¿¡¼­ "ÀÌº¥Æ®"¸¦ ¾Ë¸®´Â ½ÅÈ£
-¾î¶² °´Ã¼°¡ ¹«¾ð°¡ ¹Ù²î¾ú´Ù¸¦ ºê·ÎÆ®Ä³½ºÆ® ÇÒ °æ¿ì, °Å±â¿¡ ¹ÙÀÎµùÇØµÐ ´Ù¸¥ ÇÔ¼öµéÀÌ ÀÚµ¿À¸·Î È£ÃâµÈ´Ù.
+ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ð¸®¾ó¿¡¼ï¿½ "ï¿½Ìºï¿½Æ®"ï¿½ï¿½ ï¿½Ë¸ï¿½ï¿½ï¿½ ï¿½ï¿½È£
+ï¿½î¶² ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ù²ï¿½ï¿½ï¿½Ù¸ï¿½ ï¿½ï¿½ï¿½Æ®Ä³ï¿½ï¿½Æ® ï¿½ï¿½ ï¿½ï¿½ï¿½, ï¿½Å±â¿¡ ï¿½ï¿½ï¿½Îµï¿½ï¿½Øµï¿½ ï¿½Ù¸ï¿½ ï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½È´ï¿½.
 
-Single-cast delegate: ÇÑ °³ÀÇ ¸®½º³Ê¸¸ °¡Áú ¼ö ÀÖÀ½
-Multicast delegate: ¿©·¯ ¸®½º³Ê¸¦ °¡Áú ¼ö ÀÖÀ½ (UI, »ç¿îµå, ÀÌÆåÆ® µî ¿©·¯ ±ºµ¥¼­ µ¿½Ã¿¡ µè±â ÁÁÀ½)
-Dynamic: ºí·çÇÁ¸°Æ®¿¡¼­µµ ¹ÙÀÎµù °¡´É (¸®ÇÃ·º¼ÇÀ» ÅëÇØ ÀúÀå/¾ð¹ÙÀÎµù Áö¿ø)
+Single-cast delegate: ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ê¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+Multicast delegate: ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ê¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (UI, ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã¿ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+Dynamic: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½Ã·ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ï¿½ï¿½)
 */
 
-/// ¿Ï·á ¾Ë¸² -  UIComponent¿¡¼­ ¹Þ¾Æ´Ù Ã³¸®ÇÒ¼ö ÀÖµµ·Ï ÇÑ´Ù.
+/// ï¿½Ï·ï¿½ ï¿½Ë¸ï¿½ -  UIComponentï¿½ï¿½ï¿½ï¿½ ï¿½Þ¾Æ´ï¿½ Ã³ï¿½ï¿½ï¿½Ò¼ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ñ´ï¿½.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnVicinityScanCompleted);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFocusItemChanged, AItemActor*, FocusedItem);
@@ -42,103 +42,106 @@ public:
     void TickComponent(float dt, ELevelTick, FActorComponentTickFunction*);
 
 public:
-    // ·¹ÀÌÄ³½ºÆ® ¼³Á¤
-    UPROPERTY(EditAnywhere, Category="Pickup|Trace") //ºí·çÇÁ¸°Æ® ¿¡µðÅÍ ¼öÁ¤ °¡´É, ¿¡µðÅÍ¿¡¼­ PickUpÆú´õ ¹Ø¿¡ TraceÇÏÀ§ Ä«Å×°í¸® Ç¥½Ã
-    float FocusTraceDistance = 550.f;   //Ä«¸Þ¶ó ·¹ÀÌÄ³½ºÆ® ÃÖ´ë °Å¸®. Ä«¸Þ¶ó¿¡¼­ ½î´Ï±î 800À¸·Î ¼¼ÆÃÇØÁØ´Ù.
+    // ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
+    UPROPERTY(EditAnywhere, Category="Pickup|Trace") //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ï¿½ï¿½ PickUpï¿½ï¿½ï¿½ï¿½ ï¿½Ø¿ï¿½ Traceï¿½ï¿½ï¿½ï¿½ Ä«ï¿½×°ï¿½ï¿½ï¿½ Ç¥ï¿½ï¿½
+    float FocusTraceDistance = 550.f;   //Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½Æ® ï¿½Ö´ï¿½ ï¿½Å¸ï¿½. Ä«ï¿½Þ¶ó¿¡¼ï¿½ ï¿½ï¿½Ï±ï¿½ 800ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø´ï¿½.
 
-    //·¹ÀÌÄ³½ºÆ®¿¡ »ç¿ëÇÒ Ãæµ¹ Ã¤³Î.ECC_Visibility - ½Ã¾ß °ü·Ã Æ®·¹ÀÌ½º
+    //ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½æµ¹ Ã¤ï¿½ï¿½.ECC_Visibility - ï¿½Ã¾ï¿½ ï¿½ï¿½ï¿½ï¿½ Æ®ï¿½ï¿½ï¿½Ì½ï¿½
     UPROPERTY(EditAnywhere, Category="Pickup|Trace")
     TEnumAsByte<ECollisionChannel> FocusTraceChannel = ECC_Visibility; 
 
-    // ±ÙÁ¢ ¼öÁý ¼³Á¤
-    //¹ß¹Ø ±ÙÃ³ ¾ÆÀÌÅÛÀ» Å½»öÇÒ ¹Ý°æ
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+    //ï¿½ß¹ï¿½ ï¿½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Å½ï¿½ï¿½ï¿½ï¿½ ï¿½Ý°ï¿½
     UPROPERTY(EditAnywhere, Category="Pickup|Nearby")
     float NearbyRadius = 150.f;
 
-    //¿À¹ö·¦ È¤Àº ¶óÀÎÆ®·¹ÀÌ½º·Î ÀâÈù ¾×ÅÍµé Áß ¾ÆÀÌÅÛ ¾×ÅÍ¸¸ °É·¯³»±â À§ÇÑ Å¬·¡½º ÇÊÅÍ¸¦ ¿¡µðÅÍ¿¡¼­ ¹Ù²Ü¼ö ÀÖ°Ô ÇÏ·Á°í, ÇöÀç´Â ¾²Áö ¾ÊÁö¸¸ ÃßÈÄ ¾µ¼ö ÀÖµµ·Ï ¹Ù²Û´Ù.
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È¤ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Íµï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½É·ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ï¿½ï¿½ ï¿½Ù²Ü¼ï¿½ ï¿½Ö°ï¿½ ï¿½Ï·ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Öµï¿½ï¿½ï¿½ ï¿½Ù²Û´ï¿½.
     UPROPERTY(EditAnywhere, Category="Vicinity")
     TSubclassOf<AActor> ItemActorClass;
 
-    //±ÙÃ³ ¾ÆÀÌÅÛ Å½»ö ½Ã ¾î¶² Ãæµ¹ Ã¤³ÎÀ» °Ë»öÇÒÁö Áö±ÝÀº WorldDynamic
+    //ï¿½ï¿½Ã³ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Å½ï¿½ï¿½ ï¿½ï¿½ ï¿½î¶² ï¿½æµ¹ Ã¤ï¿½ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ WorldDynamic
     UPROPERTY(EditAnywhere, Category="Vicinity")
     TEnumAsByte<ECollisionChannel> NearbyChannel = ECC_WorldDynamic;
 
-    //ÇöÀç Ä«¸Þ¶ó°¡ º¸°íÀÖ´Â ¾ÆÀÌÅÛ ¾×ÅÍ¸¦ ¹ÝÈ¯
-    UFUNCTION(BlueprintPure)    //ºÎ¼ö È¿°ú°¡ ¾ø´Â getterÀÌ±â¿¡ pure³ëµå·Î »ç¿ëÇÒ¼ö ÀÖ°Ô²û..
+    //ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½È¯
+    UFUNCTION(BlueprintPure)    //ï¿½Î¼ï¿½ È¿ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ getterï¿½Ì±â¿¡ pureï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ò¼ï¿½ ï¿½Ö°Ô²ï¿½..
     AItemActor* GetFocusedItem() const { return FocusedItem.Get(); }
 
-    //ÇöÀç ¹ß¹Ø ÁÖº¯¿¡¼­ Ã£Àº ¾ÆÀÌÅÛ ¸®½ºÆ® ¹ÝÈ¯
+    //ï¿½ï¿½ï¿½ï¿½ ï¿½ß¹ï¿½ ï¿½Öºï¿½ï¿½ï¿½ï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½È¯
     UFUNCTION(BlueprintPure)
     const TArray<AActor*>& GetNearbyItems() const { return NearbyItems; }
 
-    // Ä«¸Þ¶ó¿¡¼­ ·¹ÀÌÄ³½ºÆ®¸¦ ½÷ Æ÷Ä¿½ºµÈ ´ë»ó ¾÷µ¥ÀÌÆ®
+    // Ä«ï¿½Þ¶ó¿¡¼ï¿½ ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®
     UFUNCTION(BlueprintCallable)
     bool LineTraceFocus();            
 
 
-//¾ÆÀÌÅÛ ÁÝ±â °ü·Ã--------------------------------------------------
-    // ¹ß¹Ø ÁÖº¯ ¾ÆÀÌÅÛ ¸ñ·Ï °»½Å
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ý±ï¿½ ï¿½ï¿½ï¿½ï¿½--------------------------------------------------
+    // ï¿½ß¹ï¿½ ï¿½Öºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UFUNCTION(BlueprintCallable) 
     void RefreshNearbyList(bool isForced = false);
 
-    // ÁÖº¯¾ÆÀÌÅÛ °Ë»ö ¿Ï·á ½Ã ºê·ÎµåÄ³½ºÆ®µÇ´Â ÀÌº¥Æ®
+    // ï¿½Öºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½ ï¿½Ï·ï¿½ ï¿½ï¿½ ï¿½ï¿½Îµï¿½Ä³ï¿½ï¿½Æ®ï¿½Ç´ï¿½ ï¿½Ìºï¿½Æ®
 	UPROPERTY(BlueprintAssignable)
     FOnVicinityScanCompleted OnRefreshNearbyList;
 
-    //¶óÀÎÆ®·¹ÀÌ½º·Î ¹Ù¶óº¸´Â ¾ÆÀÌÅÛ º¯°æ ÀÌº¥Æ®
+    //ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½Ù¶óº¸´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ìºï¿½Æ®
     UPROPERTY(BlueprintAssignable)
     FOnFocusItemChanged OnFocusItemChanged;   
 
 
-    //ÇöÀç Æ÷Ä¿½ºµÈ ¾ÆÀÌÅÛ ÁÝ±â
+    //ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ý±ï¿½
     UFUNCTION(BlueprintCallable) 
     void TryPickupFocused(); 
 
-    //Æ¯Á¤ ¾×ÅÍ¸¦ ÁÝ±â(UI µå·¡±× & µå·Ó¿ë)
+    //Æ¯ï¿½ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½Ý±ï¿½(UI ï¿½å·¡ï¿½ï¿½ & ï¿½ï¿½Ó¿ï¿½)
      UFUNCTION(Server, Reliable)
      void ServerTryPickup(class AItemActor* Item);
 
 
-     //Æ¯Á¤ ¾×ÅÍ¸¦ ÀÏºÎºÐ¸¸ ÁÝ±â(Alt + µå·¡±× & µå¶ø¿ë)
+     //Æ¯ï¿½ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ÏºÎºÐ¸ï¿½ ï¿½Ý±ï¿½(Alt + ï¿½å·¡ï¿½ï¿½ & ï¿½ï¿½ï¿½ï¿½ï¿½)
      UFUNCTION(Server, Reliable)
      void ServerTryPickupPartial(class AItemActor* Item, int32 Quantity);
 
 private:
-    //GC¾ÈÀü, ¼øÈ¯ÂüÁ¶¸¦ ¸·ÀÚ.. ÀÌµû°¡ ´Ù¸¥ Componentµµ °íÃÄÁÖÀÚ..
-    UPROPERTY(Transient) //Transient - ÀúÀåµÇÁö ¾ÊÀ½
+    //GCï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½È¯ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.. ï¿½Ìµï¿½ï¿½ï¿½ ï¿½Ù¸ï¿½ Componentï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½..
+    UPROPERTY(Transient) //Transient - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     TWeakObjectPtr<class ABSCharacterPlayer> OwnerChar;
 
-    //Ä³¸¯ÅÍÀÇ ÀÎº¥Åä¸® ÄÄÆ÷³ÍÆ® Æ÷ÀÎÅÍ
+    //Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(Transient) 
     TWeakObjectPtr<class UInventoryComponent> Inventory;
 
-    //ÇöÀç º¸°íÀÖ´Â ¾ÆÀÌÅÛ ¾×ÅÍ
+    //ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(Transient) 
     TWeakObjectPtr<AItemActor> FocusedItem;
 
     
-    // ÀÌÀü ÇÁ·¹ÀÓ °á°ú ÀúÀå¿ë
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
     UPROPERTY()
     TArray<AActor*>  PreviousNearbyItems;
 
 
-    //¹ß¹Ø ÁÖº¯ ¾ÆÀÌÅÛ ¸ñ·Ï
+    //ï¿½ß¹ï¿½ ï¿½Öºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
     UPROPERTY(Transient) 
     TArray<AActor*> NearbyItems;
 
-    //´ë»óÀÌ ¾ÆÀÌÅÛ ¾×ÅÍÀÎÁö È®ÀÎ
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½
     bool IsItemActor(AActor* Actor) const; 
 
-    // Inventory->AddItem È£Ãâ ·¡ÆÛ
+    // Inventory->AddItem È£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     bool PickupInternal(AActor* Item);    
 
 public:
-    //»óÅÂ¸¦ ¹Ù²Ù¾î ´Ù¸¥ ·ÎÁ÷À» ¼öÇàÇÏµµ·Ï ÇÑ´Ù.
-    UFUNCTION(BlueprintCallable) 
+    //ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½Ù²Ù¾ï¿½ ï¿½Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ ï¿½Ñ´ï¿½.
+    UFUNCTION(BlueprintCallable)
     void ChangeState();
 
+    // Check if inventory is currently open
+    FORCEINLINE bool IsInventoryOpen() const { return bIsInventoryOpen; }
+
 private:
-    ///»óÅÂ ÇÃ·¡±×
+    ///ï¿½ï¿½ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½
     bool bIsInventoryOpen = false;
     bool bIsLineTrace = true;
 		

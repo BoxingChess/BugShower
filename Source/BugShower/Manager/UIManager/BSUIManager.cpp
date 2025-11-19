@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "Engine/NetDriver.h"
 #include "Item/ItemActor.h"
+#include "Player/BSPlayerController.h"
+#include "Widget/LineTraceUI.h"
 void UBSUIManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -151,14 +153,24 @@ void UBSUIManager::ShowWidget(FName WidgetName, APlayerController* PC)
 	}
 
 	// 이미 표시 중이면 스킵
-	if (Widget->GetVisibility() == ESlateVisibility::Visible)
+	ESlateVisibility CurrentVis = Widget->GetVisibility();
+	UE_LOG(LogTemp, Warning, TEXT("ShowWidget '%s' - Current visibility before change: %d"),
+		*WidgetName.ToString(), (int32)CurrentVis);
+
+	if (CurrentVis == ESlateVisibility::Visible)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("ShowWidget '%s' - Already visible, skipping"), *WidgetName.ToString());
 		return;
 	}
 
 	// Widget 표시
 	Widget->SetVisibility(ESlateVisibility::Visible);
 	UIData.VisibleWidgets.AddUnique(WidgetName);
+
+	// 설정 후 확인
+	ESlateVisibility NewVis = Widget->GetVisibility();
+	UE_LOG(LogTemp, Warning, TEXT("ShowWidget '%s' - Visibility after SetVisibility: %d"),
+		*WidgetName.ToString(), (int32)NewVis);
 
 	// Input 모드 업데이트
 	UpdateInputMode();
@@ -182,14 +194,24 @@ void UBSUIManager::HideWidget(FName WidgetName, APlayerController* PC)
 	}
 
 	// 이미 숨겨져 있으면 스킵
-	if (Widget->GetVisibility() != ESlateVisibility::Visible)
+	ESlateVisibility CurrentVis = Widget->GetVisibility();
+	UE_LOG(LogTemp, Warning, TEXT("HideWidget '%s' - Current visibility before change: %d"),
+		*WidgetName.ToString(), (int32)CurrentVis);
+
+	if (CurrentVis != ESlateVisibility::Visible)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("HideWidget '%s' - Already hidden, skipping"), *WidgetName.ToString());
 		return;
 	}
 
 	// Widget 숨김
 	Widget->SetVisibility(ESlateVisibility::Collapsed);
 	UIData.VisibleWidgets.Remove(WidgetName);
+
+	// 설정 후 확인
+	ESlateVisibility NewVis = Widget->GetVisibility();
+	UE_LOG(LogTemp, Warning, TEXT("HideWidget '%s' - Visibility after SetVisibility: %d"),
+		*WidgetName.ToString(), (int32)NewVis);
 
 	// Input 모드 업데이트
 	UpdateInputMode();
@@ -199,7 +221,11 @@ void UBSUIManager::HideWidget(FName WidgetName, APlayerController* PC)
 
 void UBSUIManager::ToggleWidget(FName WidgetName, APlayerController* PC)
 {
-	if (IsWidgetVisible(WidgetName, PC))
+	bool bIsVisible = IsWidgetVisible(WidgetName, PC);
+	UE_LOG(LogTemp, Warning, TEXT("ToggleWidget '%s' - Current visibility: %s"),
+		*WidgetName.ToString(), bIsVisible ? TEXT("VISIBLE") : TEXT("HIDDEN"));
+
+	if (bIsVisible)
 	{
 		HideWidget(WidgetName, PC);
 	}
@@ -211,13 +237,14 @@ void UBSUIManager::ToggleWidget(FName WidgetName, APlayerController* PC)
 
 bool UBSUIManager::IsWidgetVisible(FName WidgetName, APlayerController* PC) const
 {
-	const UUserWidget* Widget = GetWidget(WidgetName, PC);
-	if (!Widget)
-	{
-		return false;
-	}
+	// Use the tracked VisibleWidgets array instead of GetVisibility()
+	// GetVisibility() may not reflect the actual state correctly in some cases
+	bool bIsInArray = UIData.VisibleWidgets.Contains(WidgetName);
 
-	return Widget->GetVisibility() == ESlateVisibility::Visible;
+	UE_LOG(LogTemp, Warning, TEXT("IsWidgetVisible '%s' - In VisibleWidgets array: %s"),
+		*WidgetName.ToString(), bIsInArray ? TEXT("YES") : TEXT("NO"));
+
+	return bIsInArray;
 }
 
 UUserWidget* UBSUIManager::GetWidget(FName WidgetName, APlayerController* PC) const
@@ -243,6 +270,30 @@ void UBSUIManager::UpdateHealthUI(float Health, float MaxHealth)
 	UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateHealthUI - Not implemented yet"));
 }
 
+/**
+ * 아이템 픽업 프롬프트 UI 업데이트
+ *
+ * 동작 방식:
+ * 1. LineTraceUI 위젯을 가져옴
+ * 2. ItemActor에서 StaticItemData (이름, 아이콘 등) 추출
+ * 3. Widget Blueprint의 "UpdateItemData" 커스텀 이벤트를 찾아서 호출
+ * 4. 파라미터로 ItemName, ItemIcon, Quantity를 전달
+ * 5. Widget을 화면에 표시 (아이템이 있을 때) 또는 숨김 (아이템이 없을 때)
+ *
+ * Blueprint 연동 방법:
+ * 1. WBP_LineTraceUI Widget Blueprint를 엽니다
+ * 2. Event Graph에서 "Custom Event" 생성 (이름: UpdateItemData)
+ * 3. Input 파라미터 추가:
+ *    - ItemName (Text)
+ *    - ItemIcon (Texture 2D Object Reference)
+ *    - Quantity (Integer)
+ * 4. 이 파라미터들을 UI 요소에 연결:
+ *    - Text Block에 ItemName 바인딩
+ *    - Image에 ItemIcon 바인딩
+ *    - 수량 표시 Text에 Quantity 바인딩
+ *
+ * 주의: UpdateItemData 함수가 없으면 Warning 로그가 출력되고 UI가 업데이트되지 않습니다
+ */
 void UBSUIManager::UpdatePickupPrompt(AItemActor* Item)
 {
 	if (!LocalPlayerController)
@@ -250,6 +301,7 @@ void UBSUIManager::UpdatePickupPrompt(AItemActor* Item)
 		return;
 	}
 
+	// LineTraceUI 위젯 가져오기
 	UUserWidget* Widget = GetWidget(FName("LineTraceUI"));
 	if (!Widget)
 	{
@@ -257,45 +309,30 @@ void UBSUIManager::UpdatePickupPrompt(AItemActor* Item)
 		return;
 	}
 
+	// 아이템이 있고 StaticData가 유효한 경우
 	if (Item && Item->GetItemStaticData())
 	{
-		// Show widget and update with item data
+		// ItemActor에서 정적 데이터 (이름, 아이콘 등) 가져오기
 		const UBSStaticItemDataAsset* ItemData = Item->GetItemStaticData();
 
-		// Call Blueprint-exposed function to update UI
-		// The widget should implement a function called "UpdateItemData" or use variables
-
-		// Method 1: Using Blueprint-callable function (recommended)
-		UFunction* UpdateFunc = Widget->FindFunction(FName("UpdateItemData"));
-		if (UpdateFunc)
+		// ULineTraceUI의 SetData 함수 호출
+		if (ULineTraceUI* LineTraceWidget = Cast<ULineTraceUI>(Widget))
 		{
-			struct FUpdateItemDataParams
-			{
-				FText ItemName;
-				UTexture2D* ItemIcon;
-				int32 Quantity;
-			};
-
-			FUpdateItemDataParams Params;
-			Params.ItemName = ItemData->DisplayName;
-			Params.ItemIcon = ItemData->Icon;
-			Params.Quantity = 1; // TODO: Get actual quantity from item instance
-
-			Widget->ProcessEvent(UpdateFunc, &Params);
+			// 아이템 이름과 아이콘 전달
+			LineTraceWidget->SetData(ItemData->Icon, ItemData->DisplayName);
 			UE_LOG(LogTemp, Log, TEXT("BSUIManager::UpdatePickupPrompt - Updated LineTraceUI with item: %s"), *ItemData->DisplayName.ToString());
 		}
 		else
 		{
-			// Method 2: Set variables directly (fallback)
-			UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdatePickupPrompt - UpdateItemData function not found in widget"));
+			UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdatePickupPrompt - Widget is not ULineTraceUI type!"));
 		}
 
-		// Show the widget
+		// 위젯을 화면에 표시
 		ShowWidget(FName("LineTraceUI"));
 	}
 	else
 	{
-		// Hide the widget when no item
+		// 아이템이 없으면 위젯 숨김 (아이템에서 시선을 떼었을 때)
 		HideWidget(FName("LineTraceUI"));
 	}
 }
@@ -336,11 +373,15 @@ void UBSUIManager::SetInputMode(EUIInputMode InputMode, UUserWidget* WidgetToFoc
 		return;
 	}
 
+	// Cast to BSPlayerController to access EnableGameInput/DisableGameInput
+	ABSPlayerController* BSController = Cast<ABSPlayerController>(LocalPlayerController);
+
 	switch (InputMode)
 	{
 	case EUIInputMode::GameOnly:
 		LocalPlayerController->SetInputMode(FInputModeGameOnly());
 		LocalPlayerController->SetShowMouseCursor(false);
+		UE_LOG(LogTemp, Warning, TEXT("SetInputMode: GameOnly - Hiding mouse cursor"));
 		break;
 
 	case EUIInputMode::GameAndUI:
@@ -358,14 +399,15 @@ void UBSUIManager::SetInputMode(EUIInputMode InputMode, UUserWidget* WidgetToFoc
 
 	case EUIInputMode::UIOnly:
 		{
-			FInputModeUIOnly Mode;
-			if (WidgetToFocus)
-			{
-				Mode.SetWidgetToFocus(WidgetToFocus->TakeWidget());
-			}
+			// GameAndUI 모드 사용 (UIOnly는 Tab 키까지 막아버림)
+			FInputModeGameAndUI Mode;
+			// SetWidgetToFocus를 호출하지 않음 -> 포커스가 UI에 고정되지 않아서 Tab 키가 계속 작동
 			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			Mode.SetHideCursorDuringCapture(false);
 			LocalPlayerController->SetInputMode(Mode);
 			LocalPlayerController->SetShowMouseCursor(true);
+			// InputMappingContext는 유지 (Tab 키가 작동해야 하므로)
+			UE_LOG(LogTemp, Warning, TEXT("SetInputMode: UIOnly -> Using GameAndUI (NO FOCUS) to keep Tab key working"));
 		}
 		break;
 	}
@@ -379,8 +421,15 @@ void UBSUIManager::UpdateInputMode()
 	}
 
 	// 표시 중인 Widget이 없으면 GameOnly
+	UE_LOG(LogTemp, Error, TEXT(">>> UpdateInputMode - VisibleWidgets count: %d"), UIData.VisibleWidgets.Num());
+	for (const FName& WidgetName : UIData.VisibleWidgets)
+	{
+		UE_LOG(LogTemp, Error, TEXT("    - Visible: %s"), *WidgetName.ToString());
+	}
+
 	if (UIData.VisibleWidgets.Num() == 0)
 	{
+		UE_LOG(LogTemp, Error, TEXT(">>> UpdateInputMode - NO visible widgets, setting GameOnly"));
 		SetInputMode(EUIInputMode::GameOnly);
 		return;
 	}
@@ -391,9 +440,16 @@ void UBSUIManager::UpdateInputMode()
 
 	for (const FName& VisibleWidgetName : UIData.VisibleWidgets)
 	{
+		// LineTraceUI는 입력 모드 변경하지 않음 (아이템 보고 있을 때 카메라 회전 유지)
+		if (VisibleWidgetName == FName("LineTraceUI"))
+		{
+			continue;
+		}
+
 		const FBSWidgetConfig* Config = WidgetConfigs.Find(VisibleWidgetName);
 		if (!Config)
 		{
+			UE_LOG(LogTemp, Warning, TEXT("UpdateInputMode - No config for widget '%s'"), *VisibleWidgetName.ToString());
 			continue;
 		}
 
@@ -402,6 +458,7 @@ void UBSUIManager::UpdateInputMode()
 		{
 			TargetMode = EUIInputMode::UIOnly;
 			WidgetToFocus = GetWidget(VisibleWidgetName);
+			UE_LOG(LogTemp, Error, TEXT(">>> UpdateInputMode - Widget '%s' wants UIOnly"), *VisibleWidgetName.ToString());
 			break;
 		}
 
@@ -410,6 +467,7 @@ void UBSUIManager::UpdateInputMode()
 		{
 			TargetMode = EUIInputMode::GameAndUI;
 			WidgetToFocus = GetWidget(VisibleWidgetName);
+			UE_LOG(LogTemp, Warning, TEXT("UpdateInputMode - Widget '%s' wants GameAndUI"), *VisibleWidgetName.ToString());
 		}
 	}
 

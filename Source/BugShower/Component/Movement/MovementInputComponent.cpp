@@ -3,6 +3,7 @@
 #include "MovementInputComponent.h"
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Component/PickUp/PickUpDetectorComponent.h"
 
 
 // Sets default values for this component's properties
@@ -127,6 +128,9 @@ void UMovementInputComponent::Move(const struct FInputActionValue& Value)
 {
 	if (!OwnerPlayer.IsValid()) return;
 
+	// WASD movement is always allowed (even when UI is open)
+	// 인벤토리 열려도 이동은 가능하게 함
+
 	//UE_LOG(LogTemp, Warning, TEXT("Move called!"));
 
 	// Get input movement vector from keyboard (usually WASD keys)
@@ -152,7 +156,14 @@ void UMovementInputComponent::Move(const struct FInputActionValue& Value)
 
 void UMovementInputComponent::Look(const struct FInputActionValue& Value)
 {
-	if (!OwnerPlayer.IsValid()) return;
+	// 수정: OwnerController null 체크 추가 (166번 라인에서 역참조하기 전에 검증)
+	if (!OwnerPlayer.IsValid() || !OwnerController.IsValid()) return;
+
+	static int CallCount = 0;
+	if (CallCount < 5)
+	{
+		UE_LOG(LogTemp, Error, TEXT("!!! Look() CALLED !!! (count: %d)"), CallCount++);
+	}
 
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 

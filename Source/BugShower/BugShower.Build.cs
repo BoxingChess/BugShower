@@ -7,16 +7,33 @@ public class BugShower : ModuleRules
 	public BugShower(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "UMG", "Slate", "SlateCore" });
 
-        // �߰��� �ʿ��� ���
+		// Public dependency modules
+		// 퍼블릭 의존성 모듈들
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"InputCore",
+			"EnhancedInput",    // Enhanced Input System - 향상된 입력 시스템
+			"UMG",              // UI Widget system - UI 위젯 시스템
+			"Slate",            // UI framework - UI 프레임워크
+			"SlateCore",        // UI core - UI 코어
+			"PhysicsCore",      // Physics system - 물리 시스템
+			"AssetRegistry"     // Asset loading for ItemResourceManager - ItemResourceManager의 에셋 로딩용
+		});
+
+        // Additional include paths
+        // 추가 인클루드 경로
         PublicIncludePaths.AddRange(new string[] { "BugShower" });
 
-		//���� ����
+		// Physics includes
+		// 물리 인클루드
         PublicIncludePaths.AddRange(new string[] { "PhysicsCore" });
-		
-		//UI ����
+
+		// UI includes (already in PublicDependencyModuleNames)
+		// UI 인클루드 (이미 PublicDependencyModuleNames에 포함됨)
         //PublicIncludePaths.AddRange(new string[] { "UMG", "Slate", "SlateCore" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

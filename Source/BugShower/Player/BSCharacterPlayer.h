@@ -15,6 +15,7 @@ class UMovementInputComponent;
 class UUI_InGameComponent;
 class UPickUpDetectorComponent;
 class UInventoryComponent;
+class AWeaponActor;
 
 /*
  �� Ŭ������ ABSCharacterBase�� ��ӹ޴� �÷��̾� ĳ���� Ŭ�����̴�.
@@ -27,6 +28,10 @@ class BUGSHOWER_API ABSCharacterPlayer : public ABSCharacterBase
 public:
 	ABSCharacterPlayer();
 
+protected:
+	virtual void BeginPlay() override;
+
+public:
 /*
 �𸮾� �������� �÷��̾��� �Է��� ó���ϱ� ���� �������̵� �ؾ��ϴ� �Լ�
 Ű���峪 �е��� �Է��� ���� �����ڵ忡 �����ϴ� �ٽ� �Լ�
@@ -85,12 +90,103 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void OnRep_Controller() override;
 
+	// ========================================
+	// 무기 시스템
+	// ========================================
+
+protected:
+	// 현재 장착된 무기 (WeaponActor)
+	// 빈손 상태일 때는 nullptr
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<AWeaponActor> CurrentWeapon;
+
+	// 테스트용: 게임 시작 시 자동으로 장착할 무기 DataAsset
+	// Blueprint에서 설정 가능 (None이면 무기 없이 시작)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Debug")
+	TObjectPtr<class UWeaponDataAsset> TestWeaponData;
+
 public:
-	// Fire action - will be moved to weapon component later
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	/**
+	 * 무기 장착
+	 * WeaponActor를 캐릭터 손에 부착하고 사용 가능 상태로 만듦
+	 *
+	 * @param Weapon - 장착할 WeaponActor (nullptr이면 무시)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void EquipWeapon(AWeaponActor* Weapon);
+
+	/**
+	 * 무기 해제
+	 * 현재 장착된 무기를 손에서 떼어냄 (땅에 떨어뜨리거나 파괴)
+	 * 빈손 상태가 됨
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void UnequipWeapon();
+
+	/**
+	 * 발사 시작 (좌클릭 누름)
+	 * CurrentWeapon의 WeaponComponent->StartFire() 호출
+	 * 무기가 없으면 아무 일도 안 일어남
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void StartFireWeapon();
+
+	/**
+	 * 발사 중지 (좌클릭 뗌)
+	 * CurrentWeapon의 WeaponComponent->StopFire() 호출
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void StopFireWeapon();
+
+	/**
+	 * 재장전 (R키)
+	 * CurrentWeapon의 WeaponComponent->Reload() 호출
+	 * 무기가 없거나 이미 재장전 중이면 무시
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void ReloadWeapon();
+
+	/**
+	 * 현재 장착된 무기 가져오기
+	 * @return 현재 무기 (없으면 nullptr)
+	 */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	AWeaponActor* GetCurrentWeapon() const { return CurrentWeapon; }
+
+	/**
+	 * 무기 장착 여부 확인
+	 * @return 무기를 들고 있으면 true
+	 */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool HasWeaponEquipped() const { return CurrentWeapon != nullptr; }
+
+	// ========================================
+	// 입력 액션 (Enhanced Input)
+	// ========================================
+
+public:
+	// 무기 발사 (좌클릭 - Started/Completed)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+	TObjectPtr<class UInputAction> IA_FireWeapon;
+
+	// 무기 재장전 (R키 - Triggered)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
+	TObjectPtr<class UInputAction> IA_ReloadWeapon;
+
+	// ========================================
+	// 수류탄 시스템 (기존 코드)
+	// ========================================
+
+public:
+	// 수류탄 발사 (우클릭 - Started)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Grenade")
 	TObjectPtr<class UInputAction> FireAction;
 
-	// Weapon firing
+	// Projectile class to spawn
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TSubclassOf<class AProjectileBase> ProjectileClass;
+
+	// 수류탄 발사 (우클릭)
 public:
 	void Fire();
 
