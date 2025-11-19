@@ -4,16 +4,83 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "NPC/Spawnable.h"
+#include "NPC/PoolingType.h"
 #include "MonsterBase.generated.h"
 
+UENUM(BlueprintType)
+enum class EMonsterGrade : uint8
+{
+	NORMAL UMETA(DisplayName = "Normal"),
+	ELITE UMETA(DisplayName = "Elite"),
+	BOSS UMETA(DisplayName = "Boss")
+};
+
+UENUM(BlueprintType)
+enum class EAttackType : uint8
+{
+	Melee UMETA(DisplayName = "Melee"),
+	Ranged UMETA(DisplayName = "Ranged"),
+	Flying UMETA(DisplayName = "Flying"),
+};
+
+
+
+
+// Base class for all monsters
 UCLASS()
-class BUGSHOWER_API AMonsterBase : public ACharacter
+class BUGSHOWER_API AMonsterBase : public ACharacter, public ISpawnable
 {
 	GENERATED_BODY()
 
+	// Interface functions
+public:
+	virtual EPoolType GetPoolType() const override { return EPoolType::Monster; }
+	virtual void Spawn(const FVector pos) override;
+
+	UFUNCTION()
+	virtual void DeSpawn() override;
+
+	virtual void ReturnPool() override;
+
+protected:
+	// No longer needed - use GetWorld()->GetSubsystem<UPoolingSubsystem>() instead
+	// TWeakObjectPtr<AActor> OwningPool;
 public:
 	// Sets default values for this character's properties
 	AMonsterBase();
+
+
+	//fixed value for monster stats
+	UPROPERTY(EditAnywhere, Category = "MeleeStat")
+	float DashSpeed;
+	UPROPERTY(EditAnywhere, Category = "MeleeStat")
+	float DashDistance;
+
+	// Ranged attack settings
+	UPROPERTY(EditAnywhere, Category = "RangedStat")
+	float AttackRange;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RangedStat")
+	float MinAttackRange;
+
+	UPROPERTY(EditAnywhere, Category = "RangedStat")
+	float ProjectileSpeed;
+
+	// Drop chance (0.0 - 1.0)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
+	float DropChance;
+
+	// Number of items to drop
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
+	int32 MinDropCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
+	int32 MaxDropCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
+	EMonsterGrade Grade;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
+	EAttackType Type;
 
 protected:
 	// Called when the game starts or when spawned
@@ -23,7 +90,36 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
+
+	// Get MonsterStatComponent
+	UFUNCTION(BlueprintCallable, Category = "Stat")
+	class UMonsterStatComponent* GetMonsterStatComponent() const { return MonsterStatComp; }
+
+	// Fire projectile towards target (called from BT Task)
+	void FireProjectile(AActor* Target);
+
+	// Drop item on death
+	UFUNCTION()
+	void OnDeath(AActor* DeadMonster);
+
+
+protected:
+	// Item drop table - set in Blueprint
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
+	TArray<TSubclassOf<class AItemBase>> DropTable;
+
+	// Projectile class to spawn - set in Blueprint
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	TSubclassOf<class AMonsterProjectile> ProjectileClass;
+
+	// Drop items at monster location
+	void DropItems();
+
+private:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	class UMonsterStatComponent* MonsterStatComp;
+
+	//need animation comp
 };

@@ -1,0 +1,135 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#include "NPC/MonsterStatComponent.h"
+#include "Net/UnrealNetwork.h"
+
+#include "Logging/BugShowerLog.h"
+
+UMonsterStatComponent::UMonsterStatComponent()
+{
+	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true);
+
+	// Default values
+	Name = TEXT("Monster");
+
+	CurHP = 100.f;
+	MaxHP = 100.f;
+	Damage = 10.f;
+	Defense = 5.f;
+	MoveSpeed = 100.f;
+	AttackSpeed = 1.f;
+}
+
+void UMonsterStatComponent::ReadyForReplication()
+{
+	Super::ReadyForReplication();
+}
+
+void UMonsterStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// Name: never changes -> replicate only on spawn
+	DOREPLIFETIME_CONDITION(UMonsterStatComponent, Name, COND_InitialOnly);
+
+	// Stats: change during waves/upgrades -> replicate when changed (default behavior)
+	// These use delta compression automatically - only sends when value changes
+	DOREPLIFETIME(UMonsterStatComponent, CurHP);
+	DOREPLIFETIME(UMonsterStatComponent, MaxHP);
+	DOREPLIFETIME(UMonsterStatComponent, Damage);
+	DOREPLIFETIME(UMonsterStatComponent, Defense);
+	DOREPLIFETIME(UMonsterStatComponent, MoveSpeed);
+	DOREPLIFETIME(UMonsterStatComponent, AttackSpeed);
+}
+
+void UMonsterStatComponent::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void UMonsterStatComponent::OnRep_ChangeHP()
+{
+	// HP changed on client - broadcast delegate
+	OnHPChanged.Broadcast(CurHP, MaxHP);
+}
+
+void UMonsterStatComponent::CheckDeath()
+{
+	if (CurHP <= 0.f)
+	{
+		CurHP = 0.f;
+
+		// Only broadcast death on server
+		if (GetOwner() && GetOwner()->HasAuthority())
+		{
+			LOG_LOGIC_INFO(TEXT("Monster %s is Dead"), *GetOwner()->GetName());
+			//OnMonsterDeath.Broadcast(GetOwner());
+			OnDeath.Execute();
+		}
+	}
+}
+
+void UMonsterStatComponent::SetCurrentHP(float NewHP)
+{
+	if (GetOwner() && !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+
+	CurHP = FMath::Clamp(NewHP, 0.f, MaxHP);
+	OnHPChanged.Broadcast(CurHP, MaxHP);
+
+	CheckDeath();
+}
+
+void UMonsterStatComponent::SetMaxHP(float NewMaxHP)
+{
+	if (GetOwner() && !GetOwner()->HasAuthority())
+		return;
+
+	MaxHP = FMath::Max(NewMaxHP, 1.f);
+	CurHP = FMath::Min(CurHP, MaxHP);
+	OnHPChanged.Broadcast(CurHP, MaxHP);
+}
+
+void UMonsterStatComponent::ApplyDamage(float DamageAmount)
+{
+	if (GetOwner() && !GetOwner()->HasAuthority())
+		return;
+
+	if (IsDead())
+		return;
+
+	//UE_LOG(LogTemp, Warning, TEXT("Monster %s takes Damage: %f, CurHP : %f"), *GetOwner()->GetName(), DamageAmount,CurHP);
+	
+	float ActualDamage = FMath::Max(DamageAmount - Defense, 0.f);
+	CurHP = FMath::Max(CurHP - ActualDamage, 0.f);
+
+	OnHPChanged.Broadcast(CurHP, MaxHP);
+
+	CheckDeath();
+}
+
+void UMonsterStatComponent::ResetHP()
+{
+	if (GetOwner() && !GetOwner()->HasAuthority())
+		return;
+
+	CurHP = MaxHP;
+	OnHPChanged.Broadcast(CurHP, MaxHP);
+}
+
+void UMonsterStatComponent::InitStats(FString InName, EMonsterGrade InGrade, float InMaxHP, float InDamage, float InDefense)
+{
+	if (GetOwner() && !GetOwner()->HasAuthority())
+		return;
+
+	Name = InName;
+	MaxHP = InMaxHP;
+	CurHP = InMaxHP;
+	Damage = InDamage;
+	Defense = InDefense;
+
+	OnHPChanged.Broadcast(CurHP, MaxHP);
+}

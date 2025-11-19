@@ -1,0 +1,1 @@
+UnrealEditor.exe %cd%\BugShower.uproject -NetTrace=1 -Trace=Net
