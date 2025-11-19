@@ -5,30 +5,16 @@
 #include "Components/SphereComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Logging/BugShowerLog.h"
-#include "NPC/Pooling.h"
 #include "Player/BSCharacterPlayer.h"
-
-
-void AItemBase::InitState(AActor* InOwningSpawnPool)
-{
-	//set inactive state
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
-
-	//set owning pool
-	OwningPool = InOwningSpawnPool;
-}
+#include "Subsystems/PoolingSubsystem.h"
 
 void AItemBase::Spawn(const FVector pos)
 {
-	SetActorHiddenInGame(false);
-	SetActorEnableCollision(true);
-	SetActorTickEnabled(true);
-	SetActorLocation(pos);
+	Activate(this,pos);
 
 	// Reset lifetime when spawned from pool
 	CurrentLifeTime = 0.f;
+
 }
 
 void AItemBase::ReturnPool()
@@ -37,12 +23,12 @@ void AItemBase::ReturnPool()
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
 
-	if (OwningPool.IsValid())
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
 	{
-		APooling* PoolActor = Cast<APooling>(OwningPool.Get());
-		if (PoolActor)
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolActor->ReturnPool(this);
+			PoolSys->ReturnToPool(this);
 		}
 	}
 }
@@ -53,12 +39,12 @@ void AItemBase::DeSpawn()
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
 
-	if (OwningPool.IsValid())
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
 	{
-		APooling* PoolActor = Cast<APooling>(OwningPool.Get());
-		if (PoolActor)
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolActor->ReturnPool(this);
+			PoolSys->ReturnToPool(this);
 		}
 	}
 }

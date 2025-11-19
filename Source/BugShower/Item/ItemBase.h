@@ -14,10 +14,9 @@ class BUGSHOWER_API AItemBase : public AActor, public ISpawnable
 {
 	GENERATED_BODY()
 
-	// Interface  functions
+	// Interface functions
 public:
 	virtual EPoolType GetPoolType() const override { return EPoolType::Item; }
-	virtual void InitState(AActor* InOwningSpawnPool) override;
 	virtual void Spawn(const FVector pos) override;
 	virtual void ReturnPool() override;
 
@@ -25,7 +24,6 @@ public:
 	virtual void DeSpawn() override;
 
 protected:
-	TWeakObjectPtr<AActor> OwningPool;
 
 public:
 	AItemBase();

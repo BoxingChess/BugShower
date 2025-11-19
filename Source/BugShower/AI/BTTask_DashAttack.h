@@ -23,4 +23,14 @@ public:
 private:
 	// Store original speed to restore after dash
 	float OriginalMaxSpeed;
+
+	// Stuck detection variables
+	FVector LastPosition;
+	float StuckCheckTimer;
+	float TotalElapsedTime;
+
+	// Stuck detection thresholds
+	static constexpr float StuckCheckInterval = 0.3f;  // Check every 0.3 seconds
+	static constexpr float MinMoveDistanceThreshold = 50.0f;  // 50cm minimum movement
+	static constexpr float MaxDashDuration = 3.0f;  // Maximum dash duration (safety timeout)
 };

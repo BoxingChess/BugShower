@@ -26,15 +26,19 @@ class BUGSHOWER_API ISpawnable
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 	virtual EPoolType GetPoolType() const = 0;
-	virtual void InitState(class AActor* InOwningSpawnPool) = 0;
+
+
+	// Activate object at specified position (called when spawning from pool)
 	virtual void Spawn(const FVector pos) = 0;
 
-	//forcing return to pool
-	virtual void ReturnPool() = 0; 
+	// Forcing return to pool (called externally)
+	virtual void ReturnPool() = 0;
 
-	//UFUNCTION()
-	//delegate function for event
+	// Delegate function for event (called when object wants to return itself)
 	virtual void DeSpawn() = 0;	
 
+	// Helper functions for common activation/deactivation
+	virtual void Activate(AActor* Actor, const FVector& Position);
+	virtual void Deactivate(AActor* Actor);
 protected:
 };

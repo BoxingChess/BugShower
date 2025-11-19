@@ -1,40 +1,18 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "NPC/MonsterBase.h"
-#include "NPC/MonsterAIController.h"
 #include "Net/UnrealNetwork.h"
-#include "NPC/MonsterStatComponent.h"
-#include "Item/ItemBase.h"
-#include "Logging/BugShowerLog.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Projectile/MonsterProjectile.h"
 #include "Kismet/GameplayStatics.h"
-#include "NPC/Spawnable.h"
+#include "NPC/MonsterAIController.h"
+#include "NPC/MonsterStatComponent.h"
+#include "Logging/BugShowerLog.h"
+#include "Subsystems/PoolingSubsystem.h"
 
-#include "NPC/Pooling.h"
-
-
-void AMonsterBase::InitState(AActor* InOwningSpawnPool)
-{
-	//set inactive state
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
-
-	//set owning pool
-	OwningPool = InOwningSpawnPool;
-
-	// Subscribe to death event
-	MonsterStatComp->OnDeath.BindDynamic(this, &AMonsterBase::DeSpawn);
-}
 
 void AMonsterBase::Spawn(const FVector pos)
 {
-	SetActorLocation(pos);
-	SetActorHiddenInGame(false);
-	SetActorEnableCollision(true);
-	SetActorTickEnabled(true);
+	Activate(this, pos);
 
 	MonsterStatComp->ResetHP();
 
@@ -67,29 +45,21 @@ void AMonsterBase::DeSpawn()
 		}
 	}
 
-	if (!OwningPool.IsValid())
-	{
-		return;
-	}
-
-	APooling* PoolActor = Cast<APooling>(OwningPool);
-	if (PoolActor)
-	{
-		PoolActor->ReturnPool(this);
-	}
-
+	// Drop items before returning to pool
 	DropItems();
 
-	return;
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
+	{
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
+		{
+			PoolSys->ReturnToPool(this);
+		}
+	}
 }
 
 void AMonsterBase::ReturnPool()
 {
-	if (!OwningPool.IsValid())
-	{
-		return;
-	}
-
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
 	SetActorTickEnabled(false);
@@ -105,11 +75,13 @@ void AMonsterBase::ReturnPool()
 		}
 	}
 
-	APooling* PoolActor = Cast<APooling>(OwningPool);
-	if (PoolActor)
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
 	{
-		PoolActor->ReturnPool(this);
-		return;
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
+		{
+			PoolSys->ReturnToPool(this);
+		}
 	}
 }
 
@@ -151,7 +123,7 @@ void AMonsterBase::BeginPlay()
 	// Subscribe to death event (only on server)
 	if (HasAuthority() && MonsterStatComp)
 	{
-		MonsterStatComp->OnMonsterDeath.AddDynamic(this, &AMonsterBase::OnDeath);
+		MonsterStatComp->OnDeath.BindDynamic(this, &AMonsterBase::DeSpawn);
 	}
 }
 
@@ -159,8 +131,6 @@ void AMonsterBase::BeginPlay()
 void AMonsterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	MonsterStatComp->ApplyDamage(DeltaTime);
 }
 
 float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -181,13 +151,6 @@ void AMonsterBase::FireProjectile(AActor* Target)
 		return;
 	}
 
-	// Validate projectile class
-	if (!ProjectileClass)
-	{
-		LOG_LOGIC_ERROR(TEXT("FireProjectile: ProjectileClass is not set"));
-		return;
-	}
-
 	// Validate target
 	if (!Target)
 	{
@@ -195,67 +158,30 @@ void AMonsterBase::FireProjectile(AActor* Target)
 		return;
 	}
 
+	// Get pooling subsystem
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: World is null"));
+		return;
+	}
+
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (!PoolSys)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: PoolingSubsystem not found"));
+		return;
+	}
+
 	// Calculate spawn location (slightly in front of monster)
 	FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.0f;
 	SpawnLocation.Z += 50.0f;  // Spawn at chest height
 
-	// Calculate target location
-	FVector TargetLocation = Target->GetActorLocation();
+	// Get damage from MonsterStatComponent
+	float Damage = MonsterStatComp ? MonsterStatComp->GetDamage() : 10.0f;
 
-	// Calculate arc velocity (grenade-like trajectory)
-	FVector LaunchVelocity;
-
-	// Use standard SuggestProjectileVelocity with high arc for grenade-like effect
-	bool bHaveArc = UGameplayStatics::SuggestProjectileVelocity(
-		this,
-		LaunchVelocity,
-		SpawnLocation,
-		TargetLocation,
-		ProjectileSpeed,  // Use projectile speed from MonsterBase
-		true,  // use high arc  default is false
-		0.0f,   // No collision radius
-		0.0f,   // Override gravity Z (0 = use world gravity)
-		ESuggestProjVelocityTraceOption::DoNotTrace  // Don't trace for obstacles
-	);
-
-	// If arc calculation succeeded, modify velocity for very high arc trajectory
-	if (bHaveArc)
-	{
-		LOG_LOGIC_INFO(TEXT("FireProjectile: Calculated high-arc mortar trajectory"));
-	}
-	else
-	{
-		LOG_LOGIC_WARNING(TEXT("FireProjectile: Could not calculate arc trajectory, target may be unreachable"));
-		return;  // Don't fire if we can't reach the target
-	}
-
-	// Spawn projectile
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.Instigator = GetInstigator();
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	AMonsterProjectile* Projectile = GetWorld()->SpawnActor<AMonsterProjectile>(
-		ProjectileClass,
-		SpawnLocation,
-		LaunchVelocity.Rotation(),
-		SpawnParams
-	);
-
-	if (Projectile)
-	{
-		// Get damage from MonsterStatComponent
-		float Damage = MonsterStatComp ? MonsterStatComp->GetDamage() : 10.0f;
-
-		// Initialize projectile with calculated arc velocity
-		Projectile->InitializeProjectileWithVelocity(LaunchVelocity, Damage, this);
-
-		LOG_LOGIC_INFO(TEXT("Monster %s fired projectile at %s with arc trajectory"), *GetName(), *Target->GetName());
-	}
-	else
-	{
-		LOG_LOGIC_ERROR(TEXT("FireProjectile: Failed to spawn projectile"));
-	}
+	// Delegate projectile firing to subsystem
+	PoolSys->FireProjectileAt(this, Target, SpawnLocation, ProjectileSpeed, Damage);
 }
 
 void AMonsterBase::OnDeath(AActor* DeadMonster)
@@ -272,50 +198,34 @@ void AMonsterBase::DropItems()
 	if (!HasAuthority())
 		return;
 
-	//if (DropTable.Num() == 0)
-	//	return;
+	// Check drop chance
+	float RandomValue = FMath::FRand();
+	if (RandomValue > DropChance)
+		return;
 
-	//// Check drop chance
-	//float RandomValue = FMath::FRand();
-	//if (RandomValue > DropChance)
-	//	return;
-
-	//// Determine number of items to drop
-	//int32 DropCount = FMath::RandRange(MinDropCount, MaxDropCount);
-	//DropCount = FMath::Min(DropCount, DropTable.Num());
+	// Determine number of items to drop
+	int32 DropCount = FMath::RandRange(MinDropCount, MaxDropCount);
 
 	FVector DropLocation = GetActorLocation();
 	DropLocation.Z += 50.f; // Slightly above ground
-	FRotator DropRotation = FRotator::ZeroRotator;
 
-
-	APooling* PoolActor = Cast<APooling>(OwningPool);
-	if (PoolActor)
+	// Get pooling subsystem
+	UWorld* World = GetWorld();
+	if (!World)
 	{
-		PoolActor->Spawn(EPoolType::Item, DropLocation);
-		LOG_LOGIC_INFO(TEXT("Monster %s dropped item from pool"), *GetName());
+		LOG_LOGIC_ERROR(TEXT("DropItems: World is null"));
+		return;
 	}
 
-	//for (int32 i = 0; i < DropCount; i++)
-	//{
-	//	// Select random item from drop table
-	//	int32 RandomIndex = FMath::RandRange(0, DropTable.Num() - 1);
-	//	TSubclassOf<AItemBase> ItemClass = DropTable[RandomIndex];
-
-	//	if (ItemClass)
-	//	{
-	//		// Add random offset to avoid items stacking
-	//		FVector Offset = FVector(
-	//			FMath::RandRange(-100.f, 100.f),
-	//			FMath::RandRange(-100.f, 100.f),
-	//			50.f
-	//		);
-
-	//		FActorSpawnParameters SpawnParams;
-	//		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	//		
-	//		
-	//	}
-	//}
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (PoolSys)
+	{
+		PoolSys->SpawnItemDrop(DropLocation, DropCount);
+		LOG_LOGIC_INFO(TEXT("Monster %s dropped %d items from pool"), *GetName(), DropCount);
+	}
+	else
+	{
+		LOG_LOGIC_ERROR(TEXT("DropItems: PoolingSubsystem not found"));
+	}
 }
 

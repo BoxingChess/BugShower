@@ -14,6 +14,9 @@ UBTTask_DashAttack::UBTTask_DashAttack()
 	NodeName = TEXT("Dash Attack");
 	bNotifyTick = true;  // Enable Tick
 	OriginalMaxSpeed = 0.0f;
+	StuckCheckTimer = 0.0f;
+	TotalElapsedTime = 0.0f;
+	LastPosition = FVector::ZeroVector;
 }
 
 EBTNodeResult::Type UBTTask_DashAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -69,6 +72,11 @@ EBTNodeResult::Type UBTTask_DashAttack::ExecuteTask(UBehaviorTreeComponent& Owne
 	// Store original speed
 	OriginalMaxSpeed = Movement->MaxWalkSpeed;
 
+	// Initialize stuck detection
+	LastPosition = Monster->GetActorLocation();
+	StuckCheckTimer = 0.0f;
+	TotalElapsedTime = 0.0f;
+
 	// Set dash speed
 	Movement->MaxWalkSpeed = Monster->DashSpeed;
 
@@ -108,21 +116,54 @@ void UBTTask_DashAttack::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Node
 		return;
 	}
 
+	UCharacterMovementComponent* Movement = Monster->GetCharacterMovement();
+	if (!Movement)
+	{
+		FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+		return;
+	}
+
+	// Update timers
+	TotalElapsedTime += DeltaSeconds;
+	StuckCheckTimer += DeltaSeconds;
+
+	// Safety timeout - if dash takes too long, force complete
+	if (TotalElapsedTime >= MaxDashDuration)
+	{
+		Movement->MaxWalkSpeed = OriginalMaxSpeed;
+		LOG_BT(TEXT("BTTask_DashAttack: Max duration reached, ending dash"));
+		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+		return;
+	}
+
+	// Stuck detection - check if monster has moved enough
+	if (StuckCheckTimer >= StuckCheckInterval)
+	{
+		FVector CurrentPosition = Monster->GetActorLocation();
+		float DistanceMoved = FVector::Dist(CurrentPosition, LastPosition);
+
+		// If barely moved, assume hit a wall
+		if (DistanceMoved < MinMoveDistanceThreshold)
+		{
+			Movement->MaxWalkSpeed = OriginalMaxSpeed;
+			LOG_BT(TEXT("BTTask_DashAttack: Hit obstacle (moved only %.1fcm), ending dash"), DistanceMoved);
+			FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+			return;
+		}
+
+		// Update last position for next check
+		LastPosition = CurrentPosition;
+		StuckCheckTimer = 0.0f;
+	}
+
 	// Check movement status
 	EPathFollowingStatus::Type MoveStatus = AIController->GetMoveStatus();
 
 	// If not moving anymore, dash is complete
 	if (MoveStatus != EPathFollowingStatus::Moving)
 	{
-		// Restore original speed
-		UCharacterMovementComponent* Movement = Monster->GetCharacterMovement();
-		if (Movement)
-		{
-			Movement->MaxWalkSpeed = OriginalMaxSpeed;
-			LOG_BT(TEXT("BTTask_DashAttack: Dash completed, speed restored to %.1f"), OriginalMaxSpeed);
-		}
-
-		// Finish task
+		Movement->MaxWalkSpeed = OriginalMaxSpeed;
+		LOG_BT(TEXT("BTTask_DashAttack: Dash completed normally, speed restored to %.1f"), OriginalMaxSpeed);
 		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 	}
 }
