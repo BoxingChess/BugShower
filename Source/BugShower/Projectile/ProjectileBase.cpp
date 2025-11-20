@@ -14,12 +14,13 @@ AProjectileBase::AProjectileBase()
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComponent"));
 	CollisionComponent->InitSphereRadius(15.0f);
 
-	// Set up collision properly for bouncing
+	// Set up collision properly
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_PhysicsBody);
+	// Use WorldDynamic object type - this collides with Pawn by default
+	// WorldDynamic 사용 - 기본적으로 Pawn과 충돌함
+	CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	CollisionComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-	// Don't ignore Pawn - we need to hit monsters!
-	// ECC_Pawn 무시하지 않음 - 몬스터와 충돌해야 함!
+	// Ignore camera to prevent screen shake
 	CollisionComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 
 	// Enable physics simulation for bouncing
