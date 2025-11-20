@@ -18,7 +18,8 @@ AProjectileBase::AProjectileBase()
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_PhysicsBody);
 	CollisionComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-	CollisionComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
+	// Don't ignore Pawn - we need to hit monsters!
+	// ECC_Pawn 무시하지 않음 - 몬스터와 충돌해야 함!
 	CollisionComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 
 	// Enable physics simulation for bouncing
@@ -57,6 +58,26 @@ AProjectileBase::AProjectileBase()
 void AProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Ignore collision with instigator (player who fired) to prevent self-collision
+	// 발사한 플레이어와 충돌하지 않도록 설정 (몬스터는 충돌함)
+	if (CollisionComponent)
+	{
+		APawn* InstigatorPawn = GetInstigator();
+		if (InstigatorPawn)
+		{
+			// Ignore only the instigator's mesh components
+			TArray<UPrimitiveComponent*> InstigatorComponents;
+			InstigatorPawn->GetComponents<UPrimitiveComponent>(InstigatorComponents);
+			for (UPrimitiveComponent* Comp : InstigatorComponents)
+			{
+				if (Comp)
+				{
+					CollisionComponent->IgnoreComponentWhenMoving(Comp, true);
+				}
+			}
+		}
+	}
 }
 
 void AProjectileBase::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
