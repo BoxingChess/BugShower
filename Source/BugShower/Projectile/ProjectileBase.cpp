@@ -56,6 +56,23 @@ AProjectileBase::AProjectileBase()
 void AProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Ignore collision with owner and instigator to prevent self-collision
+	// 발사한 캐릭터와 충돌하지 않도록 설정
+	if (ProjectileMovement)
+	{
+		// Add owner to ignore list
+		if (AActor* Owner = GetOwner())
+		{
+			ProjectileMovement->AddActorToIgnore(Owner);
+		}
+
+		// Add instigator to ignore list
+		if (APawn* InstigatorPawn = GetInstigator())
+		{
+			ProjectileMovement->AddActorToIgnore(InstigatorPawn);
+		}
+	}
 }
 
 void AProjectileBase::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
