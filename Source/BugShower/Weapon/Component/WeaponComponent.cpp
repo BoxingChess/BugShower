@@ -397,7 +397,8 @@ bool UWeaponComponent::FireSingleProjectile()
 	FVector Direction = GetFireDirection();
 
 	// 프로젝타일 스폰 위치와 회전
-	FVector SpawnLocation = Start;
+	// 캐릭터 앞 100cm에서 스폰하여 자기 자신과 충돌 방지
+	FVector SpawnLocation = Start + (Direction * 100.0f);
 	FRotator SpawnRotation = Direction.Rotation();
 
 	// 스폰 파라미터
