@@ -19,6 +19,7 @@ AProjectileBase::AProjectileBase()
 	CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_PhysicsBody);
 	CollisionComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 	CollisionComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Ignore);
+	CollisionComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 
 	// Enable physics simulation for bouncing
 	CollisionComponent->SetSimulatePhysics(false); // ProjectileMovement handles physics
