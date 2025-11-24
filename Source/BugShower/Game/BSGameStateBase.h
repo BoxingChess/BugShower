@@ -21,10 +21,6 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// Game timer - replicates remaining time to clients
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game Info")
-	float RemainingTime;
-
 	// Number of alive players
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game Info")
 	int32 AlivePlayerCount;
@@ -40,9 +36,6 @@ public:
 	// Did players win? (true = victory, false = defeat)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game Info")
 	bool bVictory;
-
-	// Update remaining time
-	void SetRemainingTime(float NewTime);
 
 	// Update alive player count
 	void SetAlivePlayerCount(int32 NewCount);

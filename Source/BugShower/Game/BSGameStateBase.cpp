@@ -4,7 +4,6 @@
 
 ABSGameStateBase::ABSGameStateBase()
 {
-	RemainingTime = 0.0f;
 	AlivePlayerCount = 0;
 	TotalPlayerCount = 0;
 	bGameEnded = false;
@@ -15,7 +14,6 @@ void ABSGameStateBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ABSGameStateBase, RemainingTime);
 	DOREPLIFETIME(ABSGameStateBase, AlivePlayerCount);
 	DOREPLIFETIME(ABSGameStateBase, TotalPlayerCount);
 	DOREPLIFETIME(ABSGameStateBase, bGameEnded);

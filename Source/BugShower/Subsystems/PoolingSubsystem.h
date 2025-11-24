@@ -40,6 +40,10 @@ public:
 
 	void ReturnToPool(TScriptInterface<class ISpawnable> Object);
 
+	// Return all active monsters to pool (called on game end)
+	UFUNCTION(BlueprintCallable, Category = "Pooling")
+	void ReturnAllMonsterToPool();
+
 	// Pool initialization (called from GameMode or Level Blueprint)
 	UFUNCTION(BlueprintCallable, Category = "Pooling")
 	void InitializePools(
@@ -76,6 +80,8 @@ private:
 	TScriptInterface<class ISpawnable> FindAvailableObject(EPoolType Type);
 	void CreatePool(EPoolType Type, TSubclassOf<AActor> ActorClass, int32 Size);
 	TQueue<TScriptInterface<class ISpawnable>>& GetQueueForType(EPoolType Type);
+
+	void ReturnAllToPool(EPoolType Type);
 
 	// Monster spawning (for testing/debug)
 	UPROPERTY(EditAnywhere)

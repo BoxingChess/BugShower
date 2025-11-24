@@ -6,6 +6,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "NPC/Pooling.h"
+#include "Subsystems/PoolingSubSystem.h"
 #include "Logging/BugShowerLog.h"
 
 
@@ -108,7 +110,7 @@ void ABSGameModeBase::OnPlayerDied(AController* DeadPlayerController)
 			? DeadPlayerController->GetPlayerState<APlayerState>()->GetPlayerName()
 			: TEXT("Unknown");
 
-		UE_LOG(LogTemp, Warning, TEXT("Player died: %s. Alive players: %d"), *PlayerName, AliveCount);
+		LOG_NETWORK_INFO(TEXT("Player died: %s. Alive players: %d"), *PlayerName, AliveCount);
 	}
 
 	// Check if all players are dead
@@ -165,6 +167,19 @@ void ABSGameModeBase::EndGame(bool bVictory)
 
 	// TODO: Show game end UI, restart level, or return to menu
 	// This can be implemented in Blueprint or with additional C++ code
+
+
+	 // 모든 Pooling 액터의 Tick 비활성화
+	TArray<AActor*> PoolingActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APooling::StaticClass(), PoolingActors);
+
+	for (AActor* Actor : PoolingActors)
+	{
+		Actor->SetActorTickEnabled(false);  // Tick 완전히 중지
+	}
+
+	//spawn된 모든 몬스터를 풀로 반환
+	GetWorld()->GetSubsystem<UPoolingSubsystem>()->ReturnAllMonsterToPool();
 }
 
 int32 ABSGameModeBase::GetAlivePlayerCount() const
@@ -186,3 +201,9 @@ int32 ABSGameModeBase::GetAlivePlayerCount() const
 
 	return AliveCount;
 }
+
+bool ABSGameModeBase::IsEnd() const
+{
+	return BSGameState ? BSGameState->bGameEnded : false;
+}
+
