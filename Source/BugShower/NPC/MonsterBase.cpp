@@ -30,9 +30,7 @@ void AMonsterBase::Spawn(const FVector pos)
 
 void AMonsterBase::DeSpawn()
 {
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
+	Deactivate(this);
 
 	// Stop AI
 	AAIController* AI = Cast<AAIController>(GetController());
