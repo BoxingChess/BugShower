@@ -6,14 +6,17 @@
 #include "GameFramework/GameModeBase.h"
 #include "BSGameModeBase.generated.h"
 
+class ABSGameStateBase;
+
 /**
- * 
+ * GameMode for BugShower multiplayer game
+ * Handles game rules: win condition (survive for duration) and lose condition (all players dead)
  */
 UCLASS()
 class BUGSHOWER_API ABSGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+
 public:
 	ABSGameModeBase();
 
@@ -25,4 +28,25 @@ public:
 
 	virtual void BeginPlay() override;
 	virtual void StartPlay() override;
+
+protected:
+	// Cached reference to GameState
+	UPROPERTY()
+	TObjectPtr<ABSGameStateBase> BSGameState;
+
+public:
+	// Called when a player dies (to be called from player character)
+	UFUNCTION(BlueprintCallable, Category = "Game Rules")
+	void OnPlayerDied(AController* DeadPlayerController);
+
+	// Check if game end conditions are met
+	void CheckGameEndConditions();
+
+	// End the game with victory or defeat
+	UFUNCTION(BlueprintCallable, Category = "Game Rules")
+	void EndGame(bool bVictory);
+
+
+	// Get alive player count
+	int32 GetAlivePlayerCount() const;
 };

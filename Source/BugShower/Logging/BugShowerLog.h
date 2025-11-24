@@ -5,6 +5,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogBTService, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogBTTask, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogLogic, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogServer, Log, All);
 
 
 //In Behavior Tree Service/Task, use these macros for logging
@@ -56,5 +57,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogLogic, Log, All);
 
 #define LOG_NETWORK_WARNING(Message, ...) \
     UE_LOG(LogNet, Warning, TEXT("[NETWORK] " Message), ##__VA_ARGS__)
+
+#define LOG_NETWORK_MODE ((GetNetMode()== ENetMode::NM_Client) ? *FString::Printf("Client%d"),GPlayInEditorID) : ((GetNetMode()==ENetMode::NM_Standalone) ? TEXT("STAND ALONE") : TEXT("SERVER"))
 
 #pragma endregion InServer
