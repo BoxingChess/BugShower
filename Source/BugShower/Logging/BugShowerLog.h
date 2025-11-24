@@ -44,3 +44,17 @@ DECLARE_LOG_CATEGORY_EXTERN(LogLogic, Log, All);
 
 
 #pragma endregion InLogic
+
+
+#pragma region InServer
+
+#define LOG_NETWORK_FUNCTION(Message, ...) \
+    UE_LOG(LogNet, Verbose, TEXT("[%s:%d] %s : " Message), TEXT(__FILE__), __LINE__, TEXT(__FUNCTION__), ##__VA_ARGS__)
+
+#define LOG_NETWORK_INFO(Message, ...) \
+    UE_LOG(LogNet, Log, TEXT("[NETWORK] " Message), ##__VA_ARGS__)
+
+#define LOG_NETWORK_WARNING(Message, ...) \
+    UE_LOG(LogNet, Warning, TEXT("[NETWORK] " Message), ##__VA_ARGS__)
+
+#pragma endregion InServer
