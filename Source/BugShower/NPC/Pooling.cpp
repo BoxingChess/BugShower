@@ -37,9 +37,8 @@ void APooling::BeginPlay()
 			return;
 		}
 
-		PoolSys->RegisterPoolForClass(MonsterClass,PoolSize);
-		PoolSys->RegisterPoolForClass(BulletClass, PoolSize);
-		PoolSys->RegisterPoolForClass(ItemClass, PoolSize);
+		//PoolSys->RegisterPoolForClass(MonsterClass,PoolSize);
+		//PoolSys->RegisterPoolForClass(BulletClass, PoolSize);
 	}
 
 }
@@ -113,7 +112,6 @@ void APooling::ReturnAllPoolingActors()
 	{
 		PoolSys->ReturnAllOfClass(MonsterClass);
 		PoolSys->ReturnAllOfClass(BulletClass);
-		PoolSys->ReturnAllOfClass(ItemClass);
 		
 
 		LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());

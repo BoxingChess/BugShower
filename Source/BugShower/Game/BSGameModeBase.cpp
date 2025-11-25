@@ -37,7 +37,7 @@ void ABSGameModeBase::PostLogin(APlayerController* NewPlayer)
 		BSGameState->TotalPlayerCount += 1;
 		BSGameState->AlivePlayerCount = GetAlivePlayerCount();
 
-		LOG_NETWORK_INFO(TEXT("Player joined. Total: %d, Alive: %d"),BSGameState->TotalPlayerCount, BSGameState->AlivePlayerCount);
+		LOG_NETWORK_INFO(TEXT("Player joined. Total: %d, Alive: %d"), BSGameState->TotalPlayerCount, BSGameState->AlivePlayerCount);
 	}
 }
 
@@ -73,9 +73,19 @@ void ABSGameModeBase::BeginPlay()
 		UE_LOG(LogTemp, Error, TEXT("Failed to cache GameState!"));
 	}
 
+
 	UPoolingSubsystem* PoolSys = GetWorld()->GetSubsystem<UPoolingSubsystem>();
 	if (PoolSys)
 	{
+
+		// 풀 초기화
+		UDataTable* PoolTable = LoadObject<UDataTable>(
+			nullptr,
+			TEXT("/Game/Data/DT_PoolConfig.DT_PoolConfig")
+		);
+
+		PoolSys->InitializePoolsFromTable(PoolTable);
+
 		UDataTable* DropTable = LoadObject<UDataTable>(
 			nullptr,
 			TEXT("/Game/Data/DT_MonsterDrops.DT_MonsterDrops")

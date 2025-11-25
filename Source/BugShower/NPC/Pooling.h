@@ -35,8 +35,6 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> MonsterClass;
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<AActor> ItemClass;
-	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> BulletClass;
 
 
