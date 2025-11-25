@@ -5,7 +5,46 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Item/ItemDropStructs.h"
+#include "Engine/DataTable.h"
 #include "PoolingSubsystem.generated.h"
+
+/**
+ * Pool configuration for a specific actor class
+ */
+USTRUCT(BlueprintType)
+struct FPoolConfig
+{
+	GENERATED_BODY()
+
+	// Actor class to pool
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	TSubclassOf<AActor> ActorClass;
+
+	// Number of instances to pre-spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	int32 PoolSize = 10;
+
+	FPoolConfig()
+		: PoolSize(10)
+	{}
+};
+
+/**
+ * Pool configuration table row
+ */
+USTRUCT(BlueprintType)
+struct FPoolConfigTableRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	// Actor class to pool
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	TSubclassOf<AActor> ActorClass;
+
+	// Number of instances to pre-spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	int32 PoolSize = 10;
+};
 
 /**
  * World Subsystem for managing object pooling
@@ -66,6 +105,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pooling|DropManagement")
 	void SetDropConfigTable(UDataTable* DropTable);
 
+	// ========== Pool Initialization API ==========
+	// Initialize pools from configuration array
+	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
+	void InitializePoolsFromConfig();
+
+	// Initialize pools from DataTable
+	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
+	void InitializePoolsFromTable(UDataTable* PoolConfigTable);
+
 protected:
 	// Calculate drops from configuration
 	TArray<TSubclassOf<class AItemBase>> CalculateDropsFromConfig(
@@ -99,10 +147,19 @@ private:
 	// Map from actor class to its pool data
 	TMap<TSubclassOf<AActor>, FPoolData> ClassPools;
 
-	
-	int32 PoolSize;
+	// ========== Pool Configuration ==========
+	// Pool configurations (editable in Project Settings or GameMode)
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
+	TArray<FPoolConfig> PoolConfigs;
 
-	UPROPERTY(EditAnywhere)
+	// Alternative: DataTable for pool configurations
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
+	UDataTable* PoolConfigTable;
+
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config")
+	bool bAutoInitializePools = true;
+
+	UPROPERTY()
 	bool bPoolsInitialized;
 
 	// ========== Drop Management ==========

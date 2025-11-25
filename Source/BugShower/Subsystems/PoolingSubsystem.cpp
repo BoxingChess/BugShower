@@ -15,7 +15,27 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	bPoolsInitialized = false;
 
-	LOG_LOGIC_INFO(TEXT("PoolingSubsystem initialized"));
+	LOG_LOGIC_INFO(TEXT("Start PoolingSubsystem initialized"));
+
+	// Auto-initialize pools if enabled
+	if (bAutoInitializePools)
+	{
+		// Try DataTable first
+		if (PoolConfigTable)
+		{
+			InitializePoolsFromTable(PoolConfigTable);
+		}
+		// Otherwise use array config
+		else if (PoolConfigs.Num() > 0)
+		{
+			InitializePoolsFromConfig();
+		}
+		else
+		{
+			LOG_LOGIC_WARNING(TEXT("PoolingSubsystem: No pool configuration found. Set PoolConfigs or PoolConfigTable."));
+		}
+	}
+	LOG_LOGIC_INFO(TEXT("End PoolingSubsystem initialized"));
 }
 
 void UPoolingSubsystem::Deinitialize()
@@ -124,12 +144,24 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 
 		if (SpawnedActor && SpawnedActor->Implements<USpawnable>())
 		{
+			// Properly initialize TScriptInterface
 			TScriptInterface<ISpawnable> Spawnable;
 			Spawnable.SetObject(SpawnedActor);
-			Spawnable.SetInterface(Cast<ISpawnable>(SpawnedActor));
 
-			// Deactivate the object
-			Spawnable->Deactivate(SpawnedActor);
+			// Get interface pointer using GetInterfaceAddress
+			// This is the correct way to get interface pointer for TScriptInterface
+			ISpawnable* InterfacePtr = Cast<ISpawnable>(SpawnedActor);
+			if (!InterfacePtr)
+			{
+				LOG_LOGIC_ERROR(TEXT("Failed to get ISpawnable interface for %s"), *ActorClass->GetName());
+				SpawnedActor->Destroy();
+				continue;
+			}
+
+			Spawnable.SetInterface(InterfacePtr);
+
+			// Deactivate the object using the interface pointer directly
+			InterfacePtr->Deactivate(SpawnedActor);
 
 			// Add to pool
 			NewPool.All.Add(Spawnable);
@@ -140,6 +172,10 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 		else
 		{
 			LOG_LOGIC_WARNING(TEXT("Failed to create %s object %d - does not implement ISpawnable"), *ActorClass->GetName(), i);
+			if (SpawnedActor)
+			{
+				SpawnedActor->Destroy();
+			}
 		}
 	}
 
@@ -174,21 +210,27 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 	}
 
 	TScriptInterface<ISpawnable> Spawnable = PoolData->Available.Pop();
-	if (!Spawnable)
+
+	// Validate the spawnable object
+	AActor* SpawnedActor = Cast<AActor>(Spawnable.GetObject());
+	if (!SpawnedActor)
 	{
-		LOG_LOGIC_WARNING(TEXT("SpawnFromClass: No available objects in pool for class %s"), *ActorClass->GetName());
+		LOG_LOGIC_ERROR(TEXT("SpawnFromClass: Failed to cast to AActor for class %s"), *ActorClass->GetName());
 		return TScriptInterface<ISpawnable>();
 	}
 
-	if (Spawnable)
+	// Get interface and call Spawn
+	ISpawnable* SpawnableInterface = Spawnable.GetInterface();
+	if (!SpawnableInterface)
 	{
-		Spawnable->Spawn(Position);
-		LOG_LOGIC_INFO(TEXT("Spawned %s at location: %s"), *ActorClass->GetName(), *Position.ToString());
-		return Spawnable;
+		LOG_LOGIC_ERROR(TEXT("SpawnFromClass: Failed to get interface for class %s"), *ActorClass->GetName());
+		return TScriptInterface<ISpawnable>();
 	}
 
-	LOG_LOGIC_ERROR(TEXT("SpawnFromClass: Dequeued object is null for class %s"), *ActorClass->GetName());
-	return TScriptInterface<ISpawnable>();
+	SpawnableInterface->Spawn(Position);
+
+	LOG_LOGIC_INFO(TEXT("Spawned %s at location: %s"), *ActorClass->GetName(), *Position.ToString());
+	return Spawnable;
 }
 
 void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
@@ -249,6 +291,71 @@ void UPoolingSubsystem::ReturnAllOfClass(TSubclassOf<AActor> ActorClass)
 	}
 
 	LOG_LOGIC_INFO(TEXT("Returned %d objects of class %s to pool"), ReturnedCount, *ActorClass->GetName());
+}
+
+// ========== Pool Initialization Implementation ==========
+
+void UPoolingSubsystem::InitializePoolsFromConfig()
+{
+	if (bPoolsInitialized)
+	{
+		LOG_LOGIC_WARNING(TEXT("InitializePoolsFromConfig: Pools already initialized"));
+		return;
+	}
+
+	LOG_LOGIC_INFO(TEXT("InitializePoolsFromConfig: Starting pool initialization from config array"));
+
+	int32 TotalPools = 0;
+	for (const FPoolConfig& Config : PoolConfigs)
+	{
+		if (!Config.ActorClass)
+		{
+			LOG_LOGIC_WARNING(TEXT("InitializePoolsFromConfig: Skipping null ActorClass"));
+			continue;
+		}
+
+		RegisterPoolForClass(Config.ActorClass, Config.PoolSize);
+		TotalPools++;
+	}
+
+	bPoolsInitialized = true;
+	LOG_LOGIC_INFO(TEXT("InitializePoolsFromConfig: Initialized %d pools"), TotalPools);
+}
+
+void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTableParam)
+{
+	if (bPoolsInitialized)
+	{
+		LOG_LOGIC_WARNING(TEXT("InitializePoolsFromTable: Pools already initialized"));
+		return;
+	}
+
+	if (!PoolConfigTableParam)
+	{
+		LOG_LOGIC_ERROR(TEXT("InitializePoolsFromTable: PoolConfigTable is null"));
+		return;
+	}
+
+	LOG_LOGIC_INFO(TEXT("InitializePoolsFromTable: Starting pool initialization from DataTable"));
+
+	TArray<FPoolConfigTableRow*> AllRows;
+	PoolConfigTableParam->GetAllRows<FPoolConfigTableRow>(TEXT("InitializePoolsFromTable"), AllRows);
+
+	int32 TotalPools = 0;
+	for (FPoolConfigTableRow* Row : AllRows)
+	{
+		if (!Row || !Row->ActorClass)
+		{
+			LOG_LOGIC_WARNING(TEXT("InitializePoolsFromTable: Skipping invalid row"));
+			continue;
+		}
+
+		RegisterPoolForClass(Row->ActorClass, Row->PoolSize);
+		TotalPools++;
+	}
+
+	bPoolsInitialized = true;
+	LOG_LOGIC_INFO(TEXT("InitializePoolsFromTable: Initialized %d pools from DataTable"), TotalPools);
 }
 
 // ========== Drop Management Implementation ==========
