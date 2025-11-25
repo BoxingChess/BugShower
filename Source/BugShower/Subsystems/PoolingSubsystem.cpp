@@ -3,9 +3,11 @@
 #include "Subsystems/PoolingSubsystem.h"
 #include "NPC/Spawnable.h"
 #include "Projectile/MonsterProjectile.h"
+#include "Item/ItemBase.h"
 #include "NavigationSystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Logging/BugShowerLog.h"
+#include "Engine/DataTable.h"
 
 void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -164,6 +166,13 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 		return TScriptInterface<ISpawnable>();
 	}
 
+
+	if (PoolData->Available.Num() == 0)
+	{
+		LOG_LOGIC_WARNING(TEXT("SpawnFromClass: Pool for class %s is exhausted"), *ActorClass->GetName());
+		return TScriptInterface<ISpawnable>();
+	}
+
 	TScriptInterface<ISpawnable> Spawnable = PoolData->Available.Pop();
 	if (!Spawnable)
 	{
@@ -240,4 +249,197 @@ void UPoolingSubsystem::ReturnAllOfClass(TSubclassOf<AActor> ActorClass)
 	}
 
 	LOG_LOGIC_INFO(TEXT("Returned %d objects of class %s to pool"), ReturnedCount, *ActorClass->GetName());
+}
+
+// ========== Drop Management Implementation ==========
+
+void UPoolingSubsystem::SetDropConfigTable(UDataTable* DropTable)
+{
+	if (!DropTable)
+	{
+		LOG_LOGIC_WARNING(TEXT("SetDropConfigTable: DropTable is null"));
+		return;
+	}
+
+	MonsterDropTable = DropTable;
+	LOG_LOGIC_INFO(TEXT("Drop configuration table set: %s"), *DropTable->GetName());
+}
+
+void UPoolingSubsystem::ProcessMonsterDrop(
+	FName MonsterDropID,
+	const FVector& DropLocation,
+	const FGameplayTagContainer& ActiveConditions)
+{
+	if (!MonsterDropTable)
+	{
+		LOG_LOGIC_WARNING(TEXT("ProcessMonsterDrop: MonsterDropTable is not set. Call SetDropConfigTable first."));
+		return;
+	}
+
+	// Find drop configuration in DataTable
+	FMonsterDropConfig* DropConfig = MonsterDropTable->FindRow<FMonsterDropConfig>(MonsterDropID, TEXT("ProcessMonsterDrop"));
+	if (!DropConfig)
+	{
+		LOG_LOGIC_WARNING(TEXT("ProcessMonsterDrop: No drop config found for ID '%s'"), *MonsterDropID.ToString());
+		return;
+	}
+
+	// Calculate drops from configuration
+	TArray<TSubclassOf<AItemBase>> ItemsToDrop = CalculateDropsFromConfig(*DropConfig, ActiveConditions);
+
+	if (ItemsToDrop.Num() == 0)
+	{
+		LOG_LOGIC_INFO(TEXT("ProcessMonsterDrop: No items to drop for '%s'"), *MonsterDropID.ToString());
+		return;
+	}
+
+	// Spawn the items
+	SpawnDroppedItems(ItemsToDrop, DropLocation, DropConfig->DropSpreadRadius);
+
+	LOG_LOGIC_INFO(TEXT("ProcessMonsterDrop: Dropped %d items for '%s' at %s"),
+		ItemsToDrop.Num(), *MonsterDropID.ToString(), *DropLocation.ToString());
+}
+
+TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
+	const FMonsterDropConfig& Config,
+	const FGameplayTagContainer& ActiveConditions) const
+{
+	TArray<TSubclassOf<AItemBase>> Result;
+
+	// Layer 1: Guaranteed drops (always drop, ignore drop chance)
+	for (const FItemDropEntry& Entry : Config.GuaranteedDrops)
+	{
+		// Check conditions
+		if (!Entry.RequiredTags.IsEmpty() && !ActiveConditions.HasAll(Entry.RequiredTags))
+			continue;
+
+		if (Entry.ItemClass)
+		{
+			int32 DropCount = FMath::RandRange(Entry.MinCount, Entry.MaxCount);
+			for (int32 i = 0; i < DropCount; i++)
+			{
+				Result.Add(Entry.ItemClass);
+			}
+		}
+	}
+
+	// Check base drop chance
+	float RollValue = FMath::FRand();
+	if (RollValue > Config.BaseDropChance)
+	{
+		// Failed drop chance, only return guaranteed drops
+		return Result;
+	}
+
+	// Layer 2: Common drops
+	int32 CommonDropCount = FMath::RandRange(Config.MinTotalDropCount, Config.MaxTotalDropCount);
+	TArray<TSubclassOf<AItemBase>> CommonDrops = SelectDropsByWeight(
+		Config.CommonDrops,
+		CommonDropCount,
+		ActiveConditions
+	);
+	Result.Append(CommonDrops);
+
+	// Layer 3: Unique/Rare drops (usually 0-1 item)
+	TArray<TSubclassOf<AItemBase>> UniqueDrops = SelectDropsByWeight(
+		Config.UniqueDrops,
+		1, // Usually only 1 unique drop
+		ActiveConditions
+	);
+	Result.Append(UniqueDrops);
+
+	return Result;
+}
+
+TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::SelectDropsByWeight(
+	const TArray<FItemDropEntry>& Entries,
+	int32 MaxSelections,
+	const FGameplayTagContainer& ActiveConditions) const
+{
+	TArray<TSubclassOf<AItemBase>> Result;
+
+	if (Entries.Num() == 0 || MaxSelections <= 0)
+		return Result;
+
+	// Build weighted list
+	TArray<FItemDropEntry> ValidEntries;
+	float TotalWeight = 0.0f;
+
+	for (const FItemDropEntry& Entry : Entries)
+	{
+		// Check required tags
+		if (!Entry.RequiredTags.IsEmpty() && !ActiveConditions.HasAll(Entry.RequiredTags))
+			continue;
+
+		if (Entry.ItemClass && Entry.DropWeight > 0.0f)
+		{
+			ValidEntries.Add(Entry);
+			TotalWeight += Entry.DropWeight;
+		}
+	}
+
+	if (ValidEntries.Num() == 0 || TotalWeight <= 0.0f)
+		return Result;
+
+	// Select items by weight
+	for (int32 i = 0; i < MaxSelections; i++)
+	{
+		float RandomValue = FMath::FRandRange(0.0f, TotalWeight);
+		float CurrentWeight = 0.0f;
+
+		for (const FItemDropEntry& Entry : ValidEntries)
+		{
+			CurrentWeight += Entry.DropWeight;
+			if (RandomValue <= CurrentWeight)
+			{
+				// Selected this entry
+				int32 DropCount = FMath::RandRange(Entry.MinCount, Entry.MaxCount);
+				for (int32 j = 0; j < DropCount; j++)
+				{
+					Result.Add(Entry.ItemClass);
+				}
+				break;
+			}
+		}
+	}
+
+	return Result;
+}
+
+void UPoolingSubsystem::SpawnDroppedItems(
+	const TArray<TSubclassOf<AItemBase>>& ItemClasses,
+	const FVector& CenterLocation,
+	float SpreadRadius)
+{
+	if (ItemClasses.Num() == 0)
+		return;
+
+	for (int32 i = 0; i < ItemClasses.Num(); i++)
+	{
+		TSubclassOf<AItemBase> ItemClass = ItemClasses[i];
+		if (!ItemClass)
+			continue;
+
+		// Calculate spread position
+		FVector SpawnLocation = CenterLocation;
+		if (SpreadRadius > 0.0f)
+		{
+			// Random position in circle
+			float Angle = FMath::FRandRange(0.0f, 2.0f * PI);
+			float Distance = FMath::FRandRange(0.0f, SpreadRadius);
+			SpawnLocation.X += FMath::Cos(Angle) * Distance;
+			SpawnLocation.Y += FMath::Sin(Angle) * Distance;
+		}
+
+		// Spawn from pool
+		TScriptInterface<ISpawnable> SpawnedItem = SpawnFromClass(ItemClass, SpawnLocation);
+		if (SpawnedItem)
+		{
+			LOG_LOGIC_INFO(TEXT("Spawned drop item %s at %s"), *ItemClass->GetName(), *SpawnLocation.ToString());
+		}
+		else
+		{
+			LOG_LOGIC_WARNING(TEXT("Failed to spawn drop item %s - pool may be empty"), *ItemClass->GetName());
+		}
+	}
 }

@@ -53,7 +53,39 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
 	void ReturnAllOfClass(TSubclassOf<AActor> ActorClass);
 
+	// ========== Drop Management API ==========
+	// Process monster drop using DataTable configuration
+	UFUNCTION(BlueprintCallable, Category = "Pooling|DropManagement")
+	void ProcessMonsterDrop(
+		FName MonsterDropID,
+		const FVector& DropLocation,
+		const FGameplayTagContainer& ActiveConditions = FGameplayTagContainer()
+	);
+
+	// Set the drop configuration DataTable
+	UFUNCTION(BlueprintCallable, Category = "Pooling|DropManagement")
+	void SetDropConfigTable(UDataTable* DropTable);
+
 protected:
+	// Calculate drops from configuration
+	TArray<TSubclassOf<class AItemBase>> CalculateDropsFromConfig(
+		const FMonsterDropConfig& Config,
+		const FGameplayTagContainer& ActiveConditions
+	) const;
+
+	// Select items by weight from drop entries
+	TArray<TSubclassOf<class AItemBase>> SelectDropsByWeight(
+		const TArray<FItemDropEntry>& Entries,
+		int32 MaxSelections,
+		const FGameplayTagContainer& ActiveConditions
+	) const;
+
+	// Spawn dropped items in a spread pattern
+	void SpawnDroppedItems(
+		const TArray<TSubclassOf<class AItemBase>>& ItemClasses,
+		const FVector& CenterLocation,
+		float SpreadRadius
+	);
 
 private:
 	// ========== Class-Based Pooling ==========
@@ -67,19 +99,14 @@ private:
 	// Map from actor class to its pool data
 	TMap<TSubclassOf<AActor>, FPoolData> ClassPools;
 
-	// Pool configuration
-	UPROPERTY()
-	TSubclassOf<AActor> MonsterClass;
-
-	UPROPERTY()
-	TSubclassOf<AActor> ItemClass;
-
-	UPROPERTY()
-	TSubclassOf<AActor> BulletClass;
-
+	
 	int32 PoolSize;
-
 
 	UPROPERTY(EditAnywhere)
 	bool bPoolsInitialized;
+
+	// ========== Drop Management ==========
+	// DataTable containing monster drop configurations
+	UPROPERTY()
+	UDataTable* MonsterDropTable;
 };
