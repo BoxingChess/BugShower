@@ -27,7 +27,7 @@ void UPoolingSubsystem::Deinitialize()
 	AvailableMonsters.Empty();
 	AvailableItems.Empty();
 	AvailableBullets.Empty();
-	
+
 
 	LOG_LOGIC_INFO(TEXT("PoolingSubsystem deinitialized"));
 
@@ -99,7 +99,7 @@ void UPoolingSubsystem::CreatePool(EPoolType Type, TSubclassOf<AActor> ActorClas
 			// Add to pool map
 			if (!PoolMap.Contains(Type))
 			{
-				PoolMap.Add(Type, {Spawnable});
+				PoolMap.Add(Type, { Spawnable });
 			}
 			else
 			{
@@ -122,16 +122,17 @@ TQueue<TScriptInterface<ISpawnable>>& UPoolingSubsystem::GetQueueForType(EPoolTy
 {
 	switch (Type)
 	{
-	case EPoolType::Monster:
-		return AvailableMonsters;
-	case EPoolType::Item:
-		return AvailableItems;
-	case EPoolType::Bullet:
-		return AvailableBullets;
-	default:
-		return AvailableMonsters; // Fallback
+		case EPoolType::Monster:
+			return AvailableMonsters;
+		case EPoolType::Item:
+			return AvailableItems;
+		case EPoolType::Bullet:
+			return AvailableBullets;
+		default:
+			return AvailableMonsters; // Fallback
 	}
 }
+
 
 TScriptInterface<ISpawnable> UPoolingSubsystem::FindAvailableObject(EPoolType Type)
 {
@@ -139,29 +140,29 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::FindAvailableObject(EPoolType Ty
 
 	switch (Type)
 	{
-	case EPoolType::Monster:
-		if (AvailableMonsters.Dequeue(Result))
-		{
-			return Result;
-		}
-		break;
+		case EPoolType::Monster:
+			if (AvailableMonsters.Dequeue(Result))
+			{
+				return Result;
+			}
+			break;
 
-	case EPoolType::Item:
-		if (AvailableItems.Dequeue(Result))
-		{
-			return Result;
-		}
-		break;
+		case EPoolType::Item:
+			if (AvailableItems.Dequeue(Result))
+			{
+				return Result;
+			}
+			break;
 
-	case EPoolType::Bullet:
-		if (AvailableBullets.Dequeue(Result))
-		{
-			return Result;
-		}
-		break;
+		case EPoolType::Bullet:
+			if (AvailableBullets.Dequeue(Result))
+			{
+				return Result;
+			}
+			break;
 
-	default:
-		break;
+		default:
+			break;
 	}
 
 	LOG_LOGIC_WARNING(TEXT("No available %s object in pool"), *UEnum::GetValueAsString(Type));
@@ -202,21 +203,53 @@ void UPoolingSubsystem::ReturnToPool(TScriptInterface<ISpawnable> Object)
 
 	switch (Type)
 	{
-	case EPoolType::Monster:
-		AvailableMonsters.Enqueue(Object);
-		break;
-	case EPoolType::Item:
-		AvailableItems.Enqueue(Object);
-		break;
-	case EPoolType::Bullet:
-		AvailableBullets.Enqueue(Object);
-		break;
-	default:
-		LOG_LOGIC_WARNING(TEXT("ReturnToPool: Unknown pool type"));
-		break;
+		case EPoolType::Monster:
+			AvailableMonsters.Enqueue(Object);
+			break;
+		case EPoolType::Item:
+			AvailableItems.Enqueue(Object);
+			break;
+		case EPoolType::Bullet:
+			AvailableBullets.Enqueue(Object);
+			break;
+		default:
+			LOG_LOGIC_WARNING(TEXT("ReturnToPool: Unknown pool type"));
+			break;
 	}
 
 	LOG_LOGIC_INFO(TEXT("Returned %s to pool"), *UEnum::GetValueAsString(Type));
+}
+
+void UPoolingSubsystem::ReturnAllMonsterToPool()
+{
+	ReturnAllToPool(EPoolType::Monster);
+	ReturnAllToPool(EPoolType::Bullet);
+}
+
+void UPoolingSubsystem::ReturnAllToPool(EPoolType Type)
+{
+	if (!PoolMap.Contains(Type))
+	{
+		LOG_LOGIC_WARNING(TEXT("ReturnAllToPool: No Type pool exists"));
+		return;
+	}
+	else
+	{
+		TArray<TScriptInterface<ISpawnable>>& TypePool = PoolMap[Type];
+		int32 ReturnedCount = 0;
+
+		for (TScriptInterface<ISpawnable>& TypeActor : TypePool)
+		{
+			if (TypeActor)
+			{
+				// Call ReturnPool on each monster (will deactivate and return to pool)
+				TypeActor->ReturnPool();
+				ReturnedCount++;
+			}
+
+			LOG_LOGIC_INFO(TEXT("Returned %d TypeActor to pool"), ReturnedCount);
+		}
+	}
 }
 
 bool UPoolingSubsystem::FireProjectileAt(

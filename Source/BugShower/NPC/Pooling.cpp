@@ -5,7 +5,7 @@
 #include "NPC/Spawnable.h"
 #include "NavigationSystem.h"
 #include "Subsystems/PoolingSubsystem.h"
-
+#include "Game/BSGameModeBase.h"
 #include "Logging/BugShowerLog.h"
 
 
@@ -17,6 +17,7 @@ APooling::APooling()
 	SpawnRadius = 1500.f;
 	SpawnInterval = 3.0f;
 	SpawnTimer = 0.0f;
+
 }
 
 void APooling::BeginPlay()
@@ -43,6 +44,16 @@ void APooling::BeginPlay()
 
 void APooling::Tick(float DeltaTime)
 {
+	if (!HasAuthority())
+		return;
+
+	ABSGameModeBase* GameMode = GetWorld()->GetAuthGameMode<ABSGameModeBase>();
+	if (!GameMode)
+		return;
+
+	if (GameMode->IsEnd())
+		return;
+
 	Super::Tick(DeltaTime);
 
 	DrawDebugSphere(GetWorld(), GetActorLocation(), SpawnRadius, 12, FColor::Yellow, false, 2.f);
