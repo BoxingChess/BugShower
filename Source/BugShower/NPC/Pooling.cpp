@@ -37,7 +37,9 @@ void APooling::BeginPlay()
 			return;
 		}
 
-		PoolSys->InitializePools(MonsterClass,ItemClass,BulletClass,PoolSize);
+		PoolSys->RegisterPoolForClass(MonsterClass,PoolSize);
+		PoolSys->RegisterPoolForClass(BulletClass, PoolSize);
+		PoolSys->RegisterPoolForClass(ItemClass, PoolSize);
 	}
 
 }
@@ -56,7 +58,9 @@ void APooling::Tick(float DeltaTime)
 
 	Super::Tick(DeltaTime);
 
-	DrawDebugSphere(GetWorld(), GetActorLocation(), SpawnRadius, 12, FColor::Yellow, false, 2.f);
+	FVector SpawnLocation = GetActorLocation();
+
+	DrawDebugSphere(GetWorld(), SpawnLocation, SpawnRadius, 12, FColor::Yellow, false, 2.f);
 
 	SpawnTimer += DeltaTime;
 	if (SpawnTimer >= SpawnInterval)
@@ -73,11 +77,45 @@ void APooling::Tick(float DeltaTime)
 		UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
 		if (PoolSys)
 		{
-			PoolSys->SpawnMonsters(GetActorLocation(),SpawnRadius);
+			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+			if (!NavSys)
+			{
+				LOG_LOGIC_WARNING(TEXT("SpawnMonsters: NavSystem is null"));
+				return;
+			}
+
+			FNavLocation RandomLocation;
+			if (NavSys->GetRandomPointInNavigableRadius(SpawnLocation, SpawnRadius, RandomLocation))
+			{
+				TScriptInterface<ISpawnable> SpawnActor = PoolSys->SpawnFromClass(MonsterClass,RandomLocation);
+			}
+
 			LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());
 		}
 
 		SpawnTimer -= SpawnInterval;
 	}
 
+}
+
+void APooling::ReturnAllPoolingActors()
+{
+	// Get pooling subsystem
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		LOG_LOGIC_ERROR(TEXT("DropItems: World is null"));
+		return;
+	}
+
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (PoolSys)
+	{
+		PoolSys->ReturnAllOfClass(MonsterClass);
+		PoolSys->ReturnAllOfClass(BulletClass);
+		PoolSys->ReturnAllOfClass(ItemClass);
+		
+
+		LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());
+	}
 }

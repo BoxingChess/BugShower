@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NPC/PoolingType.h"
-#include "Pooling.generated.h"
 
 
 //spawner that uses object pooling to manage monsters
@@ -29,6 +28,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	void ReturnAllPoolingActors();
 
 protected:
 

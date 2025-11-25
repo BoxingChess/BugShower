@@ -66,6 +66,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "RangedStat")
 	float ProjectileSpeed;
 
+	UPROPERTY(EditAnywhere, Category = "RangedStat")
+	TSubclassOf<AActor> BulletClass;
+
 	// Drop chance (0.0 - 1.0)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
 	float DropChance;
