@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "NPC/PoolingType.h"
+#include "Item/ItemDropStructs.h"
 #include "PoolingSubsystem.generated.h"
 
 /**
@@ -26,43 +26,46 @@ public:
 	bool FireProjectileAt(
 		AActor* Shooter,
 		AActor* Target,
+		TSubclassOf<AActor> ActorClass,
 		const FVector& SpawnLocation,
 		float ProjectileSpeed,
 		float Damage
 	);
 
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	void SpawnItemDrop(const FVector& Location, int32 Count = 1);
+	// ========== Class-Based Pooling API ==========
+	// Register a new pool for a specific monster class
+	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
+	void RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int32 Size);
 
-	// Low-level pool management
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	TScriptInterface<class ISpawnable> SpawnFromPool(EPoolType Type, const FVector& Position);
-
-	void ReturnToPool(TScriptInterface<class ISpawnable> Object);
-
-	// Return all active monsters to pool (called on game end)
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	void ReturnAllMonsterToPool();
-
-	// Pool initialization (called from GameMode or Level Blueprint)
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	void InitializePools(
-		TSubclassOf<AActor> InMonsterClass,
-		TSubclassOf<AActor> InItemClass,
-		TSubclassOf<AActor> InBulletClass,
-		int32 InPoolSize = 100
+	// Spawn from a class-specific pool
+	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
+	TScriptInterface<class ISpawnable> SpawnFromClass(
+		TSubclassOf<AActor> ActorClass,
+		const FVector& Position
 	);
 
-	// Internal spawn method for specific type
-	void SpawnMonsters(const FVector& SpawnLocation, float SpawnRadius);
+
+
+	// Return object to its class-specific pool
+	void ReturnToPoolByClass(TScriptInterface<class ISpawnable> Object);
+
+	// Return all monsters of a specific class to pool
+	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
+	void ReturnAllOfClass(TSubclassOf<AActor> ActorClass);
+
 protected:
 
 private:
-	// Pool storage
-	TMap<EPoolType, TArray<TScriptInterface<class ISpawnable>>> PoolMap;
-	TQueue<TScriptInterface<class ISpawnable>> AvailableMonsters;
-	TQueue<TScriptInterface<class ISpawnable>> AvailableItems;
-	TQueue<TScriptInterface<class ISpawnable>> AvailableBullets;
+	// ========== Class-Based Pooling ==========
+	// Pool data structure for each class
+	struct FPoolData
+	{
+		TArray<TScriptInterface<class ISpawnable>> Available;
+		TArray<TScriptInterface<class ISpawnable>> All;
+	};
+
+	// Map from actor class to its pool data
+	TMap<TSubclassOf<AActor>, FPoolData> ClassPools;
 
 	// Pool configuration
 	UPROPERTY()
@@ -76,21 +79,7 @@ private:
 
 	int32 PoolSize;
 
-	// Helper methods
-	TScriptInterface<class ISpawnable> FindAvailableObject(EPoolType Type);
-	void CreatePool(EPoolType Type, TSubclassOf<AActor> ActorClass, int32 Size);
-	TQueue<TScriptInterface<class ISpawnable>>& GetQueueForType(EPoolType Type);
 
-	void ReturnAllToPool(EPoolType Type);
-
-	// Monster spawning (for testing/debug)
-	UPROPERTY(EditAnywhere)
-	float SpawnRadius;
-
-	UPROPERTY(EditAnywhere)
-	float SpawnInterval;
-	UPROPERTY(EditAnywhere)
-	float SpawnTimer;
 	UPROPERTY(EditAnywhere)
 	bool bPoolsInitialized;
 };
