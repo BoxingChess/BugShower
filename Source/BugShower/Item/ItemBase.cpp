@@ -12,16 +12,12 @@ void AItemBase::Spawn(const FVector pos)
 {
 	Activate(this,pos);
 
-	// Reset lifetime when spawned from pool
-	CurrentLifeTime = 0.f;
-
+	SetLifeSpan(ItemLifeSpan); //30 seconds life span
 }
 
 void AItemBase::ReturnPool()
 {
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
+	Deactivate(this);
 
 	// Return to pool via subsystem
 	if (UWorld* World = GetWorld())
@@ -33,11 +29,14 @@ void AItemBase::ReturnPool()
 	}
 }
 
+void AItemBase::LifeSpanExpired()
+{
+	DeSpawn();
+}
+
 void AItemBase::DeSpawn()
 {
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
+	Deactivate(this);
 
 	// Return to pool via subsystem
 	if (UWorld* World = GetWorld())
@@ -71,12 +70,12 @@ AItemBase::AItemBase()
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	MeshComponent->SetIsReplicated(true);
 
+
 	// Default values
 	ItemName = TEXT("Item");
 	ItemType = EItemType::Material;
 	ItemValue = 1;
-	LifeSpan = 30.f;
-	CurrentLifeTime = 0.f;
+	ItemLifeSpan = 5.f;
 }
 
 void AItemBase::BeginPlay()
@@ -92,22 +91,6 @@ void AItemBase::BeginPlay()
 void AItemBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	//Server
-	if (HasAuthority())
-	{
-		CurrentLifeTime += DeltaTime;
-		if (CurrentLifeTime >= LifeSpan)
-		{
-			DeSpawn();
-		}
-	}
-
-	// Add rotation animation
-	//FRotator NewRotation = GetActorRotation();
-	//NewRotation.Yaw += DeltaTime * 90.f;
-	//SetActorRotation(NewRotation);
-
 
 	//Client
 	{
