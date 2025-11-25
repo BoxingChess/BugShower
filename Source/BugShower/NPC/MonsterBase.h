@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "GameplayTagContainer.h"
 #include "NPC/Spawnable.h"
 #include "NPC/PoolingType.h"
 #include "MonsterBase.generated.h"
@@ -69,16 +70,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "RangedStat")
 	TSubclassOf<AActor> BulletClass;
 
-	// Drop chance (0.0 - 1.0)
+	// Drop configuration ID (references DataTable row)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
-	float DropChance;
+	FName MonsterDropID;
 
-	// Number of items to drop
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
-	int32 MinDropCount;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
-	int32 MaxDropCount;
+	// Active gameplay tags for conditional drops (quest, event, etc.)
+	UPROPERTY(BlueprintReadWrite, Category = "DropStat")
+	FGameplayTagContainer ActiveDropConditions;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EMonsterGrade Grade;
@@ -109,10 +107,6 @@ public:
 
 
 protected:
-	// Item drop table - set in Blueprint
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
-	TArray<TSubclassOf<class AItemBase>> DropTable;
-
 	// Projectile class to spawn - set in Blueprint
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TSubclassOf<class AMonsterProjectile> ProjectileClass;

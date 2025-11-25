@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NPC/PoolingType.h"
-
+#include "Pooling.generated.h"
 
 //spawner that uses object pooling to manage monsters
 //on off monster state in world(Activate,Rendering,Collision,RunBT...)

@@ -72,6 +72,21 @@ void ABSGameModeBase::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to cache GameState!"));
 	}
+
+	UPoolingSubsystem* PoolSys = GetWorld()->GetSubsystem<UPoolingSubsystem>();
+	if (PoolSys)
+	{
+		UDataTable* DropTable = LoadObject<UDataTable>(
+			nullptr,
+			TEXT("/Game/Data/DT_MonsterDrops.DT_MonsterDrops")
+		);
+
+		if (DropTable)
+		{
+			PoolSys->SetDropConfigTable(DropTable);
+			UE_LOG(LogTemp, Log, TEXT("Drop table loaded successfully"));
+		}
+	}
 }
 
 void ABSGameModeBase::StartPlay()
