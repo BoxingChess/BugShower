@@ -28,7 +28,7 @@ void AItemBase::ReturnPool()
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolSys->ReturnToPool(this);
+			PoolSys->ReturnToPoolByClass(this);
 		}
 	}
 }
@@ -44,7 +44,7 @@ void AItemBase::DeSpawn()
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolSys->ReturnToPool(this);
+			PoolSys->ReturnToPoolByClass(this);
 		}
 	}
 }

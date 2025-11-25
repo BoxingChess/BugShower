@@ -175,11 +175,15 @@ void ABSGameModeBase::EndGame(bool bVictory)
 
 	for (AActor* Actor : PoolingActors)
 	{
+		APooling* CurPoolingActor = Cast<APooling>(Actor);
+		if (CurPoolingActor)
+		{
+			CurPoolingActor->ReturnAllPoolingActors();	//spawn된 모든것 풀로 반환
+		}
+
 		Actor->SetActorTickEnabled(false);  // Tick 완전히 중지
 	}
 
-	//spawn된 모든 몬스터를 풀로 반환
-	GetWorld()->GetSubsystem<UPoolingSubsystem>()->ReturnAllMonsterToPool();
 }
 
 int32 ABSGameModeBase::GetAlivePlayerCount() const
