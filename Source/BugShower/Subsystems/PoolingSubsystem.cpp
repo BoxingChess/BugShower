@@ -15,7 +15,7 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	bPoolsInitialized = false;
 
-	LOG_LOGIC_INFO(TEXT("Start PoolingSubsystem initialized"));
+	LOG_POOLING_INFO(TEXT("Start PoolingSubsystem initialized"));
 
 	// Auto-initialize pools if enabled
 	if (bAutoInitializePools)
@@ -32,10 +32,10 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		}
 		else
 		{
-			LOG_LOGIC_WARNING(TEXT("PoolingSubsystem: No pool configuration found. Set PoolConfigs or PoolConfigTable."));
+			LOG_POOLING_WARNING(TEXT("PoolingSubsystem: No pool configuration found. Set PoolConfigs or PoolConfigTable."));
 		}
 	}
-	LOG_LOGIC_INFO(TEXT("End PoolingSubsystem initialized"));
+	LOG_POOLING_INFO(TEXT("End PoolingSubsystem initialized"));
 }
 
 void UPoolingSubsystem::Deinitialize()
@@ -43,7 +43,7 @@ void UPoolingSubsystem::Deinitialize()
 	// Clean up class-based pools
 	ClassPools.Empty();
 
-	LOG_LOGIC_INFO(TEXT("PoolingSubsystem deinitialized"));
+	LOG_POOLING_INFO(TEXT("PoolingSubsystem deinitialized"));
 
 	Super::Deinitialize();
 }
@@ -58,7 +58,7 @@ bool UPoolingSubsystem::FireProjectileAt(
 {
 	if (!Shooter || !Target)
 	{
-		LOG_LOGIC_WARNING(TEXT("FireProjectileAt: Shooter or Target is null"));
+		LOG_POOLING_WARNING(TEXT("FireProjectileAt: Shooter or Target is null"));
 		return false;
 	}
 
@@ -80,7 +80,7 @@ bool UPoolingSubsystem::FireProjectileAt(
 
 	if (!bHaveArc)
 	{
-		LOG_LOGIC_WARNING(TEXT("FireProjectileAt: Could not calculate arc trajectory"));
+		LOG_POOLING_WARNING(TEXT("FireProjectileAt: Could not calculate arc trajectory"));
 		return false;
 	}
 
@@ -88,7 +88,7 @@ bool UPoolingSubsystem::FireProjectileAt(
 	TScriptInterface<ISpawnable> SpawnedObj = SpawnFromClass(ActorClass, SpawnLocation);
 	if (!SpawnedObj)
 	{
-		LOG_LOGIC_ERROR(TEXT("FireProjectileAt: Failed to get projectile from pool"));
+		LOG_POOLING_ERROR(TEXT("FireProjectileAt: Failed to get projectile from pool"));
 		return false;
 	}
 
@@ -97,11 +97,11 @@ bool UPoolingSubsystem::FireProjectileAt(
 	if (Projectile)
 	{
 		Projectile->InitializeProjectileWithVelocity(LaunchVelocity, Damage, Shooter);
-		LOG_LOGIC_INFO(TEXT("Fired projectile from %s at %s"), *Shooter->GetName(), *Target->GetName());
+		LOG_POOLING_INFO(TEXT("Fired projectile from %s at %s"), *Shooter->GetName(), *Target->GetName());
 		return true;
 	}
 
-	LOG_LOGIC_ERROR(TEXT("FireProjectileAt: Failed to cast to MonsterProjectile"));
+	LOG_POOLING_ERROR(TEXT("FireProjectileAt: Failed to cast to MonsterProjectile"));
 	return false;
 }
 
@@ -112,20 +112,20 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 {
 	if (!ActorClass)
 	{
-		LOG_LOGIC_ERROR(TEXT("RegisterPoolForClass: ActorClass is null"));
+		LOG_POOLING_ERROR(TEXT("RegisterPoolForClass: ActorClass is null"));
 		return;
 	}
 
 	if (ClassPools.Contains(ActorClass))
 	{
-		LOG_LOGIC_WARNING(TEXT("RegisterPoolForClass: Pool for class %s already exists"), *ActorClass->GetName());
+		LOG_POOLING_WARNING(TEXT("RegisterPoolForClass: Pool for class %s already exists"), *ActorClass->GetName());
 		return;
 	}
 
 	UWorld* World = GetWorld();
 	if (!World)
 	{
-		LOG_LOGIC_ERROR(TEXT("RegisterPoolForClass: World is null"));
+		LOG_POOLING_ERROR(TEXT("RegisterPoolForClass: World is null"));
 		return;
 	}
 
@@ -153,7 +153,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 			ISpawnable* InterfacePtr = Cast<ISpawnable>(SpawnedActor);
 			if (!InterfacePtr)
 			{
-				LOG_LOGIC_ERROR(TEXT("Failed to get ISpawnable interface for %s"), *ActorClass->GetName());
+				LOG_POOLING_ERROR(TEXT("Failed to get ISpawnable interface for %s"), *ActorClass->GetName());
 				SpawnedActor->Destroy();
 				continue;
 			}
@@ -167,11 +167,11 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 			NewPool.All.Add(Spawnable);
 			NewPool.Available.Add(Spawnable);
 
-			LOG_LOGIC_INFO(TEXT("Created %s object %d/%d"), *ActorClass->GetName(), i + 1, Size);
+			LOG_POOLING_INFO(TEXT("Created %s object %d/%d"), *ActorClass->GetName(), i + 1, Size);
 		}
 		else
 		{
-			LOG_LOGIC_WARNING(TEXT("Failed to create %s object %d - does not implement ISpawnable"), *ActorClass->GetName(), i);
+			LOG_POOLING_WARNING(TEXT("Failed to create %s object %d - does not implement ISpawnable"), *ActorClass->GetName(), i);
 			if (SpawnedActor)
 			{
 				SpawnedActor->Destroy();
@@ -182,7 +182,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 	// Store the pool
 	ClassPools.Add(ActorClass, MoveTemp(NewPool));
 
-	LOG_LOGIC_INFO(TEXT("Registered pool for class %s with %d objects"), *ActorClass->GetName(), Size);
+	LOG_POOLING_INFO(TEXT("Registered pool for class %s with %d objects"), *ActorClass->GetName(), Size);
 }
 
 TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
@@ -191,21 +191,21 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 {
 	if (!ActorClass)
 	{
-		LOG_LOGIC_ERROR(TEXT("SpawnFromClass: ActorClass is null"));
+		LOG_POOLING_ERROR(TEXT("SpawnFromClass: ActorClass is null"));
 		return TScriptInterface<ISpawnable>();
 	}
 
 	FPoolData* PoolData = ClassPools.Find(ActorClass);
 	if (!PoolData)
 	{
-		LOG_LOGIC_ERROR(TEXT("SpawnFromClass: No pool registered for class %s"), *ActorClass->GetName());
+		LOG_POOLING_ERROR(TEXT("SpawnFromClass: No pool registered for class %s"), *ActorClass->GetName());
 		return TScriptInterface<ISpawnable>();
 	}
 
 
 	if (PoolData->Available.Num() == 0)
 	{
-		LOG_LOGIC_WARNING(TEXT("SpawnFromClass: Pool for class %s is exhausted"), *ActorClass->GetName());
+		LOG_POOLING_WARNING(TEXT("SpawnFromClass: Pool for class %s is exhausted"), *ActorClass->GetName());
 		return TScriptInterface<ISpawnable>();
 	}
 
@@ -215,7 +215,7 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 	AActor* SpawnedActor = Cast<AActor>(Spawnable.GetObject());
 	if (!SpawnedActor)
 	{
-		LOG_LOGIC_ERROR(TEXT("SpawnFromClass: Failed to cast to AActor for class %s"), *ActorClass->GetName());
+		LOG_POOLING_ERROR(TEXT("SpawnFromClass: Failed to cast to AActor for class %s"), *ActorClass->GetName());
 		return TScriptInterface<ISpawnable>();
 	}
 
@@ -223,13 +223,13 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 	ISpawnable* SpawnableInterface = Spawnable.GetInterface();
 	if (!SpawnableInterface)
 	{
-		LOG_LOGIC_ERROR(TEXT("SpawnFromClass: Failed to get interface for class %s"), *ActorClass->GetName());
+		LOG_POOLING_ERROR(TEXT("SpawnFromClass: Failed to get interface for class %s"), *ActorClass->GetName());
 		return TScriptInterface<ISpawnable>();
 	}
 
 	SpawnableInterface->Spawn(Position);
 
-	LOG_LOGIC_INFO(TEXT("Spawned %s at location: %s"), *ActorClass->GetName(), *Position.ToString());
+	LOG_POOLING_INFO(TEXT("Spawned %s at location: %s"), *ActorClass->GetName(), *Position.ToString());
 	return Spawnable;
 }
 
@@ -237,14 +237,14 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 {
 	if (!Object)
 	{
-		LOG_LOGIC_WARNING(TEXT("ReturnToPoolByClass: Object is null"));
+		LOG_POOLING_WARNING(TEXT("ReturnToPoolByClass: Object is null"));
 		return;
 	}
 
 	AActor* Actor = Cast<AActor>(Object.GetObject());
 	if (!Actor)
 	{
-		LOG_LOGIC_WARNING(TEXT("ReturnToPoolByClass: Cannot cast object to AActor"));
+		LOG_POOLING_WARNING(TEXT("ReturnToPoolByClass: Cannot cast object to AActor"));
 		return;
 	}
 
@@ -253,7 +253,7 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 
 	if (!PoolData)
 	{
-		LOG_LOGIC_WARNING(TEXT("ReturnToPoolByClass: No pool found for class %s"), *ActorClass->GetName());
+		LOG_POOLING_WARNING(TEXT("ReturnToPoolByClass: No pool found for class %s"), *ActorClass->GetName());
 		return;
 	}
 
@@ -262,21 +262,21 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 
 	// Return to available queue
 	PoolData->Available.Add(Object);
-	LOG_LOGIC_INFO(TEXT("Returned %s to class pool"), *ActorClass->GetName());
+	LOG_POOLING_INFO(TEXT("Returned %s to class pool"), *ActorClass->GetName());
 }
 
 void UPoolingSubsystem::ReturnAllOfClass(TSubclassOf<AActor> ActorClass)
 {
 	if (!ActorClass)
 	{
-		LOG_LOGIC_WARNING(TEXT("ReturnAllOfClass: ActorClass is null"));
+		LOG_POOLING_WARNING(TEXT("ReturnAllOfClass: ActorClass is null"));
 		return;
 	}
 
 	FPoolData* PoolData = ClassPools.Find(ActorClass);
 	if (!PoolData)
 	{
-		LOG_LOGIC_WARNING(TEXT("ReturnAllOfClass: No pool exists for class %s"), *ActorClass->GetName());
+		LOG_POOLING_WARNING(TEXT("ReturnAllOfClass: No pool exists for class %s"), *ActorClass->GetName());
 		return;
 	}
 
@@ -290,7 +290,7 @@ void UPoolingSubsystem::ReturnAllOfClass(TSubclassOf<AActor> ActorClass)
 		}
 	}
 
-	LOG_LOGIC_INFO(TEXT("Returned %d objects of class %s to pool"), ReturnedCount, *ActorClass->GetName());
+	LOG_POOLING_INFO(TEXT("Returned %d objects of class %s to pool"), ReturnedCount, *ActorClass->GetName());
 }
 
 // ========== Pool Initialization Implementation ==========
@@ -299,18 +299,18 @@ void UPoolingSubsystem::InitializePoolsFromConfig()
 {
 	if (bPoolsInitialized)
 	{
-		LOG_LOGIC_WARNING(TEXT("InitializePoolsFromConfig: Pools already initialized"));
+		LOG_POOLING_WARNING(TEXT("InitializePoolsFromConfig: Pools already initialized"));
 		return;
 	}
 
-	LOG_LOGIC_INFO(TEXT("InitializePoolsFromConfig: Starting pool initialization from config array"));
+	LOG_POOLING_INFO(TEXT("InitializePoolsFromConfig: Starting pool initialization from config array"));
 
 	int32 TotalPools = 0;
 	for (const FPoolConfig& Config : PoolConfigs)
 	{
 		if (!Config.ActorClass)
 		{
-			LOG_LOGIC_WARNING(TEXT("InitializePoolsFromConfig: Skipping null ActorClass"));
+			LOG_POOLING_WARNING(TEXT("InitializePoolsFromConfig: Skipping null ActorClass"));
 			continue;
 		}
 
@@ -319,24 +319,24 @@ void UPoolingSubsystem::InitializePoolsFromConfig()
 	}
 
 	bPoolsInitialized = true;
-	LOG_LOGIC_INFO(TEXT("InitializePoolsFromConfig: Initialized %d pools"), TotalPools);
+	LOG_POOLING_INFO(TEXT("InitializePoolsFromConfig: Initialized %d pools"), TotalPools);
 }
 
 void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTableParam)
 {
 	if (bPoolsInitialized)
 	{
-		LOG_LOGIC_WARNING(TEXT("InitializePoolsFromTable: Pools already initialized"));
+		LOG_POOLING_WARNING(TEXT("InitializePoolsFromTable: Pools already initialized"));
 		return;
 	}
 
 	if (!PoolConfigTableParam)
 	{
-		LOG_LOGIC_ERROR(TEXT("InitializePoolsFromTable: PoolConfigTable is null"));
+		LOG_POOLING_ERROR(TEXT("InitializePoolsFromTable: PoolConfigTable is null"));
 		return;
 	}
 
-	LOG_LOGIC_INFO(TEXT("InitializePoolsFromTable: Starting pool initialization from DataTable"));
+	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Starting pool initialization from DataTable"));
 
 	TArray<FPoolConfigTableRow*> AllRows;
 	PoolConfigTableParam->GetAllRows<FPoolConfigTableRow>(TEXT("InitializePoolsFromTable"), AllRows);
@@ -346,7 +346,7 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 	{
 		if (!Row || !Row->ActorClass)
 		{
-			LOG_LOGIC_WARNING(TEXT("InitializePoolsFromTable: Skipping invalid row"));
+			LOG_POOLING_WARNING(TEXT("InitializePoolsFromTable: Skipping invalid row"));
 			continue;
 		}
 
@@ -355,7 +355,7 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 	}
 
 	bPoolsInitialized = true;
-	LOG_LOGIC_INFO(TEXT("InitializePoolsFromTable: Initialized %d pools from DataTable"), TotalPools);
+	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Initialized %d pools from DataTable"), TotalPools);
 }
 
 // ========== Drop Management Implementation ==========
@@ -364,12 +364,12 @@ void UPoolingSubsystem::SetDropConfigTable(UDataTable* DropTable)
 {
 	if (!DropTable)
 	{
-		LOG_LOGIC_WARNING(TEXT("SetDropConfigTable: DropTable is null"));
+		LOG_POOLING_WARNING(TEXT("SetDropConfigTable: DropTable is null"));
 		return;
 	}
 
 	MonsterDropTable = DropTable;
-	LOG_LOGIC_INFO(TEXT("Drop configuration table set: %s"), *DropTable->GetName());
+	LOG_POOLING_INFO(TEXT("Drop configuration table set: %s"), *DropTable->GetName());
 }
 
 void UPoolingSubsystem::ProcessMonsterDrop(
@@ -379,7 +379,7 @@ void UPoolingSubsystem::ProcessMonsterDrop(
 {
 	if (!MonsterDropTable)
 	{
-		LOG_LOGIC_WARNING(TEXT("ProcessMonsterDrop: MonsterDropTable is not set. Call SetDropConfigTable first."));
+		LOG_POOLING_WARNING(TEXT("ProcessMonsterDrop: MonsterDropTable is not set. Call SetDropConfigTable first."));
 		return;
 	}
 
@@ -387,7 +387,7 @@ void UPoolingSubsystem::ProcessMonsterDrop(
 	FMonsterDropConfig* DropConfig = MonsterDropTable->FindRow<FMonsterDropConfig>(MonsterDropID, TEXT("ProcessMonsterDrop"));
 	if (!DropConfig)
 	{
-		LOG_LOGIC_WARNING(TEXT("ProcessMonsterDrop: No drop config found for ID '%s'"), *MonsterDropID.ToString());
+		LOG_POOLING_WARNING(TEXT("ProcessMonsterDrop: No drop config found for ID '%s'"), *MonsterDropID.ToString());
 		return;
 	}
 
@@ -396,14 +396,14 @@ void UPoolingSubsystem::ProcessMonsterDrop(
 
 	if (ItemsToDrop.Num() == 0)
 	{
-		LOG_LOGIC_INFO(TEXT("ProcessMonsterDrop: No items to drop for '%s'"), *MonsterDropID.ToString());
+		LOG_POOLING_INFO(TEXT("ProcessMonsterDrop: No items to drop for '%s'"), *MonsterDropID.ToString());
 		return;
 	}
 
 	// Spawn the items
 	SpawnDroppedItems(ItemsToDrop, DropLocation, DropConfig->DropSpreadRadius);
 
-	LOG_LOGIC_INFO(TEXT("ProcessMonsterDrop: Dropped %d items for '%s' at %s"),
+	LOG_POOLING_INFO(TEXT("ProcessMonsterDrop: Dropped %d items for '%s' at %s"),
 		ItemsToDrop.Num(), *MonsterDropID.ToString(), *DropLocation.ToString());
 }
 
@@ -542,11 +542,11 @@ void UPoolingSubsystem::SpawnDroppedItems(
 		TScriptInterface<ISpawnable> SpawnedItem = SpawnFromClass(ItemClass, SpawnLocation);
 		if (SpawnedItem)
 		{
-			LOG_LOGIC_INFO(TEXT("Spawned drop item %s at %s"), *ItemClass->GetName(), *SpawnLocation.ToString());
+			LOG_POOLING_INFO(TEXT("Spawned drop item %s at %s"), *ItemClass->GetName(), *SpawnLocation.ToString());
 		}
 		else
 		{
-			LOG_LOGIC_WARNING(TEXT("Failed to spawn drop item %s - pool may be empty"), *ItemClass->GetName());
+			LOG_POOLING_WARNING(TEXT("Failed to spawn drop item %s - pool may be empty"), *ItemClass->GetName());
 		}
 	}
 }

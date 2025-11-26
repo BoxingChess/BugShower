@@ -61,3 +61,19 @@ DECLARE_LOG_CATEGORY_EXTERN(LogServer, Log, All);
 #define LOG_NETWORK_MODE ((GetNetMode()== ENetMode::NM_Client) ? *FString::Printf("Client%d"),GPlayInEditorID) : ((GetNetMode()==ENetMode::NM_Standalone) ? TEXT("STAND ALONE") : TEXT("SERVER"))
 
 #pragma endregion InServer
+
+#pragma region InPoolingSubSystem
+
+#define LOG_POOLING_FUNCTION(Message, ...) \
+    UE_LOG(LogLogic, Verbose, TEXT("[%s:%d] %s : " Message), TEXT(__FILE__), __LINE__, TEXT(__FUNCTION__), ##__VA_ARGS__)
+
+#define LOG_POOLING_INFO(Message, ...) \
+    UE_LOG(LogLogic, Log, TEXT("[POOLING] " Message), ##__VA_ARGS__)
+
+#define LOG_POOLING_WARNING(Message, ...) \
+    UE_LOG(LogLogic, Warning, TEXT("[POOLING] " Message), ##__VA_ARGS__)
+
+#define LOG_POOLING_ERROR(Message, ...) \
+    UE_LOG(LogLogic, Error, TEXT("[POOLING] " Message), ##__VA_ARGS__)
+
+#pragma endregion InPoolingSubSystem

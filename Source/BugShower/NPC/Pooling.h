@@ -37,10 +37,6 @@ protected:
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> BulletClass;
 
-
-	UPROPERTY(EditAnywhere)
-	uint32 PoolSize;
-
 	// Spawn Parameters
 	UPROPERTY(EditAnywhere)
 	float SpawnRadius;

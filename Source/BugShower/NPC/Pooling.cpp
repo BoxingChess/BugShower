@@ -55,23 +55,28 @@ void APooling::Tick(float DeltaTime)
 	if (GameMode->IsEnd())
 		return;
 
+	UWorld* World = GetWorld();
+
+	if (!World)
+	{
+		LOG_LOGIC_ERROR(TEXT("World is null"));
+		return;
+	}
+
 	Super::Tick(DeltaTime);
 
 	FVector SpawnLocation = GetActorLocation();
 
-	DrawDebugSphere(GetWorld(), SpawnLocation, SpawnRadius, 12, FColor::Yellow, false, 2.f);
+	FVector YAxis = GetActorRightVector();
+	FVector ZAxis = GetActorForwardVector();
+
+	DrawDebugCircle(World, SpawnLocation, SpawnRadius, 12, FColor::Yellow, false, -1,0,2.f, YAxis, ZAxis);
 
 	SpawnTimer += DeltaTime;
 	if (SpawnTimer >= SpawnInterval)
 	{
 
 		// Get pooling subsystem
-		UWorld* World = GetWorld();
-		if (!World)
-		{
-			LOG_LOGIC_ERROR(TEXT("DropItems: World is null"));
-			return;
-		}
 
 		UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
 		if (PoolSys)
@@ -86,7 +91,7 @@ void APooling::Tick(float DeltaTime)
 			FNavLocation RandomLocation;
 			if (NavSys->GetRandomPointInNavigableRadius(SpawnLocation, SpawnRadius, RandomLocation))
 			{
-				TScriptInterface<ISpawnable> SpawnActor = PoolSys->SpawnFromClass(MonsterClass,RandomLocation);
+				TScriptInterface<ISpawnable> SpawnActor = PoolSys->SpawnFromClass(MonsterClass, RandomLocation);
 			}
 
 			LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());
@@ -112,7 +117,7 @@ void APooling::ReturnAllPoolingActors()
 	{
 		PoolSys->ReturnAllOfClass(MonsterClass);
 		PoolSys->ReturnAllOfClass(BulletClass);
-		
+
 
 		LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());
 	}

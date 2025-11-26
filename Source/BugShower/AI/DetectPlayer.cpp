@@ -111,33 +111,41 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 					MonsterBase->AttackRange,
 					bIsInRangedRange ? TEXT("TRUE") : TEXT("FALSE"));
 
+
 				// Draw debug visualization for attack ranges
 				FVector MonsterLocation = Monster->GetActorLocation();
 
+				FVector YAxis = Monster->GetActorRightVector();
+				FVector ZAxis = Monster->GetActorForwardVector();
+
 				// Draw minimum attack range (red sphere)
-				DrawDebugSphere(
+				DrawDebugCircle(
 					World,
 					MonsterLocation,
 					MonsterBase->MinAttackRange,
 					32,
 					FColor::Red,
 					false,
-					0.2f,
+					-1.f,
 					0,
-					2.0f
+					2.0f,
+					YAxis,
+					ZAxis
 				);
 
 				// Draw maximum attack range (green sphere)
-				DrawDebugSphere(
+				DrawDebugCircle(
 					World,
 					MonsterLocation,
 					MonsterBase->AttackRange,
 					32,
 					FColor::Green,
 					false,
-					0.2f,
+					-1.f,
 					0,
-					2.0f
+					2.0f,
+					YAxis,
+					ZAxis
 				);
 
 				// Draw line to target (yellow if in range, gray if out of range)
@@ -147,7 +155,7 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 					CurClosestPlayer->GetActorLocation(),
 					bIsInRangedRange ? FColor::Yellow : FColor::Silver,
 					false,
-					0.2f,
+					-1,
 					0,
 					3.0f
 				);
