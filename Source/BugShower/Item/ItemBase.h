@@ -20,6 +20,9 @@ public:
 	virtual void Spawn(const FVector pos) override;
 	virtual void ReturnPool() override;
 
+	//don't use super::LifeSpanExpired() in ISpawnable derived classes
+	virtual void LifeSpanExpired() override;
+
 	UFUNCTION()
 	virtual void DeSpawn() override;
 
@@ -58,9 +61,7 @@ public:
 protected:
 	UFUNCTION()
 	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
-	float LifeSpan;
 private:
-	float CurrentLifeTime;
+	UPROPERTY(EditAnywhere, Category = "Item")
+	float ItemLifeSpan;
 };

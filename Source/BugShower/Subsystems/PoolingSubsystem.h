@@ -4,8 +4,47 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "NPC/PoolingType.h"
+#include "Item/ItemDropStructs.h"
+#include "Engine/DataTable.h"
 #include "PoolingSubsystem.generated.h"
+
+/**
+ * Pool configuration for a specific actor class
+ */
+USTRUCT(BlueprintType)
+struct FPoolConfig
+{
+	GENERATED_BODY()
+
+	// Actor class to pool
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	TSubclassOf<AActor> ActorClass;
+
+	// Number of instances to pre-spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	int32 PoolSize = 10;
+
+	FPoolConfig()
+		: PoolSize(10)
+	{}
+};
+
+/**
+ * Pool configuration table row
+ */
+USTRUCT(BlueprintType)
+struct FPoolConfigTableRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	// Actor class to pool
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	TSubclassOf<AActor> ActorClass;
+
+	// Number of instances to pre-spawn
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pool")
+	int32 PoolSize = 10;
+};
 
 /**
  * World Subsystem for managing object pooling
@@ -26,71 +65,105 @@ public:
 	bool FireProjectileAt(
 		AActor* Shooter,
 		AActor* Target,
+		TSubclassOf<AActor> ActorClass,
 		const FVector& SpawnLocation,
 		float ProjectileSpeed,
 		float Damage
 	);
 
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	void SpawnItemDrop(const FVector& Location, int32 Count = 1);
+	// ========== Class-Based Pooling API ==========
+	// Register a new pool for a specific monster class
+	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
+	void RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int32 Size);
 
-	// Low-level pool management
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	TScriptInterface<class ISpawnable> SpawnFromPool(EPoolType Type, const FVector& Position);
-
-	void ReturnToPool(TScriptInterface<class ISpawnable> Object);
-
-	// Return all active monsters to pool (called on game end)
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	void ReturnAllMonsterToPool();
-
-	// Pool initialization (called from GameMode or Level Blueprint)
-	UFUNCTION(BlueprintCallable, Category = "Pooling")
-	void InitializePools(
-		TSubclassOf<AActor> InMonsterClass,
-		TSubclassOf<AActor> InItemClass,
-		TSubclassOf<AActor> InBulletClass,
-		int32 InPoolSize = 100
+	// Spawn from a class-specific pool
+	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
+	TScriptInterface<class ISpawnable> SpawnFromClass(
+		TSubclassOf<AActor> ActorClass,
+		const FVector& Position
 	);
 
-	// Internal spawn method for specific type
-	void SpawnMonsters(const FVector& SpawnLocation, float SpawnRadius);
+
+
+	// Return object to its class-specific pool
+	void ReturnToPoolByClass(TScriptInterface<class ISpawnable> Object);
+
+	// Return all monsters of a specific class to pool
+	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
+	void ReturnAllOfClass(TSubclassOf<AActor> ActorClass);
+
+	// ========== Drop Management API ==========
+	// Process monster drop using DataTable configuration
+	UFUNCTION(BlueprintCallable, Category = "Pooling|DropManagement")
+	void ProcessMonsterDrop(
+		FName MonsterDropID,
+		const FVector& DropLocation,
+		const FGameplayTagContainer& ActiveConditions = FGameplayTagContainer()
+	);
+
+	// Set the drop configuration DataTable
+	UFUNCTION(BlueprintCallable, Category = "Pooling|DropManagement")
+	void SetDropConfigTable(UDataTable* DropTable);
+
+	// ========== Pool Initialization API ==========
+	// Initialize pools from configuration array
+	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
+	void InitializePoolsFromConfig();
+
+	// Initialize pools from DataTable
+	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
+	void InitializePoolsFromTable(UDataTable* PoolConfigTable);
+
 protected:
+	// Calculate drops from configuration
+	TArray<TSubclassOf<class AItemBase>> CalculateDropsFromConfig(
+		const FMonsterDropConfig& Config,
+		const FGameplayTagContainer& ActiveConditions
+	) const;
+
+	// Select items by weight from drop entries
+	TArray<TSubclassOf<class AItemBase>> SelectDropsByWeight(
+		const TArray<FItemDropEntry>& Entries,
+		int32 MaxSelections,
+		const FGameplayTagContainer& ActiveConditions
+	) const;
+
+	// Spawn dropped items in a spread pattern
+	void SpawnDroppedItems(
+		const TArray<TSubclassOf<class AItemBase>>& ItemClasses,
+		const FVector& CenterLocation,
+		float SpreadRadius
+	);
 
 private:
-	// Pool storage
-	TMap<EPoolType, TArray<TScriptInterface<class ISpawnable>>> PoolMap;
-	TQueue<TScriptInterface<class ISpawnable>> AvailableMonsters;
-	TQueue<TScriptInterface<class ISpawnable>> AvailableItems;
-	TQueue<TScriptInterface<class ISpawnable>> AvailableBullets;
+	// ========== Class-Based Pooling ==========
+	// Pool data structure for each class
+	struct FPoolData
+	{
+		TArray<TScriptInterface<class ISpawnable>> Available;
+		TArray<TScriptInterface<class ISpawnable>> All;
+	};
 
-	// Pool configuration
+	// Map from actor class to its pool data
+	TMap<TSubclassOf<AActor>, FPoolData> ClassPools;
+
+	// ========== Pool Configuration ==========
+	// Pool configurations (editable in Project Settings or GameMode)
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
+	TArray<FPoolConfig> PoolConfigs;
+
+	// Alternative: DataTable for pool configurations
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
+	UDataTable* PoolConfigTable;
+
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config")
+	bool bAutoInitializePools = true;
+
 	UPROPERTY()
-	TSubclassOf<AActor> MonsterClass;
-
-	UPROPERTY()
-	TSubclassOf<AActor> ItemClass;
-
-	UPROPERTY()
-	TSubclassOf<AActor> BulletClass;
-
-	int32 PoolSize;
-
-	// Helper methods
-	TScriptInterface<class ISpawnable> FindAvailableObject(EPoolType Type);
-	void CreatePool(EPoolType Type, TSubclassOf<AActor> ActorClass, int32 Size);
-	TQueue<TScriptInterface<class ISpawnable>>& GetQueueForType(EPoolType Type);
-
-	void ReturnAllToPool(EPoolType Type);
-
-	// Monster spawning (for testing/debug)
-	UPROPERTY(EditAnywhere)
-	float SpawnRadius;
-
-	UPROPERTY(EditAnywhere)
-	float SpawnInterval;
-	UPROPERTY(EditAnywhere)
-	float SpawnTimer;
-	UPROPERTY(EditAnywhere)
 	bool bPoolsInitialized;
+
+	// ========== Drop Management ==========
+	// DataTable containing monster drop configurations
+	UPROPERTY()
+	UDataTable* MonsterDropTable;
 };

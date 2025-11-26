@@ -37,7 +37,7 @@ void ABSGameModeBase::PostLogin(APlayerController* NewPlayer)
 		BSGameState->TotalPlayerCount += 1;
 		BSGameState->AlivePlayerCount = GetAlivePlayerCount();
 
-		LOG_NETWORK_INFO(TEXT("Player joined. Total: %d, Alive: %d"),BSGameState->TotalPlayerCount, BSGameState->AlivePlayerCount);
+		LOG_NETWORK_INFO(TEXT("Player joined. Total: %d, Alive: %d"), BSGameState->TotalPlayerCount, BSGameState->AlivePlayerCount);
 	}
 }
 
@@ -71,6 +71,31 @@ void ABSGameModeBase::BeginPlay()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to cache GameState!"));
+	}
+
+
+	UPoolingSubsystem* PoolSys = GetWorld()->GetSubsystem<UPoolingSubsystem>();
+	if (PoolSys)
+	{
+
+		// 풀 초기화
+		UDataTable* PoolTable = LoadObject<UDataTable>(
+			nullptr,
+			TEXT("/Game/Data/DT_PoolConfig.DT_PoolConfig")
+		);
+
+		PoolSys->InitializePoolsFromTable(PoolTable);
+
+		UDataTable* DropTable = LoadObject<UDataTable>(
+			nullptr,
+			TEXT("/Game/Data/DT_MonsterDrops.DT_MonsterDrops")
+		);
+
+		if (DropTable)
+		{
+			PoolSys->SetDropConfigTable(DropTable);
+			UE_LOG(LogTemp, Log, TEXT("Drop table loaded successfully"));
+		}
 	}
 }
 
@@ -175,11 +200,15 @@ void ABSGameModeBase::EndGame(bool bVictory)
 
 	for (AActor* Actor : PoolingActors)
 	{
+		APooling* CurPoolingActor = Cast<APooling>(Actor);
+		if (CurPoolingActor)
+		{
+			CurPoolingActor->ReturnAllPoolingActors();	//spawn된 모든것 풀로 반환
+		}
+
 		Actor->SetActorTickEnabled(false);  // Tick 완전히 중지
 	}
 
-	//spawn된 모든 몬스터를 풀로 반환
-	GetWorld()->GetSubsystem<UPoolingSubsystem>()->ReturnAllMonsterToPool();
 }
 
 int32 ABSGameModeBase::GetAlivePlayerCount() const

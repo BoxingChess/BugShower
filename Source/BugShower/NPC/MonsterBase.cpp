@@ -8,6 +8,8 @@
 #include "NPC/MonsterStatComponent.h"
 #include "Logging/BugShowerLog.h"
 #include "Subsystems/PoolingSubsystem.h"
+#include "CVar/DebugDrawUtils.h"
+
 
 
 void AMonsterBase::Spawn(const FVector pos)
@@ -51,16 +53,14 @@ void AMonsterBase::DeSpawn()
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolSys->ReturnToPool(this);
+			PoolSys->ReturnToPoolByClass(this);
 		}
 	}
 }
 
 void AMonsterBase::ReturnPool()
 {
-	SetActorHiddenInGame(true);
-	SetActorEnableCollision(false);
-	SetActorTickEnabled(false);
+	Deactivate(this);
 
 	// Stop AI
 	AAIController* AI = Cast<AAIController>(GetController());
@@ -78,7 +78,7 @@ void AMonsterBase::ReturnPool()
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolSys->ReturnToPool(this);
+			PoolSys->ReturnToPoolByClass(this);
 		}
 	}
 }
@@ -103,11 +103,9 @@ AMonsterBase::AMonsterBase()
 	DashDistance = 600.f;
 	AttackRange = 1500.f;
 	ProjectileSpeed = 1000.f;
-	DropChance = 0.5f;
-	MinDropCount = 1;
-	MaxDropCount = 3;
 
-
+	// Drop ID defaults to monster class name (can be overridden in Blueprint)
+	MonsterDropID = FName(*GetClass()->GetName());
 
 	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
 
@@ -125,10 +123,37 @@ void AMonsterBase::BeginPlay()
 	}
 }
 
+
+
 // Called every frame
 void AMonsterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+
+	if (BSDebugUtils::IsEnabled(CVarDebugMonsterForwardVector))
+	{
+		// Draw debug visualization for attack ranges
+		FVector MonsterLocation = GetActorLocation();
+		FVector YAxis = GetActorRightVector();
+		FVector ZAxis = GetActorForwardVector();
+
+
+		UWorld* World = GetWorld();
+
+		// Draw monster forward vector (blue arrow)
+		DrawDebugDirectionalArrow(
+			World,
+			MonsterLocation,
+			MonsterLocation + ZAxis * 200.0f,
+			50.0f,
+			FColor::Blue,
+			false,
+			-1.f,
+			0,
+			3.0f
+		);
+	}
 }
 
 float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -164,13 +189,6 @@ void AMonsterBase::FireProjectile(AActor* Target)
 		return;
 	}
 
-	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
-	if (!PoolSys)
-	{
-		LOG_LOGIC_ERROR(TEXT("FireProjectile: PoolingSubsystem not found"));
-		return;
-	}
-
 	// Calculate spawn location (slightly in front of monster)
 	FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.0f;
 	SpawnLocation.Z += 50.0f;  // Spawn at chest height
@@ -178,15 +196,19 @@ void AMonsterBase::FireProjectile(AActor* Target)
 	// Get damage from MonsterStatComponent
 	float Damage = MonsterStatComp ? MonsterStatComp->GetDamage() : 10.0f;
 
-	// Delegate projectile firing to subsystem
-	PoolSys->FireProjectileAt(this, Target, SpawnLocation, ProjectileSpeed, Damage);
+
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (!PoolSys)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: PoolingSubsystem not found"));
+		return;
+	}
+
+	PoolSys->FireProjectileAt(this, Target, BulletClass, SpawnLocation, ProjectileSpeed, Damage);
 }
 
 void AMonsterBase::OnDeath(AActor* DeadMonster)
 {
-	if (!HasAuthority())
-		return;
-
 	// Drop items before the monster is deactivated
 	DropItems();
 }
@@ -196,14 +218,14 @@ void AMonsterBase::DropItems()
 	if (!HasAuthority())
 		return;
 
-	// Check drop chance
-	float RandomValue = FMath::FRand();
-	if (RandomValue > DropChance)
+	// Check if drop ID is set
+	if (MonsterDropID.IsNone())
+	{
+		LOG_LOGIC_WARNING(TEXT("DropItems: MonsterDropID is not set for %s"), *GetName());
 		return;
+	}
 
-	// Determine number of items to drop
-	int32 DropCount = FMath::RandRange(MinDropCount, MaxDropCount);
-
+	// Get drop location
 	FVector DropLocation = GetActorLocation();
 	DropLocation.Z += 50.f; // Slightly above ground
 
@@ -216,14 +238,15 @@ void AMonsterBase::DropItems()
 	}
 
 	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
-	if (PoolSys)
-	{
-		PoolSys->SpawnItemDrop(DropLocation, DropCount);
-		LOG_LOGIC_INFO(TEXT("Monster %s dropped %d items from pool"), *GetName(), DropCount);
-	}
-	else
+	if (!PoolSys)
 	{
 		LOG_LOGIC_ERROR(TEXT("DropItems: PoolingSubsystem not found"));
+		return;
 	}
+
+	// Process drop through subsystem
+	PoolSys->ProcessMonsterDrop(MonsterDropID, DropLocation, ActiveDropConditions);
+
+	LOG_LOGIC_INFO(TEXT("Monster %s (DropID: %s) processed drop"), *GetName(), *MonsterDropID.ToString());
 }
 
