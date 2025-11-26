@@ -8,6 +8,8 @@
 #include "NPC/MonsterStatComponent.h"
 #include "Logging/BugShowerLog.h"
 #include "Subsystems/PoolingSubsystem.h"
+#include "CVar/DebugDrawUtils.h"
+
 
 
 void AMonsterBase::Spawn(const FVector pos)
@@ -128,6 +130,30 @@ void AMonsterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+
+	if (BSDebugUtils::IsEnabled(CVarDebugMonsterForwardVector))
+	{
+		// Draw debug visualization for attack ranges
+		FVector MonsterLocation = GetActorLocation();
+		FVector YAxis = GetActorRightVector();
+		FVector ZAxis = GetActorForwardVector();
+
+
+		UWorld* World = GetWorld();
+
+		// Draw monster forward vector (blue arrow)
+		DrawDebugDirectionalArrow(
+			World,
+			MonsterLocation,
+			MonsterLocation + ZAxis * 200.0f,
+			50.0f,
+			FColor::Blue,
+			false,
+			-1.f,
+			0,
+			3.0f
+		);
+	}
 }
 
 float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)

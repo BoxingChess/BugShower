@@ -69,7 +69,8 @@ void APooling::Tick(float DeltaTime)
 	FVector YAxis = GetActorRightVector();
 	FVector ZAxis = GetActorForwardVector();
 
-	DrawDebugCircle(World, SpawnLocation, SpawnRadius, 12, FColor::Yellow, false, -1,0,2.f, YAxis, ZAxis);
+	// Draw spawn radius (persistent across frames since this is called every Tick)
+	DrawDebugCircle(World, SpawnLocation, SpawnRadius, 12, FColor::Yellow, false, 0.1f, 0, 2.f, YAxis, ZAxis);
 
 	SpawnTimer += DeltaTime;
 	if (SpawnTimer >= SpawnInterval)

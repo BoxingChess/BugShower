@@ -6,6 +6,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogBTService, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogBTTask, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogLogic, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogServer, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogPooling, Log, All);
 
 
 //In Behavior Tree Service/Task, use these macros for logging
@@ -65,15 +66,15 @@ DECLARE_LOG_CATEGORY_EXTERN(LogServer, Log, All);
 #pragma region InPoolingSubSystem
 
 #define LOG_POOLING_FUNCTION(Message, ...) \
-    UE_LOG(LogLogic, Verbose, TEXT("[%s:%d] %s : " Message), TEXT(__FILE__), __LINE__, TEXT(__FUNCTION__), ##__VA_ARGS__)
+    UE_LOG(LogPooling, Verbose, TEXT("[%s:%d] %s : " Message), TEXT(__FILE__), __LINE__, TEXT(__FUNCTION__), ##__VA_ARGS__)
 
 #define LOG_POOLING_INFO(Message, ...) \
-    UE_LOG(LogLogic, Log, TEXT("[POOLING] " Message), ##__VA_ARGS__)
+    UE_LOG(LogPooling, Log, TEXT("[POOLING] " Message), ##__VA_ARGS__)
 
 #define LOG_POOLING_WARNING(Message, ...) \
-    UE_LOG(LogLogic, Warning, TEXT("[POOLING] " Message), ##__VA_ARGS__)
+    UE_LOG(LogPooling, Warning, TEXT("[POOLING] " Message), ##__VA_ARGS__)
 
 #define LOG_POOLING_ERROR(Message, ...) \
-    UE_LOG(LogLogic, Error, TEXT("[POOLING] " Message), ##__VA_ARGS__)
+    UE_LOG(LogPooling, Error, TEXT("[POOLING] " Message), ##__VA_ARGS__)
 
 #pragma endregion InPoolingSubSystem
