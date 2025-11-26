@@ -13,7 +13,6 @@ APooling::APooling()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	PoolSize = 1;
 	SpawnRadius = 1500.f;
 	SpawnInterval = 3.0f;
 	SpawnTimer = 0.0f;
