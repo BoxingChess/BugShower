@@ -4,6 +4,7 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Component/PickUp/PickUpDetectorComponent.h"
+// PlayerStatComponent include 제거: Coupling 방지를 위해 BSCharacterPlayer의 Getter 함수 사용
 
 
 // Sets default values for this component's properties
@@ -188,15 +189,27 @@ void UMovementInputComponent::Look(const struct FInputActionValue& Value)
 
 void UMovementInputComponent::HandleJump(const struct FInputActionValue& Value)
 {
+	// 지상에서 점프 (첫 번째 점프)
 	if (OwnerPlayer->GetCharacterMovement()->IsMovingOnGround())
 	{
 		JumpCount = 1; // First jump
 		OwnerPlayer->Jump();
 	}
-	else if (JumpCount < MaxJumpCount)
+	// 공중에서 추가 점프 (더블 점프 등)
+	else
 	{
-		JumpCount++;
-		OwnerPlayer->LaunchCharacter(FVector(0.f, 0.f, 500.f), false, true); // Double jump
+		// BSCharacterPlayer의 Getter 함수 사용 (Loose coupling)
+		// MovementComponent는 StatComponent를 직접 알 필요 없음
+		int32 MaxJumps = OwnerPlayer->GetMaxJumpCount();
+		float JumpPower = OwnerPlayer->GetJumpPower();
+
+		// 최대 점프 횟수 체크
+		if (JumpCount < MaxJumps)
+		{
+			JumpCount++;
+			// 점프력을 BSCharacterPlayer에서 가져온 값으로 사용
+			OwnerPlayer->LaunchCharacter(FVector(0.f, 0.f, JumpPower), false, true);
+		}
 	}
 }
 

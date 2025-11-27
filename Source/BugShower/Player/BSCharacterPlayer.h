@@ -15,6 +15,7 @@ class UMovementInputComponent;
 class UUI_InGameComponent;
 class UPickUpDetectorComponent;
 class UInventoryComponent;
+class UPlayerStatComponent;
 class AWeaponActor;
 
 /*
@@ -52,6 +53,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
 	TObjectPtr<UInventoryComponent> InventoryComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
+	TObjectPtr<UPlayerStatComponent> StatComponent;
 
 protected:
 	// Camera boom that follows the character (spring arm component)
@@ -189,5 +193,61 @@ public:
 	// 수류탄 발사 (우클릭)
 public:
 	void Fire();
+
+	// ========================================
+	// 데미지 시스템
+	// ========================================
+
+public:
+	/**
+	 * 데미지를 받았을 때 호출되는 함수
+	 * StatComponent로 데미지를 전달하여 HP 감소 처리
+	 */
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+	                         class AController* EventInstigator, AActor* DamageCauser) override;
+
+private:
+	/**
+	 * HP 변경 시 호출되는 콜백 함수
+	 * UI 업데이트 등에 사용
+	 */
+	UFUNCTION()
+	void OnPlayerHPChanged(float CurrentHP, float MaxHP);
+
+	/**
+	 * 플레이어 사망 시 호출되는 콜백 함수
+	 */
+	UFUNCTION()
+	void OnPlayerDied();
+
+	// ========================================
+	// 스탯 Getter 함수 (Coupling 방지)
+	// ========================================
+
+public:
+	/**
+	 * 최대 점프 횟수 가져오기
+	 * MovementComponent가 StatComponent를 직접 알 필요 없게 하기 위한 간접 레이어
+	 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	int32 GetMaxJumpCount() const;
+
+	/**
+	 * 점프력 가져오기
+	 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetJumpPower() const;
+
+	/**
+	 * 걷기 속도 가져오기
+	 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetWalkSpeed() const;
+
+	/**
+	 * 달리기 속도 가져오기
+	 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	float GetSprintSpeed() const;
 
 };

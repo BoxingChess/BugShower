@@ -5,9 +5,11 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-#include "Component/Movement/MovementInputComponent.h"					//��ü������Ʈ
-#include "Component/PickUp/PickUpDetectorComponent.h"					//��ü������Ʈ
-#include "Component/Inventory/InventoryComponent.h"						//��ü������Ʈ
+#include "Component/Movement/MovementInputComponent.h"					// 이동관련 컴포넌트
+#include "Component/PickUp/PickUpDetectorComponent.h"					//	픽업 관련 컴포넌트
+#include "Component/Inventory/InventoryComponent.h"						//	인벤토리 관련 컴포넌트
+#include "Component/Stat/PlayerStatComponent.h"							// 스탯 컴포넌트
+#include "Manager/UIManager/BSUIManager.h"								// UI 관리자
 
 #include "DrawDebugHelpers.h" // ����� ���ο�
 #include "Kismet/GameplayStatics.h" // ��������
@@ -36,7 +38,8 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 		GetMesh()->SetSkeletalMesh(CharacterMeshRef.Object);
 	}
 
-	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBPClass(TEXT("/Game/Animation/FL_PlayerAnimBP.FL_PlayerAnimBP_C"));
+	// BS_Elegg AnimBP 사용
+	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBPClass(TEXT("/Game/Animation/BS_EleggAnimBP.BS_EleggAnimBP_C"));
 	if (AnimBPClass.Succeeded())
 	{
 		GetMesh()->SetAnimInstanceClass(AnimBPClass.Class);
@@ -55,6 +58,9 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 
 	//�κ��丮 ������Ʈ
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+
+	// 스탯 컴포넌트 (HP, 스태미나, 이동 속도, 점프 등)
+	StatComponent = CreateDefaultSubobject<UPlayerStatComponent>(TEXT("StatComponent"));
 	
 
 
@@ -145,6 +151,24 @@ void ABSCharacterPlayer::BeginPlay()
 	Super::BeginPlay();
 
 	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Character spawned"));
+
+	// ========================================
+	// 스탯 컴포넌트 초기화
+	// ========================================
+	if (StatComponent)
+	{
+		// 플레이어 초기 스탯 설정
+		// HP: 100, 스태미나: 100, 걷기 속도: 600, 달리기 속도: 900, 더블 점프, 점프력: 600
+		StatComponent->InitializeStats(100.f, 100.f, 600.f, 900.f, 2, 600.f);
+
+		// HP 변경 이벤트 바인딩 (UI 업데이트용)
+		StatComponent->OnHPChanged.AddDynamic(this, &ABSCharacterPlayer::OnPlayerHPChanged);
+
+		// 사망 이벤트 바인딩
+		StatComponent->OnPlayerDeath.AddDynamic(this, &ABSCharacterPlayer::OnPlayerDied);
+
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - StatComponent initialized"));
+	}
 
 	// 테스트용 무기 자동 장착 (TestWeaponData가 설정되어 있을 때만)
 	if (TestWeaponData)
@@ -598,4 +622,148 @@ void ABSCharacterPlayer::ReloadWeapon()
 
 	// 재장전 시작
 	WeaponComp->Reload();
+}
+
+// ========================================
+// 데미지 시스템 구현
+// ========================================
+
+/**
+ * TakeDamage 오버라이드
+ *
+ * 언리얼 엔진의 데미지 시스템에서 호출되는 함수
+ * Bullet, Grenade 등에서 ApplyDamage를 호출하면 이 함수가 호출됨
+ *
+ * @param DamageAmount - 받은 데미지 양
+ * @param DamageEvent - 데미지 이벤트 정보 (타입, 히트 위치 등)
+ * @param EventInstigator - 데미지를 가한 컨트롤러
+ * @param DamageCauser - 데미지를 준 액터 (총알, 수류탄 등)
+ * @return 실제 적용된 데미지 양
+ */
+float ABSCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
+                                      AController* EventInstigator, AActor* DamageCauser)
+{
+	// 부모 클래스의 TakeDamage 호출
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	// StatComponent가 있으면 데미지 적용
+	if (StatComponent)
+	{
+		StatComponent->ApplyDamage(DamageAmount);
+
+		UE_LOG(LogTemp, Log, TEXT("Player TakeDamage: %.1f from %s"),
+		       DamageAmount,
+		       DamageCauser ? *DamageCauser->GetName() : TEXT("Unknown"));
+	}
+
+	return ActualDamage;
+}
+
+/**
+ * HP 변경 시 호출되는 콜백 함수
+ * StatComponent의 OnHPChanged 델리게이트에 바인딩됨
+ *
+ * @param CurrentHP - 현재 HP
+ * @param MaxHP - 최대 HP
+ */
+void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
+{
+	UE_LOG(LogTemp, Log, TEXT("Player HP Changed: %.1f / %.1f (%.1f%%)"),
+	       CurrentHP, MaxHP, (CurrentHP / MaxHP) * 100.0f);
+
+	// UI 업데이트 (BSUIManager를 통해)
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateHealthUI(CurrentHP, MaxHP);
+		}
+	}
+}
+
+/**
+ * 플레이어 사망 시 호출되는 콜백 함수
+ * StatComponent의 OnPlayerDeath 델리게이트에 바인딩됨
+ */
+void ABSCharacterPlayer::OnPlayerDied()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Player %s has died!"), *GetName());
+
+	// TODO: 사망 처리
+	// 1. 입력 비활성화
+	// DisableInput(Cast<APlayerController>(GetController()));
+
+	// 2. 사망 애니메이션 재생
+	// if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	// {
+	//     AnimInstance->Montage_Play(DeathMontage);
+	// }
+
+	// 3. 래그돌 활성화 또는 사망 이펙트
+	// GetMesh()->SetSimulatePhysics(true);
+	// GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+
+	// 4. 리스폰 타이머 시작
+	// GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this,
+	//     &ABSCharacterPlayer::Respawn, 5.0f, false);
+}
+
+// ========================================
+// 스탯 Getter 함수 구현 (Coupling 방지)
+// ========================================
+
+/**
+ * 최대 점프 횟수 가져오기
+ *
+ * MovementComponent가 StatComponent를 직접 참조하지 않도록
+ * BSCharacterPlayer가 중간 레이어 역할을 함
+ *
+ * 이점:
+ * - Loose coupling: MovementComponent는 PlayerStatComponent를 몰라도 됨
+ * - Encapsulation: StatComponent 구현을 숨김
+ * - Flexibility: 나중에 StatComponent를 다른 걸로 바꿔도 MovementComponent 수정 불필요
+ */
+int32 ABSCharacterPlayer::GetMaxJumpCount() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetMaxJumpCount();
+	}
+	return 2; // 기본값: 더블 점프
+}
+
+/**
+ * 점프력 가져오기
+ */
+float ABSCharacterPlayer::GetJumpPower() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetJumpPower();
+	}
+	return 600.f; // 기본값
+}
+
+/**
+ * 걷기 속도 가져오기
+ */
+float ABSCharacterPlayer::GetWalkSpeed() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetWalkSpeed();
+	}
+	return 600.f; // 기본값
+}
+
+/**
+ * 달리기 속도 가져오기
+ */
+float ABSCharacterPlayer::GetSprintSpeed() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetSprintSpeed();
+	}
+	return 900.f; // 기본값
 }

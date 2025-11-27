@@ -8,6 +8,7 @@
 #include "Item/ItemActor.h"
 #include "Player/BSPlayerController.h"
 #include "Widget/LineTraceUI.h"
+#include "Widget/HealthBarWidget.h"
 void UBSUIManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -266,8 +267,30 @@ void UBSUIManager::UpdateInventoryUI(UInventoryComponent* InventoryComp)
 
 void UBSUIManager::UpdateHealthUI(float Health, float MaxHealth)
 {
-	// TODO: HealthBarWidget 구현 후 연동
-	UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateHealthUI - Not implemented yet"));
+	if (!LocalPlayerController)
+	{
+		return;
+	}
+
+	// HealthBar Widget 가져오기
+	UUserWidget* Widget = GetWidget(BSUINames::HealthBar);
+	if (!Widget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateHealthUI - HealthBar widget not found"));
+		return;
+	}
+
+	// HealthBarWidget으로 캐스팅
+	if (UHealthBarWidget* HealthWidget = Cast<UHealthBarWidget>(Widget))
+	{
+		// Blueprint에서 구현한 UpdateHealth 이벤트 호출
+		HealthWidget->UpdateHealth(Health, MaxHealth);
+		UE_LOG(LogTemp, Log, TEXT("BSUIManager::UpdateHealthUI - Updated HP: %.1f / %.1f"), Health, MaxHealth);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateHealthUI - Widget is not UHealthBarWidget type!"));
+	}
 }
 
 /**

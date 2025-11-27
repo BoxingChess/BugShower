@@ -14,7 +14,7 @@
 UWeaponComponent::UWeaponComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
-	SetIsReplicated(true);
+	SetIsReplicatedByDefault(true);
 
 	// 초기값 설정
 	CurrentWeaponData = nullptr;

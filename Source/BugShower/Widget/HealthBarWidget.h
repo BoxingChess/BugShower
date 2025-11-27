@@ -7,12 +7,32 @@
 #include "HealthBarWidget.generated.h"
 
 /*
- Ç×»ó Ç¥½ÃµÇ´Â Ã¼·Â¹Ù À§Á¬ÀÌ´Ù.
- Æ®¸µÅ©³ª ÁøÅëÁ¦¸¦ ¸ÔÀ¸¸é ½ºÅÂ¹Ì¾î »ó½Âµµ ½Ã°¢ÀûÀ¸·Î º¸ÀÌ°Ô ±¸ÇöÇØÁÙ²¨´Ù.
+ ï¿½×»ï¿½ Ç¥ï¿½ÃµÇ´ï¿½ Ã¼ï¿½Â¹ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì´ï¿½.
+ Æ®ï¿½ï¿½Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¹Ì¾ï¿½ ï¿½ï¿½Âµï¿½ ï¿½Ã°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù²ï¿½ï¿½ï¿½.
+ */
+/**
+ * í”Œë ˆì´ì–´ ì²´ë ¥ë°” ìœ„ì ¯
+ * í•­ìƒ í™”ë©´ì— í‘œì‹œë˜ë©° HP, ìŠ¤íƒœë¯¸ë‚˜ ë“±ì„ í‘œì‹œ
  */
 UCLASS()
 class BUGSHOWER_API UHealthBarWidget : public UUserWidget
 {
 	GENERATED_BODY()
-	
+
+public:
+	/**
+	 * HP ì—…ë°ì´íŠ¸ (C++ì—ì„œ í˜¸ì¶œ, Blueprintì—ì„œ êµ¬í˜„)
+	 * @param CurrentHP í˜„ì¬ HP
+	 * @param MaxHP ìµœëŒ€ HP
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
+	void UpdateHealth(float CurrentHP, float MaxHP);
+
+	/**
+	 * ìŠ¤íƒœë¯¸ë‚˜ ì—…ë°ì´íŠ¸ (C++ì—ì„œ í˜¸ì¶œ, Blueprintì—ì„œ êµ¬í˜„)
+	 * @param CurrentStamina í˜„ì¬ ìŠ¤íƒœë¯¸ë‚˜
+	 * @param MaxStamina ìµœëŒ€ ìŠ¤íƒœë¯¸ë‚˜
+	 */
+	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
+	void UpdateStamina(float CurrentStamina, float MaxStamina);
 };

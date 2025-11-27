@@ -118,7 +118,14 @@ void AWeaponActor::AttachToCharacter(ACharacter* Character, FName SocketName)
 	}
 
 	// 무기를 캐릭터 손에 부착
-	FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
+	// Location/Rotation은 소켓에 맞추되, Scale은 WeaponData에 설정된 값 유지
+	// KeepRelative: 부모(소켓)의 스케일 영향을 받지 않고 상대 스케일 유지
+	FAttachmentTransformRules AttachRules(
+		EAttachmentRule::SnapToTarget,  // Location - 소켓 위치에 스냅
+		EAttachmentRule::SnapToTarget,  // Rotation - 소켓 회전에 스냅
+		EAttachmentRule::KeepRelative,  // Scale - 상대 스케일 유지 (WeaponData의 MeshScale 값 유지)
+		false
+	);
 	AttachToComponent(CharacterMesh, AttachRules, SocketName);
 
 	// 물리 시뮬레이션 비활성화 (손에 들고 있을 때)
