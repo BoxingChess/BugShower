@@ -65,12 +65,6 @@ AItemActor::AItemActor()
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	// �޽� ������Ʈ ����
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
-	MeshComponent->SetupAttachment(RootComponent);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComponent->SetIsReplicated(true);
-
 	// Create collision component
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	RootComponent = CollisionComponent;
@@ -79,9 +73,15 @@ AItemActor::AItemActor()
 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
+	// �޽� ������Ʈ ����
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	MeshComponent->SetupAttachment(RootComponent);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MeshComponent->SetIsReplicated(true);
+
 
 	// Ʈ������ ������ �����ϵ��� ��Ʈ ������Ʈ�� ����
-	RootComponent = MeshComponent;
+	//RootComponent = MeshComponent;
 
 }
 
