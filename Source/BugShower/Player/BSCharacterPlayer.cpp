@@ -5,127 +5,273 @@
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-#include "Component/Movement/MovementInputComponent.h"					//ÀÚÃ¼ÄÄÆ÷³ÍÆ®
-#include "Component/PickUp/PickUpDetectorComponent.h"					//ÀÚÃ¼ÄÄÆ÷³ÍÆ®
-#include "Component/Inventory/InventoryComponent.h"						//ÀÚÃ¼ÄÄÆ÷³ÍÆ®
+#include "Component/Movement/MovementInputComponent.h"					// ì´ë™ê´€ë ¨ ì»´í¬ë„ŒíŠ¸
+#include "Component/PickUp/PickUpDetectorComponent.h"					//	í”½ì—… ê´€ë ¨ ì»´í¬ë„ŒíŠ¸
+#include "Component/Inventory/InventoryComponent.h"						//	ì¸ë²¤í† ë¦¬ ê´€ë ¨ ì»´í¬ë„ŒíŠ¸
+#include "Component/Stat/PlayerStatComponent.h"							// ìŠ¤íƒ¯ ì»´í¬ë„ŒíŠ¸
+#include "Manager/UIManager/BSUIManager.h"								// UI ê´€ë¦¬ì
 
-#include "DrawDebugHelpers.h" // µğ¹ö±× ¶óÀÎ¿ë
-#include "Kismet/GameplayStatics.h" // µ¥¹ÌÁö¿ë
+#include "DrawDebugHelpers.h" // ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½
+#include "Kismet/GameplayStatics.h" // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+// #include "Projectile/Grenade.h"  // ì£¼ì„ì²˜ë¦¬: Projectile íŒŒì¼ ì—†ìŒ
+#include "Weapon/WeaponActor.h"
+#include "Weapon/Component/WeaponComponent.h"
+#include "Weapon/Data/WeaponDataAsset.h"
 
 ABSCharacterPlayer::ABSCharacterPlayer()
 {
-	//¸Ş½¬ÀÇ À§Ä¡¿Í È¸ÀüÀ» ¼³Á¤ÇÑ´Ù. - ¿ùµå ÁÂÇ¥°¡ ¾Æ´Ñ Ä¸½¶ ÄÄÆ÷³ÍÆ® ±âÁØÀÇ »ó´ë À§Ä¡ -> ±×³É ¾µ °æ¿ì °øÁß¿¡ ¶ß±â ¶§¹®
-//¾ğ¸®¾óÀÇ ±âº» ¸Ş½¬µéÀÌ ¿À¸¥ÂÊÀ» ¾ÕÀ¸·Î º¸±â¶§¹®¿¡ -90µµ¸¦ µ¹·ÁÁÖ¾úÀ½
+	//ï¿½Ş½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ È¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½. - ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½ ï¿½Æ´ï¿½ Ä¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ -> ï¿½×³ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ß¿ï¿½ ï¿½ß±ï¿½ ï¿½ï¿½ï¿½ï¿½
+//ï¿½ğ¸®¾ï¿½ï¿½ï¿½ ï¿½âº» ï¿½Ş½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½â¶§ï¿½ï¿½ï¿½ï¿½ -90ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾ï¿½ï¿½ï¿½
 	GetMesh()->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, -90.0f), FRotator(0.0f, -90.0f, 0.0f));
 
-	//¸Ş½¬°¡ ¾î¶² ¹æ½ÄÀ¸·Î ¾Ö´Ï¸ŞÀÌ¼ÇÀ» Àç»ıÇÒ °ÍÀÎÁö ¼³Á¤, AnimationBlueprint - ¸Ş½Ã°¡ ¾Ö´Ï¸ŞÀÌ¼Ç ºí·çÇÁ¸°Æ®(UAnimInstance)¸¦ »ç¿ë
+	//ï¿½Ş½ï¿½ï¿½ï¿½ ï¿½î¶² ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, AnimationBlueprint - ï¿½Ş½Ã°ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®(UAnimInstance)ï¿½ï¿½ ï¿½ï¿½ï¿½
 	GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 
-	//Ä³¸¯ÅÍÀÇ SkeletalMeshComponentÀÇ Ãæµ¹ ¼³Á¤À» "CharacterMesh"¶ó´Â ÀÌ¸§ÀÇ Ãæµ¹ ÇÁ·ÎÆÄÀÏ·Î ¼³Á¤ÇÑ´Ù´Â ¶æ. -> ³ª¸ÓÁö ³ë¼Ç¿¡ Á¤¸®
-	//Áï, Ä³¸¯ÅÍÀÇ ½ºÄÌ·¹Å» ¸Ş½Ã¿¡ Ãæµ¹ ¼³Á¤À» CharacterMesh·Î ¼³Á¤ÇÑ´Ù´Â ¶æ Áï ³»ºÎ¿¡ ÀÖ´Â ECC_Visibility Ã¤³Î¿¡ ´ëÇØ Block, Ignore, Overlap Áß ¹»·Î Ã³¸®ÇÒ °ÍÀÎÁö¸¦ ÆÇ´Ü
+	//Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ SkeletalMeshComponentï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ "CharacterMesh"ï¿½ï¿½ï¿½ ï¿½Ì¸ï¿½ï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´Ù´ï¿½ ï¿½ï¿½. -> ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¿ï¿½ ï¿½ï¿½ï¿½ï¿½
+	//ï¿½ï¿½, Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì·ï¿½Å» ï¿½Ş½Ã¿ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ CharacterMeshï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´Ù´ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½Ö´ï¿½ ECC_Visibility Ã¤ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ Block, Ignore, Overlap ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ç´ï¿½
 	GetMesh()->SetCollisionProfileName(TEXT("CharacterMesh"));
 
-	//PlayerÄ³¸¯ÅÍÀÇ ¸Ş½¬½ºÄÌ·¹Åæ ÄÄÆ÷³ÍÆ®¸¦ ¾÷µ¥ÀÌÆ® ÇØÁØ´Ù.
+	//PlayerÄ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ş½ï¿½ï¿½ï¿½ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½Ø´ï¿½.
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> CharacterMeshRef(TEXT("/Script/Engine.SkeletalMesh'/Game/SciFiSoldier03/Meshes/SK_SciFiSoldier03.SK_SciFiSoldier03'"));
 	if (CharacterMeshRef.Object)
 	{
 		GetMesh()->SetSkeletalMesh(CharacterMeshRef.Object);
 	}
 
-	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBPClass(TEXT("/Game/Animation/FL_PlayerAnimBP.FL_PlayerAnimBP_C"));
+	// BS_Elegg AnimBP ì‚¬ìš©
+	static ConstructorHelpers::FClassFinder<UAnimInstance> AnimBPClass(TEXT("/Game/Animation/BS_EleggAnimBP.BS_EleggAnimBP_C"));
 	if (AnimBPClass.Succeeded())
 	{
 		GetMesh()->SetAnimInstanceClass(AnimBPClass.Class);
 	}
 
-	///ÄÄÆ÷³ÍÆ® »ı¼º--------------------------------------------------------------------------------------------------------------------------------------------------
+	///ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½--------------------------------------------------------------------------------------------------------------------------------------------------
 	
-	//ÀÌµ¿ °ü·Ã ÄÄÆ÷³ÍÆ® »ı¼º
+	//ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 	MovementComponentOnGround = CreateDefaultSubobject<UMovementInputComponent>(TEXT("MovementComponentOnGround"));
 
-	//UI °ü·Ã ÄÄÆ÷³ÍÆ® »ı¼º -> ÀÌ°Ç ÇÃ·¹ÀÌ¾î ¹ÛÀ¸·Î »©¾ßÇÑ´Ù.
+	//UI ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ -> ï¿½Ì°ï¿½ ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
 	//UIComponent = CreateDefaultSubobject<UUI_InGameComponent>(TEXT("UIComponent"));
 
-	//Áİ±â °ü·Ã ÄÄÆ÷³ÍÆ®
+	//ï¿½İ±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®
 	PickUpDetectorComponent = CreateDefaultSubobject<UPickUpDetectorComponent>(TEXT("PickUpDetectorComponent"));
 
-	//ÀÎº¥Åä¸® ÄÄÆ÷³ÍÆ®
+	//ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+
+	// ìŠ¤íƒ¯ ì»´í¬ë„ŒíŠ¸ (HP, ìŠ¤íƒœë¯¸ë‚˜, ì´ë™ ì†ë„, ì í”„ ë“±)
+	StatComponent = CreateDefaultSubobject<UPlayerStatComponent>(TEXT("StatComponent"));
 	
 
 
 
-	//¹ß»ç °ü·Ã
+	// ========================================
+	// ìˆ˜ë¥˜íƒ„ ì‹œìŠ¤í…œ (ì£¼ì„ì²˜ë¦¬)
+	// ========================================
+
+	/*
+	//ï¿½ß»ï¿½ ï¿½ï¿½ï¿½ï¿½
 	static ConstructorHelpers::FObjectFinder<UInputAction> FireActionRef(TEXT("/Game/Input/IA_Fire.IA_Fire"));
 	if (FireActionRef.Succeeded())
 	{
 		FireAction = FireActionRef.Object;
 	}
 
+	// Set default projectile class to Grenade
+	static ConstructorHelpers::FClassFinder<AGrenade> GrenadeClassRef(TEXT("/Script/BugShower.Grenade"));
+	if (GrenadeClassRef.Succeeded())
+	{
+		ProjectileClass = GrenadeClassRef.Class;
+	}
+	*/
 
-	// ½ºÇÁ¸µ¾Ï »ı¼º
+
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	SpringArm->SetupAttachment(RootComponent); // Ä¸½¶¿¡ ºÙÀÓ
-	SpringArm->TargetArmLength = 400.0f; // Ä«¸Ş¶ó °Å¸®
-	SpringArm->bUsePawnControlRotation = true; // ¸¶¿ì½º È¸Àü¿¡ µû¶ó È¸Àü
-	SpringArm->SocketOffset = FVector(0.f, 0.f, 100.f); //ÀÚ¿¬½º·¯¿î Ä«¸Ş¶ó À§Ä¡ Á¶Á¤
+	SpringArm->SetupAttachment(RootComponent); // Ä¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	SpringArm->TargetArmLength = 400.0f; // Ä«ï¿½Ş¶ï¿½ ï¿½Å¸ï¿½
+	SpringArm->bUsePawnControlRotation = true; // ï¿½ï¿½ï¿½ì½º È¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½
+	SpringArm->SocketOffset = FVector(0.f, 0.f, 100.f); //ï¿½Ú¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
 
-	//¾Æ·¡´Â ºÎµå·´°Ô µû¶ó¿À´Â Ä«¸Ş¶ó¸¦ º¸°í ½ÍÀ»¶§ »ç¿ë.
+	//ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½Îµå·´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½.
 	//SpringArm->bEnableCameraRotationLag = true;
 	//SpringArm->CameraRotationLagSpeed = 50.0f;
 
-	//3ÀÎÄª Ä«¸Ş¶ó »ı¼º
+	//3ï¿½ï¿½Äª Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½ï¿½ï¿½
 	ThirdPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ThirdPerson_FollowCamera"));
-	ThirdPersonCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName); // ½ºÇÁ¸µ¾Ï ³¡¿¡ ºÙÀÓ
-	ThirdPersonCamera->bUsePawnControlRotation = false; // Ä«¸Ş¶ó´Â µû·Î È¸ÀüÇÏÁö ¾Ê°Ô
+	ThirdPersonCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName); // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+	ThirdPersonCamera->bUsePawnControlRotation = false; // Ä«ï¿½Ş¶ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê°ï¿½
 
-	// 1ÀÎÄª Ä«¸Ş¶ó »ı¼º
+	// 1ï¿½ï¿½Äª Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½ï¿½ï¿½
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPerson_EyeCamera"));
-	FirstPersonCamera->SetupAttachment(GetMesh(), TEXT("head")); // 'head' º»¿¡ ºÎÂø (Skeleton¿¡ µû¶ó ÀÌ¸§ ´Ù¸¦ ¼ö ÀÖÀ½)
-	FirstPersonCamera->bUsePawnControlRotation = true; // ¸¶¿ì½º È¸Àü¿¡ µû¶ó È¸Àü
-	FirstPersonCamera->SetActive(false); // ÃÊ±â¿£ ºñÈ°¼ºÈ­
+	FirstPersonCamera->SetupAttachment(GetMesh(), TEXT("head")); // 'head' ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (Skeletonï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¸ï¿½ ï¿½Ù¸ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+	FirstPersonCamera->bUsePawnControlRotation = true; // ï¿½ï¿½ï¿½ì½º È¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½
+	FirstPersonCamera->SetActive(false); // ï¿½Ê±â¿£ ï¿½ï¿½È°ï¿½ï¿½È­
 
 	// bUseControllerRotationYaw:
-	// trueÀÏ °æ¿ì, Ä³¸¯ÅÍÀÇ Yaw È¸Àü(ÁÂ¿ì È¸Àü)À» PlayerControllerÀÇ Rotation¿¡ ¸ÂÃç È¸Àü½ÃÅ²´Ù.
+	// trueï¿½ï¿½ ï¿½ï¿½ï¿½, Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Yaw È¸ï¿½ï¿½(ï¿½Â¿ï¿½ È¸ï¿½ï¿½)ï¿½ï¿½ PlayerControllerï¿½ï¿½ Rotationï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½ï¿½ï¿½Å²ï¿½ï¿½.
 	bUseControllerRotationYaw = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f); // È¸Àü ¼Óµµ ºü¸£°Ô
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f); // È¸ï¿½ï¿½ ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 
 	// bUseControllerRotationPitch:
-	// Ä³¸¯ÅÍ°¡ Pitch È¸Àü(»óÇÏ È¸Àü)À» ÄÁÆ®·Ñ·¯¿¡ µû¶ó ÇÒÁö ¿©ºÎ.
-	// true¸é Ä³¸¯ÅÍ ÀÚÃ¼°¡ À§/¾Æ·¡¸¦ ¹Ù¶óº¸°Ô µÇ¹Ç·Î, (¸» ±×´ë·Î Ä³¸¯ÅÍ ¸Ş½¬ÀÚÃ¼°¡ À§/¾Æ·¡¸¦ º¸°ÔµÈ´Ù.)
-	// 3ÀÎÄª¿¡¼± false·Î µÎ°í, Ä«¸Ş¶ó¸¸ Pitch¸¦ ¹İ¿µÇÏ´Â °ÍÀÌ ÀÏ¹İÀûÀÌ´Ù
+	// Ä³ï¿½ï¿½ï¿½Í°ï¿½ Pitch È¸ï¿½ï¿½(ï¿½ï¿½ï¿½ï¿½ È¸ï¿½ï¿½)ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.
+	// trueï¿½ï¿½ Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½/ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½Ù¶óº¸°ï¿½ ï¿½Ç¹Ç·ï¿½, (ï¿½ï¿½ ï¿½×´ï¿½ï¿½ Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½Ş½ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ ï¿½ï¿½/ï¿½Æ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ÔµÈ´ï¿½.)
+	// 3ï¿½ï¿½Äªï¿½ï¿½ï¿½ï¿½ falseï¿½ï¿½ ï¿½Î°ï¿½, Ä«ï¿½Ş¶ï¿½ Pitchï¿½ï¿½ ï¿½İ¿ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ï¹ï¿½ï¿½ï¿½ï¿½Ì´ï¿½
 	bUseControllerRotationPitch = false;
 
-	// ÇöÀç ½ÃÁ¡À» ThirdPersonÀ¸·Î ¼³Á¤ÇÑ´Ù. (ÃÊ±â°ª)
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ThirdPersonï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½. (ï¿½Ê±â°ª)
 	CurrentViewMode = ECameraViewMode::ThirdPerson;
 	ThirdPersonCamera->SetActive(true);
 	FirstPersonCamera->SetActive(false);
 
 
 
-	//Ä³¸¯ÅÍ ½ºÅ×ÀÌÆ® ¼³Á¤
+	//Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 	CharacterState = ECharacterState::Normal;
+
+	// ë¬´ê¸° ì‹œìŠ¤í…œ ì´ˆê¸°í™”
+	CurrentWeapon = nullptr;
+	TestWeaponData = nullptr;
+}
+
+/**
+ * BeginPlay - ê²Œì„ ì‹œì‘ ì‹œ í˜¸ì¶œ
+ *
+ * í…ŒìŠ¤íŠ¸ìš© ë¬´ê¸° ìë™ ì¥ì°©:
+ * 1. TestWeaponDataê°€ ì„¤ì •ë˜ì–´ ìˆëŠ”ì§€ í™•ì¸
+ * 2. WeaponActor ìŠ¤í°
+ * 3. InitializeWeapon()ìœ¼ë¡œ DataAsset ì„¤ì •
+ * 4. EquipWeapon()ìœ¼ë¡œ ìºë¦­í„°ì— ì¥ì°©
+ */
+void ABSCharacterPlayer::BeginPlay()
+{
+	Super::BeginPlay();
+
+	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Character spawned"));
+
+	// ========================================
+	// ìŠ¤íƒ¯ ì»´í¬ë„ŒíŠ¸ ì´ˆê¸°í™”
+	// ========================================
+	if (StatComponent)
+	{
+		// í”Œë ˆì´ì–´ ì´ˆê¸° ìŠ¤íƒ¯ ì„¤ì •
+		// HP: 100, ìŠ¤íƒœë¯¸ë‚˜: 100, ê±·ê¸° ì†ë„: 600, ë‹¬ë¦¬ê¸° ì†ë„: 900, ë”ë¸” ì í”„, ì í”„ë ¥: 600
+		StatComponent->InitializeStats(100.f, 100.f, 600.f, 900.f, 2, 600.f);
+
+		// HP ë³€ê²½ ì´ë²¤íŠ¸ ë°”ì¸ë”© (UI ì—…ë°ì´íŠ¸ìš©)
+		StatComponent->OnHPChanged.AddDynamic(this, &ABSCharacterPlayer::OnPlayerHPChanged);
+
+		// ì‚¬ë§ ì´ë²¤íŠ¸ ë°”ì¸ë”©
+		StatComponent->OnPlayerDeath.AddDynamic(this, &ABSCharacterPlayer::OnPlayerDied);
+
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - StatComponent initialized"));
+	}
+
+	// í…ŒìŠ¤íŠ¸ìš© ë¬´ê¸° ìë™ ì¥ì°© (TestWeaponDataê°€ ì„¤ì •ë˜ì–´ ìˆì„ ë•Œë§Œ)
+	if (TestWeaponData)
+	{
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - TestWeaponData is set, spawning test weapon..."));
+
+		// WeaponActor ìŠ¤í°
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = GetInstigator();
+
+		AWeaponActor* TestWeapon = GetWorld()->SpawnActor<AWeaponActor>(
+			AWeaponActor::StaticClass(),
+			GetActorLocation(),
+			GetActorRotation(),
+			SpawnParams
+		);
+
+		if (TestWeapon)
+		{
+			// WeaponData ì„¤ì • (íƒ„ì°½ 30ë°œ, ì˜ˆë¹„ íƒ„ì•½ 90ë°œ)
+			TestWeapon->InitializeWeapon(TestWeaponData, 30, 90);
+
+			// ìºë¦­í„°ì— ì¥ì°©
+			EquipWeapon(TestWeapon);
+
+			UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Test weapon equipped successfully!"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ABSCharacterPlayer::BeginPlay - Failed to spawn test weapon!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - No TestWeaponData set, starting with empty hands"));
+	}
 }
 
 void ABSCharacterPlayer::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-
 	UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent Initing..."));
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
+	// MovementComponent ì…ë ¥ ë°”ì¸ë”©
 	MovementComponentOnGround->FL_SetupPlayerInputComponent(PlayerInputComponent);
 
-	// PlayerInputComponent¸¦ EnhancedInputComponent·Î Ä³½ºÆÃ
-	if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+	// EnhancedInputComponentë¡œ ìºìŠ¤íŒ…
+	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (!EnhancedInput)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("EnhancedInput Casting"));
-
-		EnhancedInput->BindAction(FireAction, ETriggerEvent::Triggered, this, &ABSCharacterPlayer::Fire);
+		UE_LOG(LogTemp, Error, TEXT("SetupPlayerInputComponent - Failed to cast to EnhancedInputComponent!"));
+		return;
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("SetupPlayerInputComponent - EnhancedInput successfully casted"));
+
+	// ========================================
+	// ë¬´ê¸° ì…ë ¥ ë°”ì¸ë”©
+	// ========================================
+
+	// ë¬´ê¸° ë°œì‚¬ (ì¢Œí´ë¦­)
+	// Started: ë§ˆìš°ìŠ¤ ë²„íŠ¼ ëˆ„ë¥´ëŠ” ìˆœê°„ â†’ StartFireWeapon() í˜¸ì¶œ
+	// Completed: ë§ˆìš°ìŠ¤ ë²„íŠ¼ ë–¼ëŠ” ìˆœê°„ â†’ StopFireWeapon() í˜¸ì¶œ
+	if (IA_FireWeapon)
+	{
+		EnhancedInput->BindAction(IA_FireWeapon, ETriggerEvent::Started, this, &ABSCharacterPlayer::StartFireWeapon);
+		EnhancedInput->BindAction(IA_FireWeapon, ETriggerEvent::Completed, this, &ABSCharacterPlayer::StopFireWeapon);
+		UE_LOG(LogTemp, Log, TEXT("SetupPlayerInputComponent - IA_FireWeapon bound (Started/Completed)"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent - IA_FireWeapon is not set! Please set it in Blueprint."));
+	}
+
+	// ë¬´ê¸° ì¬ì¥ì „ (Rí‚¤)
+	// Triggered: í‚¤ë¥¼ ëˆ„ë¥´ëŠ” ìˆœê°„ â†’ ReloadWeapon() í˜¸ì¶œ
+	if (IA_ReloadWeapon)
+	{
+		EnhancedInput->BindAction(IA_ReloadWeapon, ETriggerEvent::Triggered, this, &ABSCharacterPlayer::ReloadWeapon);
+		UE_LOG(LogTemp, Log, TEXT("SetupPlayerInputComponent - IA_ReloadWeapon bound (Triggered)"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent - IA_ReloadWeapon is not set! Please set it in Blueprint."));
+	}
+
+	// ========================================
+	// ìˆ˜ë¥˜íƒ„ ì…ë ¥ ë°”ì¸ë”© (ì£¼ì„ì²˜ë¦¬)
+	// ========================================
+
+	/*
+	// ìˆ˜ë¥˜íƒ„ ë°œì‚¬ (ìš°í´ë¦­)
+	if (FireAction)
+	{
+		EnhancedInput->BindAction(FireAction, ETriggerEvent::Started, this, &ABSCharacterPlayer::Fire);
+		UE_LOG(LogTemp, Log, TEXT("SetupPlayerInputComponent - FireAction (Grenade) bound"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent - FireAction (Grenade) is not set!"));
+	}
+	*/
 }
 
 void ABSCharacterPlayer::SetCurrentViewMode(ECameraViewMode _newMode)
@@ -163,19 +309,19 @@ void ABSCharacterPlayer::ToggleViewMode()
 void ABSCharacterPlayer::SetCameraViewMode(ECameraViewMode NewMode)
 {
 	CurrentViewMode = NewMode;
-	// Ä«¸Ş¶ó ÀüÈ¯
+	// Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½È¯
 	if (NewMode == ECameraViewMode::FirstPerson)
 	{
 		FirstPersonCamera->SetActive(true);
 		ThirdPersonCamera->SetActive(false);
 
-		// ¸Ş½¬ ¼û±â±â ¿¹½Ã
+		// ï¿½Ş½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 		//GetMesh()->HideBoneByName("head", EPhysBodyOp::PBO_None);
 		GetMesh()->SetOwnerNoSee(true);
 
-		//±×·¡µµ ±×¸²ÀÚ´Â ±×¸®°Ô ÇØ¾ßÇÑ´Ù.
-		GetMesh()->SetCastShadow(true);		//ÀÌ ¸Ş½¬°¡ ±×¸²ÀÚ¸¦ ¸¸µé°ÍÀÎ°¡?
-		GetMesh()->bCastHiddenShadow = true; // ¸Ş½¬°¡ Ä«¸Ş¶ó¿¡ º¸ÀÌÁö ¾Ê¾Æµµ ±×¸²ÀÚ¸¦ Åõ»çÇÒ °ÍÀÎ°¡?
+		//ï¿½×·ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ï¿½Ú´ï¿½ ï¿½×¸ï¿½ï¿½ï¿½ ï¿½Ø¾ï¿½ï¿½Ñ´ï¿½.
+		GetMesh()->SetCastShadow(true);		//ï¿½ï¿½ ï¿½Ş½ï¿½ï¿½ï¿½ ï¿½×¸ï¿½ï¿½Ú¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î°ï¿½?
+		GetMesh()->bCastHiddenShadow = true; // ï¿½Ş½ï¿½ï¿½ï¿½ Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Æµï¿½ ï¿½×¸ï¿½ï¿½Ú¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Î°ï¿½?
 
 	}
 	else
@@ -193,24 +339,24 @@ void ABSCharacterPlayer::StartThirdPersonZoom()
 {
 	ThirdPersonCamera->SetFieldOfView(85.0f);
 	SpringArm->TargetArmLength = 350.0f;
-	// ¹Î°¨µµµµ ÁÙÀÌ·Á¸é º¯¼ö µû·Î µÎ°í Á¶Àı
+	// ï¿½Î°ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Î°ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-	// ÁıÁß ¸ğµå Ä«¸Ş¶ó ÀüÈ¯ ½Ã
-	SpringArm->SocketOffset = FVector(0.f, 100.f, 100.f); //Ä«¸Ş¶ó¸¦ Ä³¸¯ÅÍ ¿À¸¥ÂÊÀ¸·Î ¿Å±ä´Ù.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½È¯ ï¿½ï¿½
+	SpringArm->SocketOffset = FVector(0.f, 100.f, 100.f); //Ä«ï¿½Ş¶ï¿½ Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Å±ï¿½ï¿½.
 }
 
 void ABSCharacterPlayer::EndThirdPersonZoom()
 {
 	ThirdPersonCamera->SetFieldOfView(90.0f);
 	SpringArm->TargetArmLength = 400.0f;
-	SpringArm->SocketOffset = FVector(0.f, 0.f, 100.f); //ÀÚ¿¬½º·¯¿î Ä«¸Ş¶ó À§Ä¡ Á¶Á¤
+	SpringArm->SocketOffset = FVector(0.f, 0.f, 100.f); //ï¿½Ú¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½Ş¶ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
 }
 
 
-// Ä³¸¯ÅÍ°¡ »õ·Î¿î ÄÁÆ®·Ñ·¯¿¡ ÀÇÇØ Á¡À¯(Possess)µÉ ¶§ È£ÃâµÇ´Â ÇÔ¼ö.
-// ¼­¹ö¿¡¼­¸¸ È£ÃâµÊ.
-// NewController°¡ ºÙ´Â ½ÃÁ¡ÀÌ¹Ç·Î, MovementComponent ³»ºÎÀÇ OwnerController Æ÷ÀÎÅÍ¸¦ °»½ÅÇØÁØ´Ù.
-// ÀÌ·¸°Ô ÇÏ¸é ÄÁÆ®·Ñ·¯°¡ ±³Ã¼µÇ¾úÀ» ¶§(¿¹: UI Àü¿ë ÄÁÆ®·Ñ·¯·Î º¯°æ) ÀÔ·Â Ã³¸® ·ÎÁ÷À» Áï½Ã ¹İ¿µÇÒ ¼ö ÀÖ´Ù.
+// Ä³ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(Possess)ï¿½ï¿½ ï¿½ï¿½ È£ï¿½ï¿½Ç´ï¿½ ï¿½Ô¼ï¿½.
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½ï¿½.
+// NewControllerï¿½ï¿½ ï¿½Ù´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¹Ç·ï¿½, MovementComponent ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ OwnerController ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø´ï¿½.
+// ï¿½Ì·ï¿½ï¿½ï¿½ ï¿½Ï¸ï¿½ ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ï¿½Ç¾ï¿½ï¿½ï¿½ ï¿½ï¿½(ï¿½ï¿½: UI ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) ï¿½Ô·ï¿½ Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½İ¿ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö´ï¿½.
 void ABSCharacterPlayer::PossessedBy(AController* NewController)
 {
 	
@@ -223,11 +369,11 @@ void ABSCharacterPlayer::PossessedBy(AController* NewController)
 }
 
 
-// Controller º¯¼ö°¡ ³×Æ®¿öÅ©¸¦ ÅëÇØ º¹Á¦(Replicate)µÇ¾î Å¬¶óÀÌ¾ğÆ®¿¡¼­ º¯°æµÇ¾úÀ» ¶§ È£ÃâµÇ´Â ÇÔ¼ö.
-// ¸ÖÆ¼ÇÃ·¹ÀÌ È¯°æ¿¡¼­ Å¬¶óÀÌ¾ğÆ®´Â ¼­¹öÃ³·³ PossessedBy()°¡ È£ÃâµÇÁö ¾Ê±â ¶§¹®¿¡,
-// OnRep_Controller()¸¦ ÅëÇØ µ¿ÀÏÇÑ °»½Å ÀÛ¾÷À» ¼öÇàÇØ¾ß ÇÑ´Ù.
-// ¿©±â¼­µµ MovementComponentÀÇ OwnerController¸¦ »õ·Î ¼¼ÆÃÇÏ¿©
-// UI Àü¿ë ÄÁÆ®·Ñ·¯°¡ ºÙ¾úÀ» ¶§ ÀÔ·ÂÀ» ¸·°Å³ª, »õ·Î¿î ÄÁÆ®·Ñ·¯¿¡ ¸Â´Â µ¿ÀÛÀ» Àû¿ëÇÒ ¼ö ÀÖ´Ù.
+// Controller ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½ï¿½Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(Replicate)ï¿½Ç¾ï¿½ Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ ï¿½ï¿½ È£ï¿½ï¿½Ç´ï¿½ ï¿½Ô¼ï¿½.
+// ï¿½ï¿½Æ¼ï¿½Ã·ï¿½ï¿½ï¿½ È¯ï¿½æ¿¡ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½Ì¾ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ã³ï¿½ï¿½ PossessedBy()ï¿½ï¿½ È£ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,
+// OnRep_Controller()ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Û¾ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½ ï¿½Ñ´ï¿½.
+// ï¿½ï¿½ï¿½â¼­ï¿½ï¿½ MovementComponentï¿½ï¿½ OwnerControllerï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½
+// UI ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½Ù¾ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ô·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Å³ï¿½, ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½Â´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö´ï¿½.
 void ABSCharacterPlayer::OnRep_Controller()
 {
 	
@@ -239,60 +385,385 @@ void ABSCharacterPlayer::OnRep_Controller()
 	
 }
 
-///TODO : ProjectTileMovementComponentÀ» »ç¿ëÇØ¼­ ÇÏ³ªÀÇ ÄÄÆ÷³ÍÆ®¸¦ ¸¸µé¾î »©º¸ÀÚ.
+/*
+// ========================================
+// ìˆ˜ë¥˜íƒ„ ë°œì‚¬ í•¨ìˆ˜ (ì£¼ì„ì²˜ë¦¬)
+// ========================================
+
 void ABSCharacterPlayer::Fire()
 {
-	// ½ÃÀÛÁ¡ = Ä³¸¯ÅÍÀÇ ¿À¸¥ ¼ÕÀÇ BoneÀ§Ä¡·Î ÇÑ´Ù.
-	//FVector Start = GetActorLocation();
-	FVector Start = GetMesh()->GetSocketLocation(TEXT("hand_r")); // "hand_r"°¡ ¿À¸¥¼Õ
-
-	// ³¡Á¡ = Ä«¸Ş¶ó Á¤¸é ¹æÇâ * ±æÀÌ
-	FVector End = Start + (ThirdPersonCamera->GetForwardVector() * 10000.0f);
-
-	// Ãæµ¹ ¹«½Ã ¼³Á¤ (ÀÚ±â ÀÚ½Å Á¦¿Ü)
-	FCollisionQueryParams Params;	//Ãæµ¹ °Ë»ç ½Ã »ç¿ëµÇ´Â ¼³Á¤ Á¤º¸
-	Params.AddIgnoredActor(this);	//ÀÚ±â ÀÚ½ÅÀ» ¹«½Ã ½ÃÅ²´Ù.
-
-	// ¶óÀÎÆ®·¹ÀÌ½º
-	FHitResult HitResult;
-	//¿ùµå¿¡¼­ ÇÏ³ªÀÇ LineÀ» ½÷¼­ Ã³À½ ¸Â´Â ¾×ÅÍ¸¦ È®ÀÎÇÑ´Ù.
-	//°üÅë°°ÀÌ ¿©·¯ ¾×ÅÍ¸¦ ¸Â°ÔÇÏ°í ½ÍÀ¸¸é LineTraceMultiByChannel¸¦ ½÷¾ßÇÑ´Ù.
-	bool bHit = GetWorld()->LineTraceSingleByChannel
-	(
-		HitResult,		//Ãæµ¹ Á¤º¸¸¦ ÀúÀåÇÏ´Â ±¸Á¶Ã¼
-		Start,			//½ÃÀÛ ÁöÁ¡
-		End,			//³¡ ÁöÁ¡
-		ECC_Visibility,	//Ãæµ¹ Ã¤³Î
-		Params			//Ãæµ¹ ¿É¼Ç
-	);
-
-	// µğ¹ö±× ¶óÀÎ ±×¸®±â
-	FColor LineColor = bHit ? FColor::Red : FColor::Green;
-	FVector LineEnd = bHit ? HitResult.ImpactPoint : End;
-
-	DrawDebugLine
-	(
-		GetWorld(),
-		Start,
-		LineEnd,
-		LineColor,
-		false,         // ¿µ±¸ Ç¥½Ã ¿©ºÎ
-		1.0f,          // Áö¼Ó ½Ã°£
-		0,             // ±íÀÌ ¿ì¼± ¼øÀ§
-		1.0f           // ¼± ±½±â
-	);
-
-	// ÇÇ°İ Ã³¸®
-	if (bHit && HitResult.GetActor())	//Ãæµ¹ÇÑ ¾×ÅÍ°¡ ½ÇÁ¦·Î Á¸ÀçÇÏ´ÂÁö È®ÀÎ(Ãæµ¹ ´ë»óÀÌ À¯È¿ÇÑ °æ¿ì¸¸ ¾Æ·¡ ·ÎÁ÷À» ¼öÇàÇÑ´Ù.)
+	// Check if projectile class is set
+	if (!ProjectileClass)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Hit: %s"), *HitResult.GetActor()->GetName());
-		UGameplayStatics::ApplyDamage
-		(
-			HitResult.GetActor(),	//ÇÇÇØ¸¦ ÀÔÀ» ¾×ÅÍ(Áï, µ¥¹ÌÁö¸¦ ÀÔÀ» ¾×ÅÍ¸¦ ÀÇ¹ÌÇÑ´Ù.)
-			10.0f,					//ÇÇÇØ·®(ÃßÈÄ ÃÑ±â, ±ÙÁ¢¹«±â¿¡ ¸Â°Ô ´Ù½Ã ¼¼ÆÃÀ» ÇØ¾ßÇÑ´Ù. TODO)
-			GetController(),		//°ø°İÀÚÀÇ ÄÁÆ®·Ñ·¯
-			this,					// ÇÇÇØ¸¦ ÁØ ¿øÀÎ (¹ß»çÇÑ Ä³¸¯ÅÍ ÀÚ½Å)
-			nullptr					// µ¥¹ÌÁö Å¸ÀÔ (nullÀÌ¸é ±âº»°ª »ç¿ë/µ¥¹ÌÁö Å¸ÀÔ Å¬·¡½º (¿¹: È­¿°, Æø¹ß µî Ä¿½ºÅÒ °¡´É)/ ÃßÈÄ ÀÌÆåÆ®, ³Ë¹é, ½½·Î¿ì, Áö¼Ó ÇÇÇØµî È¿°ú Â÷º°È­ °¡´É)
-		);
+		UE_LOG(LogTemp, Warning, TEXT("ProjectileClass is not set! Cannot fire."));
+		return;
 	}
+
+	// Get spawn location (from hand socket or camera)
+	FVector SpawnLocation = GetMesh()->GetSocketLocation(TEXT("hand_r"));
+
+	// Get spawn rotation (from camera forward vector)
+	FRotator SpawnRotation = ThirdPersonCamera->GetForwardVector().Rotation();
+
+	// Set spawn parameters
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.Instigator = GetInstigator();
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	// Spawn projectile
+	AProjectileBase* Projectile = GetWorld()->SpawnActor<AProjectileBase>(
+		ProjectileClass,
+		SpawnLocation,
+		SpawnRotation,
+		SpawnParams
+	);
+
+	if (Projectile)
+	{
+		// Initialize projectile velocity
+		FVector LaunchDirection = ThirdPersonCamera->GetForwardVector();
+		Projectile->InitVelocity(LaunchDirection);
+
+		UE_LOG(LogTemp, Log, TEXT("Projectile fired! Class: %s"), *ProjectileClass->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to spawn projectile!"));
+	}
+
+	// OLD LINE TRACE CODE - Keep for reference if needed
+	// FVector Start = GetMesh()->GetSocketLocation(TEXT("hand_r"));
+	// FVector End = Start + (ThirdPersonCamera->GetForwardVector() * 10000.0f);
+	//
+	// FCollisionQueryParams Params;
+	// Params.AddIgnoredActor(this);
+	//
+	// FHitResult HitResult;
+	// bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params);
+	//
+	// FColor LineColor = bHit ? FColor::Red : FColor::Green;
+	// FVector LineEnd = bHit ? HitResult.ImpactPoint : End;
+	// DrawDebugLine(GetWorld(), Start, LineEnd, LineColor, false, 1.0f, 0, 1.0f);
+	//
+	// if (bHit && HitResult.GetActor())
+	// {
+	// 	UE_LOG(LogTemp, Warning, TEXT("Hit: %s"), *HitResult.GetActor()->GetName());
+	// 	UGameplayStatics::ApplyDamage(HitResult.GetActor(), 10.0f, GetController(), this, nullptr);
+	// }
+}
+*/
+
+// ========================================
+// ë¬´ê¸° ì‹œìŠ¤í…œ êµ¬í˜„
+// ========================================
+
+/**
+ * ë¬´ê¸° ì¥ì°©
+ *
+ * ë™ì‘:
+ * 1. ê¸°ì¡´ ë¬´ê¸°ê°€ ìˆìœ¼ë©´ ë¨¼ì € í•´ì œ
+ * 2. ìƒˆ ë¬´ê¸°ë¥¼ CurrentWeaponì— ì €ì¥
+ * 3. WeaponActor->AttachToCharacter()ë¡œ ì†ì— ë¶€ì°©
+ * 4. WeaponActorì˜ Ownerë¥¼ this(ìºë¦­í„°)ë¡œ ì„¤ì •
+ */
+void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
+{
+	// nullptr ì²´í¬
+	if (!Weapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ABSCharacterPlayer::EquipWeapon - Weapon is nullptr!"));
+		return;
+	}
+
+	// ê¸°ì¡´ ë¬´ê¸°ê°€ ìˆìœ¼ë©´ ë¨¼ì € í•´ì œ
+	if (CurrentWeapon)
+	{
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Unequipping old weapon first"));
+		UnequipWeapon();
+	}
+
+	// ìƒˆ ë¬´ê¸° ì„¤ì •
+	CurrentWeapon = Weapon;
+
+	// WeaponActorë¥¼ ìºë¦­í„° ì†ì— ë¶€ì°©
+	// "hand_r_weapon" ì†Œì¼“ì´ ìºë¦­í„° ìŠ¤ì¼ˆë ˆí†¤ì— ìˆì–´ì•¼ í•¨ (ì–¸ë¦¬ì–¼ ì—ë””í„°ì—ì„œ ì¶”ê°€ í•„ìš”)
+	CurrentWeapon->AttachToCharacter(this, TEXT("hand_r_weapon"));
+
+	// WeaponActorì˜ Ownerë¥¼ ìºë¦­í„°ë¡œ ì„¤ì •
+	// ì´ë ‡ê²Œ í•˜ë©´ WeaponComponentì—ì„œ GetOwnerCharacter()ë¡œ ìºë¦­í„° ì ‘ê·¼ ê°€ëŠ¥
+	CurrentWeapon->SetOwner(this);
+
+	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Equipped weapon: %s"), *CurrentWeapon->GetName());
+}
+
+/**
+ * ë¬´ê¸° í•´ì œ
+ *
+ * ë™ì‘:
+ * 1. í˜„ì¬ ë¬´ê¸°ê°€ ìˆëŠ”ì§€ í™•ì¸
+ * 2. ë°œì‚¬ ì¤‘ì§€ (í˜¹ì‹œë¼ë„ ë°œì‚¬ ì¤‘ì´ë©´)
+ * 3. WeaponActor->DetachFromCharacter()ë¡œ ì†ì—ì„œ ë¶„ë¦¬
+ * 4. CurrentWeaponì„ nullptrë¡œ ì´ˆê¸°í™” (ë¹ˆì† ìƒíƒœ)
+ *
+ * ì°¸ê³ : WeaponActorëŠ” íŒŒê´´í•˜ì§€ ì•Šê³  ì›”ë“œì— ë–¨ì–´ëœ¨ë¦¼
+ *       ë§Œì•½ íŒŒê´´í•˜ë ¤ë©´ CurrentWeapon->Destroy() í˜¸ì¶œ
+ */
+void ABSCharacterPlayer::UnequipWeapon()
+{
+	// ë¬´ê¸°ê°€ ì—†ìœ¼ë©´ ë¬´ì‹œ
+	if (!CurrentWeapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ABSCharacterPlayer::UnequipWeapon - No weapon equipped!"));
+		return;
+	}
+
+	// í˜¹ì‹œë¼ë„ ë°œì‚¬ ì¤‘ì´ë©´ ì¤‘ì§€
+	StopFireWeapon();
+
+	// ë¬´ê¸°ë¥¼ ì†ì—ì„œ ë¶„ë¦¬ (ë•…ì— ë–¨ì–´ëœ¨ë¦¼)
+	CurrentWeapon->DetachFromCharacter();
+
+	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::UnequipWeapon - Unequipped weapon: %s"), *CurrentWeapon->GetName());
+
+	// ë¹ˆì† ìƒíƒœë¡œ
+	CurrentWeapon = nullptr;
+}
+
+/**
+ * ë°œì‚¬ ì‹œì‘ (ì¢Œí´ë¦­ ëˆ„ë¦„)
+ *
+ * ë™ì‘:
+ * 1. ë¬´ê¸°ê°€ ì¥ì°©ë˜ì–´ ìˆëŠ”ì§€ í™•ì¸
+ * 2. WeaponComponent->StartFire() í˜¸ì¶œ
+ *
+ * WeaponComponentì—ì„œ:
+ * - ë‹¨ë°œ: 1ë°œë§Œ ë°œì‚¬
+ * - ì—°ë°œ: Tickì—ì„œ ê³„ì† ë°œì‚¬ (StopFire í˜¸ì¶œ ì „ê¹Œì§€)
+ * - ì ì‚¬: BurstCountë§Œí¼ë§Œ ë°œì‚¬
+ */
+void ABSCharacterPlayer::StartFireWeapon()
+{
+	// ë¬´ê¸°ê°€ ì—†ìœ¼ë©´ ë¬´ì‹œ
+	if (!CurrentWeapon)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("ABSCharacterPlayer::StartFireWeapon - No weapon equipped"));
+		return;
+	}
+
+	// WeaponComponent ê°€ì ¸ì˜¤ê¸°
+	UWeaponComponent* WeaponComp = CurrentWeapon->GetWeaponComponent();
+	if (!WeaponComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ABSCharacterPlayer::StartFireWeapon - WeaponComponent is nullptr!"));
+		return;
+	}
+
+	// ë°œì‚¬ ì‹œì‘
+	WeaponComp->StartFire();
+}
+
+/**
+ * ë°œì‚¬ ì¤‘ì§€ (ì¢Œí´ë¦­ ë—Œ)
+ *
+ * ë™ì‘:
+ * 1. ë¬´ê¸°ê°€ ì¥ì°©ë˜ì–´ ìˆëŠ”ì§€ í™•ì¸
+ * 2. WeaponComponent->StopFire() í˜¸ì¶œ
+ *
+ * ì—°ë°œ ë¬´ê¸°ì˜ ê²½ìš° ë°œì‚¬ë¥¼ ë©ˆì¶¤
+ */
+void ABSCharacterPlayer::StopFireWeapon()
+{
+	// ë¬´ê¸°ê°€ ì—†ìœ¼ë©´ ë¬´ì‹œ
+	if (!CurrentWeapon)
+	{
+		return;
+	}
+
+	// WeaponComponent ê°€ì ¸ì˜¤ê¸°
+	UWeaponComponent* WeaponComp = CurrentWeapon->GetWeaponComponent();
+	if (!WeaponComp)
+	{
+		return;
+	}
+
+	// ë°œì‚¬ ì¤‘ì§€
+	WeaponComp->StopFire();
+}
+
+/**
+ * ì¬ì¥ì „ (Rí‚¤)
+ *
+ * ë™ì‘:
+ * 1. ë¬´ê¸°ê°€ ì¥ì°©ë˜ì–´ ìˆëŠ”ì§€ í™•ì¸
+ * 2. WeaponComponent->Reload() í˜¸ì¶œ
+ *
+ * WeaponComponentì—ì„œ:
+ * - ì˜ˆë¹„ íƒ„ì•½ì´ ìˆëŠ”ì§€ í™•ì¸
+ * - ì¬ì¥ì „ ì¤‘ì¸ì§€ í™•ì¸
+ * - ì¬ì¥ì „ íƒ€ì´ë¨¸ ì‹œì‘ (ReloadTime í›„ OnReloadComplete í˜¸ì¶œ)
+ */
+void ABSCharacterPlayer::ReloadWeapon()
+{
+	// ë¬´ê¸°ê°€ ì—†ìœ¼ë©´ ë¬´ì‹œ
+	if (!CurrentWeapon)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("ABSCharacterPlayer::ReloadWeapon - No weapon equipped"));
+		return;
+	}
+
+	// WeaponComponent ê°€ì ¸ì˜¤ê¸°
+	UWeaponComponent* WeaponComp = CurrentWeapon->GetWeaponComponent();
+	if (!WeaponComp)
+	{
+		UE_LOG(LogTemp, Error, TEXT("ABSCharacterPlayer::ReloadWeapon - WeaponComponent is nullptr!"));
+		return;
+	}
+
+	// ì¬ì¥ì „ ì‹œì‘
+	WeaponComp->Reload();
+}
+
+// ========================================
+// ë°ë¯¸ì§€ ì‹œìŠ¤í…œ êµ¬í˜„
+// ========================================
+
+/**
+ * TakeDamage ì˜¤ë²„ë¼ì´ë“œ
+ *
+ * ì–¸ë¦¬ì–¼ ì—”ì§„ì˜ ë°ë¯¸ì§€ ì‹œìŠ¤í…œì—ì„œ í˜¸ì¶œë˜ëŠ” í•¨ìˆ˜
+ * Bullet, Grenade ë“±ì—ì„œ ApplyDamageë¥¼ í˜¸ì¶œí•˜ë©´ ì´ í•¨ìˆ˜ê°€ í˜¸ì¶œë¨
+ *
+ * @param DamageAmount - ë°›ì€ ë°ë¯¸ì§€ ì–‘
+ * @param DamageEvent - ë°ë¯¸ì§€ ì´ë²¤íŠ¸ ì •ë³´ (íƒ€ì…, íˆíŠ¸ ìœ„ì¹˜ ë“±)
+ * @param EventInstigator - ë°ë¯¸ì§€ë¥¼ ê°€í•œ ì»¨íŠ¸ë¡¤ëŸ¬
+ * @param DamageCauser - ë°ë¯¸ì§€ë¥¼ ì¤€ ì•¡í„° (ì´ì•Œ, ìˆ˜ë¥˜íƒ„ ë“±)
+ * @return ì‹¤ì œ ì ìš©ëœ ë°ë¯¸ì§€ ì–‘
+ */
+float ABSCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
+                                      AController* EventInstigator, AActor* DamageCauser)
+{
+	// ë¶€ëª¨ í´ë˜ìŠ¤ì˜ TakeDamage í˜¸ì¶œ
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	// StatComponentê°€ ìˆìœ¼ë©´ ë°ë¯¸ì§€ ì ìš©
+	if (StatComponent)
+	{
+		StatComponent->ApplyDamage(DamageAmount);
+
+		UE_LOG(LogTemp, Log, TEXT("Player TakeDamage: %.1f from %s"),
+		       DamageAmount,
+		       DamageCauser ? *DamageCauser->GetName() : TEXT("Unknown"));
+	}
+
+	return ActualDamage;
+}
+
+/**
+ * HP ë³€ê²½ ì‹œ í˜¸ì¶œë˜ëŠ” ì½œë°± í•¨ìˆ˜
+ * StatComponentì˜ OnHPChanged ë¸ë¦¬ê²Œì´íŠ¸ì— ë°”ì¸ë”©ë¨
+ *
+ * @param CurrentHP - í˜„ì¬ HP
+ * @param MaxHP - ìµœëŒ€ HP
+ */
+void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
+{
+	UE_LOG(LogTemp, Log, TEXT("Player HP Changed: %.1f / %.1f (%.1f%%)"),
+	       CurrentHP, MaxHP, (CurrentHP / MaxHP) * 100.0f);
+
+	// UI ì—…ë°ì´íŠ¸ (BSUIManagerë¥¼ í†µí•´)
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateHealthUI(CurrentHP, MaxHP);
+		}
+	}
+}
+
+/**
+ * í”Œë ˆì´ì–´ ì‚¬ë§ ì‹œ í˜¸ì¶œë˜ëŠ” ì½œë°± í•¨ìˆ˜
+ * StatComponentì˜ OnPlayerDeath ë¸ë¦¬ê²Œì´íŠ¸ì— ë°”ì¸ë”©ë¨
+ */
+void ABSCharacterPlayer::OnPlayerDied()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Player %s has died!"), *GetName());
+
+	// TODO: ì‚¬ë§ ì²˜ë¦¬
+	// 1. ì…ë ¥ ë¹„í™œì„±í™”
+	// DisableInput(Cast<APlayerController>(GetController()));
+
+	// 2. ì‚¬ë§ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
+	// if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	// {
+	//     AnimInstance->Montage_Play(DeathMontage);
+	// }
+
+	// 3. ë˜ê·¸ëŒ í™œì„±í™” ë˜ëŠ” ì‚¬ë§ ì´í™íŠ¸
+	// GetMesh()->SetSimulatePhysics(true);
+	// GetMesh()->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
+
+	// 4. ë¦¬ìŠ¤í° íƒ€ì´ë¨¸ ì‹œì‘
+	// GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this,
+	//     &ABSCharacterPlayer::Respawn, 5.0f, false);
+}
+
+// ========================================
+// ìŠ¤íƒ¯ Getter í•¨ìˆ˜ êµ¬í˜„ (Coupling ë°©ì§€)
+// ========================================
+
+/**
+ * ìµœëŒ€ ì í”„ íšŸìˆ˜ ê°€ì ¸ì˜¤ê¸°
+ *
+ * MovementComponentê°€ StatComponentë¥¼ ì§ì ‘ ì°¸ì¡°í•˜ì§€ ì•Šë„ë¡
+ * BSCharacterPlayerê°€ ì¤‘ê°„ ë ˆì´ì–´ ì—­í• ì„ í•¨
+ *
+ * ì´ì :
+ * - Loose coupling: MovementComponentëŠ” PlayerStatComponentë¥¼ ëª°ë¼ë„ ë¨
+ * - Encapsulation: StatComponent êµ¬í˜„ì„ ìˆ¨ê¹€
+ * - Flexibility: ë‚˜ì¤‘ì— StatComponentë¥¼ ë‹¤ë¥¸ ê±¸ë¡œ ë°”ê¿”ë„ MovementComponent ìˆ˜ì • ë¶ˆí•„ìš”
+ */
+int32 ABSCharacterPlayer::GetMaxJumpCount() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetMaxJumpCount();
+	}
+	return 2; // ê¸°ë³¸ê°’: ë”ë¸” ì í”„
+}
+
+/**
+ * ì í”„ë ¥ ê°€ì ¸ì˜¤ê¸°
+ */
+float ABSCharacterPlayer::GetJumpPower() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetJumpPower();
+	}
+	return 600.f; // ê¸°ë³¸ê°’
+}
+
+/**
+ * ê±·ê¸° ì†ë„ ê°€ì ¸ì˜¤ê¸°
+ */
+float ABSCharacterPlayer::GetWalkSpeed() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetWalkSpeed();
+	}
+	return 600.f; // ê¸°ë³¸ê°’
+}
+
+/**
+ * ë‹¬ë¦¬ê¸° ì†ë„ ê°€ì ¸ì˜¤ê¸°
+ */
+float ABSCharacterPlayer::GetSprintSpeed() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->GetSprintSpeed();
+	}
+	return 900.f; // ê¸°ë³¸ê°’
 }

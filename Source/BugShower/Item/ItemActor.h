@@ -39,7 +39,8 @@ protected:
 	FBS_Item ItemInformation;
 
 	// Static item data (asset reference) - Now GC safe
-	UPROPERTY()
+	// 에디터에서 데이터 어셋을 직접 설정할 수 있습니다
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	TObjectPtr<const UBSStaticItemDataAsset> StaticItemInfo = nullptr;
 
 public:

@@ -134,7 +134,8 @@ protected:
 
 	//점프 관련
 protected:
-	int32 MaxJumpCount = 1;
+	// 현재 점프 횟수 (지상에 닿으면 0으로 리셋됨)
+	// 최대 점프 횟수는 PlayerStatComponent에서 관리
 	int32 JumpCount = 0;
 
 

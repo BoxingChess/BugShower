@@ -20,13 +20,14 @@ enum class EWeaponState : uint8
     Reloading   UMETA(DisplayName = "Reloading")    //��������
 };
 
-UENUM(BlueprintType)
-enum class EWeaponType : uint8
-{
-    Gun         UMETA(DisplayName = "Gun"),         //��
-    Melee       UMETA(DisplayName = "Melee"),       //��������
-    Throwing    UMETA(DisplayName = "Throwing")      //��ô����
-};
+///동일 이름의 다른 ENUM을 만들었기에 일단 주석 처리. 
+// UENUM(BlueprintType)
+// enum class EWeaponType : uint8
+// {
+//     Gun         UMETA(DisplayName = "Gun"),         //��
+//     Melee       UMETA(DisplayName = "Melee"),       //��������
+//     Throwing    UMETA(DisplayName = "Throwing")      //��ô����
+// };
 
 
 UENUM(BlueprintType)

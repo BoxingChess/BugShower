@@ -1,7 +1,87 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "ItemResourceManager.h"
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+
+void UItemResourceManager::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	UE_LOG(LogTemp, Log, TEXT("ItemResourceManager::Initialize - Loading all item data assets..."));
+
+	// Load all item data assets from the project
+	// í”„ë¡œì íŠ¸ ë‚´ ëª¨ë“  ì•„ì´í…œ ë°ì´í„° ì—ì…‹ ë¡œë“œ
+	LoadAllItemDataAssets();
+
+	UE_LOG(LogTemp, Log, TEXT("ItemResourceManager::Initialize - Loaded %d consumable items, %d equipment items"),
+		ConsumableItems.Num(), EquipmentItems.Num());
+}
+
+void UItemResourceManager::Deinitialize()
+{
+	UE_LOG(LogTemp, Log, TEXT("ItemResourceManager::Deinitialize - Clearing item registries"));
+
+	// Clear all registered items
+	// ë“±ë¡ëœ ëª¨ë“  ì•„ì´í…œ ì •ë¦¬
+	ConsumableItems.Empty();
+	EquipmentItems.Empty();
+
+	Super::Deinitialize();
+}
+
+void UItemResourceManager::LoadAllItemDataAssets()
+{
+	// Get the asset registry module
+	// ì—ì…‹ ë ˆì§€ìŠ¤íŠ¸ë¦¬ ëª¨ë“ˆ ê°€ì ¸ì˜¤ê¸°
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	// Search for all UBSStaticItemDataAsset assets
+	// ëª¨ë“  UBSStaticItemDataAsset ì—ì…‹ ê²€ìƒ‰
+	TArray<FAssetData> AssetDataList;
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UBSStaticItemDataAsset::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+
+	AssetRegistry.GetAssets(Filter, AssetDataList);
+
+	UE_LOG(LogTemp, Log, TEXT("ItemResourceManager::LoadAllItemDataAssets - Found %d data assets"), AssetDataList.Num());
+
+	// Load and register each asset
+	// ê° ì—ì…‹ì„ ë¡œë“œí•˜ê³  ë“±ë¡
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		UBSStaticItemDataAsset* ItemDataAsset = Cast<UBSStaticItemDataAsset>(AssetData.GetAsset());
+		if (!ItemDataAsset)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ItemResourceManager::LoadAllItemDataAssets - Failed to load asset: %s"),
+				*AssetData.AssetName.ToString());
+			continue;
+		}
+
+		// Register based on item type
+		// ì•„ì´í…œ íƒ€ì…ì— ë”°ë¼ ë“±ë¡
+		switch (ItemDataAsset->ItemType)
+		{
+			case EItemType::Consumable:
+				RegisterConsumableItem(ItemDataAsset->ItemID, ItemDataAsset);
+				UE_LOG(LogTemp, Log, TEXT("  Registered Consumable: %s (ID: %d)"),
+					*ItemDataAsset->DisplayName.ToString(), ItemDataAsset->ItemID);
+				break;
+
+			case EItemType::Equipment:
+				RegisterEquipmentItem(ItemDataAsset->ItemID, ItemDataAsset);
+				UE_LOG(LogTemp, Log, TEXT("  Registered Equipment: %s (ID: %d)"),
+					*ItemDataAsset->DisplayName.ToString(), ItemDataAsset->ItemID);
+				break;
+
+			default:
+				UE_LOG(LogTemp, Warning, TEXT("  Unknown item type for asset: %s"), *AssetData.AssetName.ToString());
+				break;
+		}
+	}
+}
 
 const UBSStaticItemDataAsset* UItemResourceManager::GetStaticItem(EItemType ItemType, int32 ItemID)
 {
@@ -9,25 +89,37 @@ const UBSStaticItemDataAsset* UItemResourceManager::GetStaticItem(EItemType Item
 	{
 		case EItemType::Consumable:
 		{
-			//FindÇÔ¼ö´Â valueÀÇ Æ÷ÀÎ³Ê¸¦ ¹İÈ¯ÇÏ¹Ç·Î
-			UBSStaticItemDataAsset** Found = ConsumableItems.Find(static_cast<EConsumableID>(ItemID));
-			return Found ? *Found : nullptr;
+			// Find() returns a pointer to the value (TObjectPtr)
+			// Find()ëŠ” ê°’(TObjectPtr)ì— ëŒ€í•œ í¬ì¸í„°ë¥¼ ë°˜í™˜
+			if (TObjectPtr<UBSStaticItemDataAsset>* Found = ConsumableItems.Find(static_cast<EConsumableID>(ItemID)))
+			{
+				return Found->Get();
+			}
+			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Consumable item with ID %d not found"), ItemID);
+			return nullptr;
 		}
 
 		case EItemType::Equipment:
 		{
-			UBSStaticItemDataAsset** Found = EquipmentItems.Find(static_cast<EEquipmentID>(ItemID));
-			return Found ? *Found : nullptr;
+			if (TObjectPtr<UBSStaticItemDataAsset>* Found = EquipmentItems.Find(static_cast<EEquipmentID>(ItemID)))
+			{
+				return Found->Get();
+			}
+			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Equipment item with ID %d not found"), ItemID);
+			return nullptr;
 		}
 
 		case EItemType::Quest:
 		{
-			// return QuestItems.Find(ItemID); // TODO : ÀÌ°Ç ÈÄ¿¡ Äù½ºÆ® ¾ÆÀÌÅÛÀÌ »ı±ä´Ù¸é Ãß°¡ÇÏµµ·Ï ÇÏÀÚ.
+			// TODO: Implement quest item support when needed
+			// TODO: í€˜ìŠ¤íŠ¸ ì•„ì´í…œ ì§€ì› ì¶”ê°€ í•„ìš”
+			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Quest items not yet implemented"));
+			return nullptr;
 		}
 
-		default: 
+		default:
 		{
-			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Àß¸øµÈ ItemType (%d)ÀÌ Àü´Ş."), static_cast<uint8>(ItemType));
+			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Invalid ItemType (%d)"), static_cast<uint8>(ItemType));
 			return nullptr;
 		}
 	}
@@ -35,16 +127,44 @@ const UBSStaticItemDataAsset* UItemResourceManager::GetStaticItem(EItemType Item
 
 void UItemResourceManager::RegisterConsumableItem(uint8 ItemID, UBSStaticItemDataAsset* DataAsset)
 {
-	if (!DataAsset) return;
+	if (!DataAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RegisterConsumableItem: Null DataAsset provided"));
+		return;
+	}
 
-	// ¿¹: EConsumableID¸¦ Å°·Î µî·Ï
-	ConsumableItems.Add(static_cast<EConsumableID>(DataAsset->ItemID), DataAsset);
+	// Use the ItemID from the DataAsset itself
+	// DataAsset ìì²´ì˜ ItemID ì‚¬ìš©
+	EConsumableID ConsumableID = static_cast<EConsumableID>(DataAsset->ItemID);
+
+	// Warn if overwriting existing item
+	// ê¸°ì¡´ ì•„ì´í…œì„ ë®ì–´ì“°ëŠ” ê²½ìš° ê²½ê³ 
+	if (ConsumableItems.Contains(ConsumableID))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RegisterConsumableItem: Item ID %d already registered, overwriting"), DataAsset->ItemID);
+	}
+
+	ConsumableItems.Add(ConsumableID, DataAsset);
 }
 
 void UItemResourceManager::RegisterEquipmentItem(uint8 ItemID, UBSStaticItemDataAsset* DataAsset)
 {
-	if (!DataAsset) return;
+	if (!DataAsset)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RegisterEquipmentItem: Null DataAsset provided"));
+		return;
+	}
 
-	// ¿¹: EEquipmentID¸¦ Å°·Î µî·Ï
-	EquipmentItems.Add(static_cast<EEquipmentID>(DataAsset->ItemID), DataAsset);
+	// Use the ItemID from the DataAsset itself
+	// DataAsset ìì²´ì˜ ItemID ì‚¬ìš©
+	EEquipmentID EquipmentID = static_cast<EEquipmentID>(DataAsset->ItemID);
+
+	// Warn if overwriting existing item
+	// ê¸°ì¡´ ì•„ì´í…œì„ ë®ì–´ì“°ëŠ” ê²½ìš° ê²½ê³ 
+	if (EquipmentItems.Contains(EquipmentID))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("RegisterEquipmentItem: Item ID %d already registered, overwriting"), DataAsset->ItemID);
+	}
+
+	EquipmentItems.Add(EquipmentID, DataAsset);
 }
