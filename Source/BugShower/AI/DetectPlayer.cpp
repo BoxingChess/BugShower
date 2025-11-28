@@ -2,7 +2,6 @@
 
 #include "AI/DetectPlayer.h"
 #include "AI/MonsterBlackBoardKey.h"
-#include "Logging/BugShowerLog.h"
 #include "Kismet/GameplayStatics.h"
 
 #include "BehaviorTree/BehaviorTreeComponent.h"
@@ -14,6 +13,8 @@
 #include "Engine/OverlapResult.h"
 #include "DrawDebugHelpers.h"
 
+#include "CVar/DebugDrawUtils.h"
+#include "Logging/BugShowerLog.h"
 
 
 
@@ -58,6 +59,7 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 	{
 		AActor* CurClosestPlayer = nullptr;
 		float ClosestDist = FLT_MAX;
+		FVector ClosestLocation = FVector::ZeroVector;
 
 		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 		{
@@ -74,6 +76,7 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 					{
 						ClosestDist = Dist;
 						CurClosestPlayer = PlayerPawn;
+						ClosestLocation = PlayerPawn->GetActorLocation();
 					}
 				}
 			}
@@ -97,10 +100,12 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 				BlackBoard->SetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR, CurClosestPlayer);
 			}
 
+
 			// Check if target is in attack range (for ranged monsters)
 			AMonsterBase* MonsterBase = Cast<AMonsterBase>(Monster);
 			if (MonsterBase && MonsterBase->Type == EAttackType::Ranged)
 			{
+
 				// Check if distance is within min and max attack range
 				bool bIsInRangedRange = (MonsterBase->MinAttackRange <= ClosestDist && ClosestDist <= MonsterBase->AttackRange);
 				BlackBoard->SetValueAsBool(MONSTER_BOARD_KEY_ISINRANGEDRANGE, bIsInRangedRange);
@@ -111,46 +116,59 @@ void UDetectPlayer::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemor
 					MonsterBase->AttackRange,
 					bIsInRangedRange ? TEXT("TRUE") : TEXT("FALSE"));
 
+
 				// Draw debug visualization for attack ranges
 				FVector MonsterLocation = Monster->GetActorLocation();
+				FVector YAxis = Monster->GetActorRightVector();
+				FVector ZAxis = Monster->GetActorForwardVector();
 
-				// Draw minimum attack range (red sphere)
-				DrawDebugSphere(
-					World,
-					MonsterLocation,
-					MonsterBase->MinAttackRange,
-					32,
-					FColor::Red,
-					false,
-					0.2f,
-					0,
-					2.0f
-				);
+				if(BSDebugUtils::IsEnabled(CVarDebugMonsterAttackRange))
+				{
+					// Draw minimum attack range (red circle)
+					DrawDebugCircle(
+						World,
+						MonsterLocation,
+						MonsterBase->MinAttackRange,
+						32,
+						FColor::Red,
+						false,
+						Interval,
+						0,
+						2.0f,
+						YAxis,
+						ZAxis
+					);
 
-				// Draw maximum attack range (green sphere)
-				DrawDebugSphere(
-					World,
-					MonsterLocation,
-					MonsterBase->AttackRange,
-					32,
-					FColor::Green,
-					false,
-					0.2f,
-					0,
-					2.0f
-				);
+					// Draw maximum attack range (green circle)
+					DrawDebugCircle(
+						World,
+						MonsterLocation,
+						MonsterBase->AttackRange,
+						32,
+						FColor::Green,
+						false,
+						Interval,
+						0,
+						2.0f,
+						YAxis,
+						ZAxis
+					);
+				}
 
-				// Draw line to target (yellow if in range, gray if out of range)
-				DrawDebugLine(
-					World,
-					MonsterLocation,
-					CurClosestPlayer->GetActorLocation(),
-					bIsInRangedRange ? FColor::Yellow : FColor::Silver,
-					false,
-					0.2f,
-					0,
-					3.0f
-				);
+				if (BSDebugUtils::IsEnabled(CVarDebugMonsterTargetLine))
+				{
+					// Draw line to target (yellow if in range, gray if out of range)
+					DrawDebugLine(
+						World,
+						MonsterLocation,
+						ClosestLocation,
+						bIsInRangedRange ? FColor::Yellow : FColor::Silver,
+						false,
+						-1,
+						0,
+						3.0f
+					);
+				}
 			}
 		}
 		else

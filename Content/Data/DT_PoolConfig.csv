@@ -1,0 +1,10 @@
+---,ActorClass,PoolSize
+Ranged_Normal,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_RangedTestMonsterNormal.BP_RangedTestMonsterNormal_C'""",20
+Ranged_Elite,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_RangedTestMonsterElite.BP_RangedTestMonsterElite_C'""",20
+Dash_Normal,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_DashTestMonsterNormal.BP_DashTestMonsterNormal_C'""",20
+Dash_Elite,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_DashTestMonsterElite.BP_DashTestMonsterElite_C'""",20
+quest,"""BlueprintGeneratedClass'/Game/ItemBP/quest.quest_C'""",20
+etc,"""BlueprintGeneratedClass'/Game/ItemBP/etc.etc_C'""",20
+consume,"""BlueprintGeneratedClass'/Game/ItemBP/consume.consume_C'""",20
+Equipment,"""BlueprintGeneratedClass'/Game/ItemBP/Equipment.Equipment_C'""",20
+bullet,"""BlueprintGeneratedClass'/Game/ItemBP/bullet.bullet_C'""",20

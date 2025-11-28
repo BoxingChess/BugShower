@@ -42,7 +42,7 @@ void AMonsterProjectile::ReturnPool()
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolSys->ReturnToPool(this);
+			PoolSys->ReturnToPoolByClass(this);
 		}
 	}
 }
@@ -72,7 +72,7 @@ void AMonsterProjectile::DeSpawn()
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
 		{
-			PoolSys->ReturnToPool(this);
+			PoolSys->ReturnToPoolByClass(this);
 		}
 	}
 }

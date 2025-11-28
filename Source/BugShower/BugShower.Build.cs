@@ -4,35 +4,20 @@ using UnrealBuildTool;
 
 public class BugShower : ModuleRules
 {
+    public BugShower(ReadOnlyTargetRules Target) : base(Target)
+    {
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-	public BugShower(ReadOnlyTargetRules Target) : base(Target)
-	{
-		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "UMG", "Slate", "SlateCore", "AIModule", "NavigationSystem", "GameplayTags" });
 
-		// Public dependency modules
-		// ?¼ë¸”ë¦??˜ì¡´??ëª¨ë“ˆ??
-		PublicDependencyModuleNames.AddRange(new string[]
-		{
-			"Core",
-			"CoreUObject",
-			"Engine",
-			"InputCore",
-			"EnhancedInput",    // Enhanced Input System - ?¥ìƒ???…ë ¥ ?œìŠ¤??
-			"UMG",              // UI Widget system - UI ?„ì ¯ ?œìŠ¤??
-			"Slate",            // UI framework - UI ?„ë ˆ?„ì›Œ??
-			"SlateCore",        // UI core - UI ì½”ì–´
-			"PhysicsCore",      // Physics system - ë¬¼ë¦¬ ?œìŠ¤??
-			"AssetRegistry",     // Asset loading for ItemResourceManager - ItemResourceManager???ì…‹ ë¡œë”©??
-            "AIModule", "NavigationSystem"
-        });
-
-        // Additional include paths
-        // ì¶”ê? ?¸í´ë£¨ë“œ ê²½ë¡œ
+        // Ãß°¡·Î ÇÊ¿äÇÑ °æ·Î
         PublicIncludePaths.AddRange(new string[] { "BugShower" });
 
         //¹°¸® °ü·Ã
         PublicIncludePaths.AddRange(new string[] { "PhysicsCore" });
 
+        //UI °ü·Ã
+        //PublicIncludePaths.AddRange(new string[] { "UMG", "Slate", "SlateCore" });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
 

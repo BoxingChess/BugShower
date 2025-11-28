@@ -6,7 +6,6 @@
 #include "NPC/PoolingType.h"
 #include "Pooling.generated.h"
 
-
 //spawner that uses object pooling to manage monsters
 //on off monster state in world(Activate,Rendering,Collision,RunBT...)
 
@@ -29,19 +28,14 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	void ReturnAllPoolingActors();
 
 protected:
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> MonsterClass;
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<AActor> ItemClass;
-	UPROPERTY(EditAnywhere)
 	TSubclassOf<AActor> BulletClass;
-
-
-	UPROPERTY(EditAnywhere)
-	uint32 PoolSize;
 
 	// Spawn Parameters
 	UPROPERTY(EditAnywhere)
