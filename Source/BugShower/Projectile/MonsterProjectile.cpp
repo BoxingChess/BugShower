@@ -185,19 +185,32 @@ void AMonsterProjectile::LifeSpanExpired()
 
 void AMonsterProjectile::OnProjectileOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	// 디버그: 모든 충돌 출력
+	UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile Overlap! OtherActor: %s"),
+		OtherActor ? *OtherActor->GetName() : TEXT("NULL"));
+
 	if (!HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile: No authority, ignoring"));
 		return;
+	}
 
 	// Get valid owner reference
 	AActor* AttackActor = ProjectileOwner.Get();
 
 	// Don't hit the owner or self
 	if (OtherActor == AttackActor || OtherActor == this)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile: Hit owner or self, ignoring"));
 		return;
+	}
 
 	// Don't hit invalid actors
 	if (!IsValid(OtherActor))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile: Invalid actor, ignoring"));
 		return;
+	}
 
 
 	ABSCharacterPlayer* PlayerCharacter = Cast<ABSCharacterPlayer>(OtherActor);

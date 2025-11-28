@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "MonsterStatComponent.generated.h"
 
+class MonsterStatComponent;
 
 
 // Delegate for death event (passes the monster actor as parameter)
@@ -66,6 +67,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	void ResetHP();
+
 
 	UFUNCTION(BlueprintCallable, Category = "Stat")
 	void InitStats(FString InName, EMonsterGrade InGrade, float InMaxHP, float InDamage, float InDefense);

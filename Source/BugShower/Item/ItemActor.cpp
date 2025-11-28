@@ -11,10 +11,10 @@ AItemActor::AItemActor()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	// ¸Þ½¬ ÄÄÆ÷³ÍÆ® »ý¼º
+	// ï¿½Þ½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 
-	// Æ®·£½ºÆû Á¶ÀÛÀÌ °¡´ÉÇÏµµ·Ï ·çÆ® ÄÄÆ÷³ÍÆ®·Î ¼³Á¤
+	// Æ®ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	RootComponent = MeshComponent;
 
 }
@@ -48,25 +48,43 @@ void AItemActor::OnConstruction(const FTransform& Transform)
 	}
 }
 
-//·±Å¸ÀÓ Àü¿ë Ã³¸®¹æ½Ä
+// Initialize item with dynamic data
+// ë™ì  ì•„ì´í…œ ë°ì´í„°ë¡œ ì´ˆê¸°í™”
 void AItemActor::InitializeItemBS_Item(FBS_Item& _item)
 {
-	///µ¿Àû Á¤º¸ ¼¼ÆÃ
+	// Set dynamic item data (quantity, durability, etc.)
+	// ë™ì  ì•„ì´í…œ ë°ì´í„° ì„¤ì • (ìˆ˜ëŸ‰, ë‚´êµ¬ë„ ë“±)
 	ItemInformation = _item;
 
-	///Á¤Àû Á¤º¸ ¼¼ÆÃ
-	// GameInstance¿¡¼­ ResourceManager °¡Á®¿À±â
-	if (UBSGameInstance* GI = GetWorld()->GetGameInstance<UBSGameInstance>())
+	// Load static item data from ItemResourceManager Subsystem
+	// ItemResourceManager ì„œë¸Œì‹œìŠ¤í…œì—ì„œ ì •ì  ì•„ì´í…œ ë°ì´í„° ë¡œë“œ
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
 	{
-		UItemResourceManager* RM = GI->GetItemResourceManager(); // getter ÇÔ¼ö
-		if (RM)
+		UItemResourceManager* ResourceManager = GI->GetSubsystem<UItemResourceManager>();
+		if (ResourceManager)
 		{
-			StaticItemInfo = RM->GetStaticItem(_item.ItemType, _item.ItemID);
+			// Get static data (mesh, icon, description, etc.)
+			// ì •ì  ë°ì´í„° ê°€ì ¸ì˜¤ê¸° (ë©”ì‹œ, ì•„ì´ì½˜, ì„¤ëª… ë“±)
+			StaticItemInfo = ResourceManager->GetStaticItem(_item.ItemType, _item.ItemID);
 
-			if (StaticItemInfo && StaticItemInfo->WorldMesh && MeshComponent)
+			if (StaticItemInfo)
 			{
-				MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
+				// Update mesh if available
+				// ë©”ì‹œê°€ ìžˆìœ¼ë©´ ì ìš©
+				if (StaticItemInfo->WorldMesh && MeshComponent)
+				{
+					MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
+				}
 			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("ItemActor::InitializeItemBS_Item - Failed to find static data for item type %d, ID %d"),
+					static_cast<uint8>(_item.ItemType), _item.ItemID);
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("ItemActor::InitializeItemBS_Item - ItemResourceManager Subsystem not found!"));
 		}
 	}
 }

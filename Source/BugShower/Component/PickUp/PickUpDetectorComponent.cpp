@@ -38,26 +38,25 @@ void UPickUpDetectorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UE_LOG(LogTemp, Warning, TEXT("UPickUpDetectorComponent::BeginPlay"));
+	UE_LOG(LogTemp, Log, TEXT("PickUpDetectorComponent::BeginPlay - Initializing"));
 
-	///�̺κ� ���� �� ���ذ� �ʿ���. -> ��������� �������� �ʾ���..
-	// 	// ����(����/�������� ���� ��Ʈ)������ ���α� ->���������� ��Ŀ�� ������ ������ �ʿ䰡 ������
-	// 	if (GetNetMode() != NM_Client) 
-	// 	{
-	// 		UE_LOG(LogTemp, Warning, TEXT("!NM_Client"));
-	// 
-	// 		SetComponentTickEnabled(false);
-	// 		return;
-	// 	}
+	// 데디케이티드 서버 최적화: 서버에서는 UI/입력 관련 로직 불필요
+	// Dedicated Server Optimization: No need for UI/input on server
+	if (GetNetMode() == NM_DedicatedServer)
+	{
+		UE_LOG(LogTemp, Log, TEXT("PickUpDetectorComponent: Running on dedicated server, disabling tick"));
+		SetComponentTickEnabled(false);
+		return; // Early exit for dedicated server
+	}
 
-		// Ŭ��: ���÷� ���� ���� Pawn�� ���� ��
+	// 클라이언트 전용: 로컬로 제어되는 Pawn에서만 Tick 활성화
+	// Client-only: Enable tick only for locally controlled Pawn
 	if (const auto P = Cast<APawn>(GetOwner());
-		//�� pawn�� ���� ���� �������ΰ�?
 		P && P->IsLocallyControlled())
 	{
 		PrimaryComponentTick.bCanEverTick = true;
 		SetComponentTickEnabled(true);
-		SetComponentTickInterval(0.1f); //�ʴ� 2���� ƽ ������
+		SetComponentTickInterval(0.1f); // Tick every 0.1 seconds (10 Hz)
 	}
 	else
 	{
@@ -130,6 +129,8 @@ void UPickUpDetectorComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 	}
 }
 
+// 클라이언트 전용: 카메라 라인트레이스로 아이템 포커스 감지
+// Client-only: Detect item focus using camera line trace
 bool UPickUpDetectorComponent::LineTraceFocus()
 {
 	if (!OwnerChar.IsValid()) return false;
@@ -211,17 +212,11 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 	}
 #endif
 
-	// ��Ŀ�� ���� �� ��������Ʈ ��ε�ĳ��Ʈ
-	if (FocusedItem.Get() != NewFocus)
-	{
-		FocusedItem = NewFocus;
-		return true; // �����
-	}
-
-
 	return false;
 }
 
+// 클라이언트 전용: 주변 아이템 목록 새로고침 (구체 오버랩 사용)
+// Client-only: Refresh nearby item list using sphere overlap
 void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 {
 	//UE_LOG(LogTemp, Warning, TEXT("call RefreshNearbyList"));
@@ -326,8 +321,9 @@ void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 // 			});
 	}
 
-	// ��ȿ ������ Ŭ����(Ȥ�ö� ���� �� ������)
-	NearbyItems.RemoveAll([](const TWeakObjectPtr<AActor>& P) { return !P.IsValid(); });
+	// 무효한 포인터 제거 (nullptr인 항목 삭제)
+	// 수정: TWeakObjectPtr -> AActor* 타입으로 수정 (타입 미스매치 버그 해결)
+	NearbyItems.RemoveAll([](const AActor* P) { return !P; });
 
 
 	bool bChanged = false;
@@ -364,6 +360,8 @@ void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 
 }
 
+// 클라이언트 시작: F키 입력으로 포커스된 아이템 줍기 시도 -> 서버 RPC 호출
+// Client initiates: Try pickup focused item with F key -> calls Server RPC
 void UPickUpDetectorComponent::TryPickupFocused()
 {
 	UE_LOG(LogTemp, Warning, TEXT("TryPickupFocused"));
@@ -453,7 +451,8 @@ bool UPickUpDetectorComponent::PickupInternal(AActor* Item)
 
 void UPickUpDetectorComponent::ChangeState()
 {
-	UE_LOG(LogTemp, Warning, TEXT("ChangeState - Toggling inventory UI"));
+	UE_LOG(LogTemp, Warning, TEXT("ChangeState - Current state: %s"),
+		bIsInventoryOpen ? TEXT("OPEN") : TEXT("CLOSED"));
 
 	// Get UIManager from GameInstance
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
@@ -484,12 +483,27 @@ void UPickUpDetectorComponent::ChangeState()
 		return;
 	}
 
-	// Toggle inventory widget
-	UIManager->ToggleWidget(FName("Inventory"), PC);
-
-	// Update internal state
+	// Toggle state first
 	bIsInventoryOpen = !bIsInventoryOpen;
 	bIsLineTrace = !bIsInventoryOpen;
+
+	// Then explicitly call Show or Hide based on the new state
+	if (bIsInventoryOpen)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ChangeState - Opening inventory (calling ShowWidget)"));
+		UIManager->ShowWidget(FName("Inventory"), PC);
+		PC->SetShowMouseCursor(true);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ChangeState - Closing inventory (calling HideWidget)"));
+		UIManager->HideWidget(FName("Inventory"), PC);
+
+		// FORCE GameOnly mode when closing inventory (ignore LineTraceUI)
+		PC->SetInputMode(FInputModeGameOnly());
+		PC->SetShowMouseCursor(false);
+		UE_LOG(LogTemp, Error, TEXT("!!! FORCED GameOnly mode after closing inventory !!!"));
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("PickUpDetectorComponent::ChangeState - Inventory is now %s"),
 		bIsInventoryOpen ? TEXT("OPEN") : TEXT("CLOSED"));

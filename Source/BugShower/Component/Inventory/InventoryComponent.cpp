@@ -11,77 +11,99 @@ UInventoryComponent::UInventoryComponent()
 }
 
 /*
-AddItemÇÔ¼ö¸¦ Á¶±İ ´õ ´ÙµëÀ» ÇÊ¿ä°¡ ÀÖ´Ù. MaxStackÃ³¸®µµ ¾ÆÁ÷ µÇÁö ¾Ê¾Ò°í SortÇÔ¼öµµ ¸â¹ö ÇÔ¼ö·Î ºĞ¸®ÇÏ´Â°Ô °¡µ¶¼ºÀÌ ´õ ÁÁ¾Æº¸ÀÎ´Ù.
-¶ÇÇÑ ÀÌÈÄ Bool°ªÀ» returnÇÏµµ·Ï ¹Ù²Ù¸é ÁÁÀ»µí ÇÏ´Ù.
+AddItemï¿½Ô¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ùµï¿½ï¿½ï¿½ ï¿½Ê¿ä°¡ ï¿½Ö´ï¿½. MaxStackÃ³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò°ï¿½ Sortï¿½Ô¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½ï¿½ï¿½ ï¿½Ğ¸ï¿½ï¿½Ï´Â°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Æºï¿½ï¿½Î´ï¿½.
+ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Boolï¿½ï¿½ï¿½ï¿½ returnï¿½Ïµï¿½ï¿½ï¿½ ï¿½Ù²Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ï´ï¿½.
 */
 void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 {
-	//À¯È¿ÇÏÁö ¾ÊÀº ¾×ÅÍ°¡ µé¾î¿ÔÀ» °æ¿ì Á¾·á
+	//ï¿½ï¿½È¿ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	if (!DroppedActor) return;
 
-	//ÁÖ¿ï ¾×ÅÍ¿¡¼­ µ¿Àû Á¤º¸¿Í Á¤Àû Á¤º¸ °¡Á®¿À±â
+	//ï¿½Ö¿ï¿½ ï¿½ï¿½ï¿½Í¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	FBS_Item& DropItem = DroppedActor->GetItemData();
 	const UBSStaticItemDataAsset* DropStatic = DroppedActor->GetItemStaticData();
-	//Á¤Àû Á¤º¸°¡ ¾øÀ¸¸é return;
+	//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ return;
 	if (!DropStatic) return;
 
-	// Àåºñ ¾ÆÀÌÅÛ-------------------------------------------------------------------------------
+	// ì¥ë¹„ ì•„ì´í…œ ì²˜ë¦¬ (ë¬´ê¸°, ë°©ì–´êµ¬ ë“±)-------------------------------------------------------------------------------
 	if (DropItem.ItemType == EItemType::Equipment)
 	{
+		// ê¸°ì¡´ ì¥ë¹„ê°€ ìˆìœ¼ë©´ ë°”ë‹¥ì— ë“œë¡­ (ìˆ˜ì •: ì•„ì´í…œ ì†ì‹¤ ë²„ê·¸ í•´ê²°)
 		if (EquipmentItem)
 		{
-			//DiscardItem(EquipmentItem.Get());  // ±âÁ¸ Àåºñ ¹ö¸®±â TODO: ÇÔ¼ö ¹Ù²Ù¾î¾ßÇÔ.
+			// í”Œë ˆì´ì–´ì˜ í˜„ì¬ ìœ„ì¹˜ì—ì„œ ë°”ë‹¥ì„ ì°¾ì•„ ì¥ë¹„ë¥¼ ë–¨ì–´ëœ¨ë¦¼
+			FVector DropLocation = GetOwner()->GetActorLocation();
+
+			// Line Traceë¡œ í”Œë ˆì´ì–´ ë°œ ë°‘ ë°”ë‹¥ ìœ„ì¹˜ ì°¾ê¸°
+			FVector Start = DropLocation + FVector(0, 0, 50);   // í”Œë ˆì´ì–´ ìœ„ì¹˜ì—ì„œ ì•½ê°„ ìœ„
+			FVector End = DropLocation - FVector(0, 0, 500);     // ì•„ë˜ë¡œ 500 ìœ ë‹›
+
+			FHitResult HitResult;
+			FCollisionQueryParams Params;
+			Params.AddIgnoredActor(GetOwner());  // í”Œë ˆì´ì–´ ìì‹ ì€ ë¬´ì‹œ
+
+			// ë°”ë‹¥ ì¶©ëŒ ì²´í¬
+			bool bHit = GetWorld()->LineTraceSingleByChannel(
+				HitResult, Start, End, ECC_Visibility, Params);
+
+			// ë°”ë‹¥ì„ ì°¾ì•˜ìœ¼ë©´ ê·¸ ìœ„ì¹˜ì—, ëª» ì°¾ì•˜ìœ¼ë©´ í”Œë ˆì´ì–´ ìœ„ì¹˜ì— ë°°ì¹˜
+			DropLocation = bHit ? HitResult.ImpactPoint : DropLocation;
+			DropLocation += FVector(0, 100, 0); // í”Œë ˆì´ì–´ ì•ìª½ìœ¼ë¡œ 100 ìœ ë‹› ì´ë™
+
+			// ê¸°ì¡´ ì¥ë¹„ë¥¼ ì›”ë“œì— ë°°ì¹˜í•˜ê³  ì£¼ì¸ í•´ì œ (ë‹¤ì‹œ ì£¼ìš¸ ìˆ˜ ìˆê²Œ í•¨)
+			EquipmentItem->SetActorLocation(DropLocation);
+			EquipmentItem->SetOwner(nullptr);
 		}
 
-		//»õ Àåºñ·Î ±³Ã¼ÇÔ
+		// ìƒˆ ì¥ë¹„ë¡œ êµì²´
 		EquipmentItem = DroppedActor;
 		return;
 	}
 
-	// ¼Òºñ ¾ÆÀÌÅÛ--------------------------------------------------------------------------------
+	// ï¿½Òºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½--------------------------------------------------------------------------------
 	if (DropItem.ItemType == EItemType::Consumable)
 	{
-		//ÀÎº¥Åä¸®¿¡ °°Àº ItemID¸¦ °¡Áø ¿ÀºêÁ§Æ®°¡ ÀÖ´ÂÁö Ã£´Â´Ù.
+		//ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ItemIDï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½ Ã£ï¿½Â´ï¿½.
 		UBSItemInstance* FoundInst = nullptr;
 
 		if (TObjectPtr<UBSItemInstance>* FoundSlot = ItemInventory.FindByPredicate(
 			[&](const TObjectPtr<UBSItemInstance>& Elem)
 			{
-				return Elem && Elem->StaticData == DropStatic; // °°Àº ÀÚ»êÀÌ¸é °°Àº ¾ÆÀÌÅÛ
+				return Elem && Elem->StaticData == DropStatic; // ï¿½ï¿½ï¿½ï¿½ ï¿½Ú»ï¿½ï¿½Ì¸ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			}))
 		{
 			FoundInst = FoundSlot->Get();
 		}
 
-		//ÇöÀç µé¼öÀÖ´Â ¹«°Ô¿Í µå¶øµÈ ¾ÆÀÌÅÛÀÇ ÃÑ ¹«°Ô¸¦ °è»êÇÑ´Ù.
+		//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½Ô¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ô¸ï¿½ ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
 		const int32 AvailableWeight = MaxWeight - CurrentWeight;
 		const int32 DropWeight = DropItem.Quantity * DropStatic->Weight;
 
-		//¸¸¾à ¾×ÅÍ¸¦ Ã£¾ÒÀ» °æ¿ì 
+		//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Í¸ï¿½ Ã£ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ 
 		if (FoundInst)
 		{
-			//ÇØ´ç ¾ÆÀÌÅÛÀÇ µ¿Àû / Á¤Àû Á¤º¸ ÀçÈ¹µæ
+			//ï¿½Ø´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¹ï¿½ï¿½
 			FBS_Item& FoundItem = FoundInst->GetItemData();
 			const UBSStaticItemDataAsset* FoundStatic = FoundInst->GetItemStaticData();
 
-			//ÀÌ¶§ FFL_StaticItem°¡ ¾øÀ¸¸é ¸®ÅÏ..
+			//ï¿½Ì¶ï¿½ FFL_StaticItemï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½..
 			if (!FoundStatic) return;
 
-			// ÇöÀç ½ºÅÃ °¡´ÉÇÑ ÃÖ´ëÄ¡ °è»ê
+			// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½Ä¡ ï¿½ï¿½ï¿½
 			const int32 AvailableStack = FoundStatic->MaxStackSize - FoundItem.Quantity;
 
-			//µå¶ø ¼ö·®, ³²Àº ½ºÅÃ ¼ö·®, ¹«°Ô ÇÑµµ ³»¿¡¼­ °¡´ÉÇÑ ÃÖ¼Ò ¼ö·® °è»ê
+			//ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½Ñµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
 			const int32 AddableQuantity = FMath::Min3
 			(
-				DropItem.Quantity,							//µå¶øµÈ ¼ö·®
-				AvailableStack,								//½ºÅÃ °¡´ÉÇÑ ³²Àº °ø°£(ÀÌ¹Ì 995°³ ÀÖ´Âµ¥ 999°³±îÁö¸¸ µé¼öÀÖ´Ù¸é? -> 4°³ ´õ ³ÖÀ»¼ö ÀÖÀ½)
-				AvailableWeight / FoundStatic->Weight		//¹«°Ô ÇÑµµ(³²Àº ¹«°Ô°¡ 20ÀÌ°í, ¾ÆÀÌÅÛ ¹«°Ô°¡ 5°³¶ó¸é -> 4°³)
+				DropItem.Quantity,							//ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+				AvailableStack,								//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½Ì¹ï¿½ 995ï¿½ï¿½ ï¿½Ö´Âµï¿½ 999ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ö´Ù¸ï¿½? -> 4ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+				AvailableWeight / FoundStatic->Weight		//ï¿½ï¿½ï¿½ï¿½ ï¿½Ñµï¿½(ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ô°ï¿½ 20ï¿½Ì°ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ô°ï¿½ 5ï¿½ï¿½ï¿½ï¿½ï¿½ -> 4ï¿½ï¿½)
 			);
 
-			//µå¶ø ¼ö·®, ³²Àº ½ºÅÃ ¼ö·®, ¹«°Ô ÇÑµµ ³»¿¡¼­ °¡´ÉÇÑ ÃÖ¼Ò ¼ö·® °è»ê
+			//ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½Ñµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
 			if (AddableQuantity > 0)
 			{
-				//¼ö·®À» ´©ÀûÇÏ°í, ¹«°Ô Ãß°¡, µå¶ø ¾ÆÀÌÅÛ ¼ö·® °¨¼Ò
+				//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½, ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 				FoundItem.Quantity += AddableQuantity;
 				CurrentWeight += AddableQuantity * FoundStatic->Weight;
 				DropItem.Quantity -= AddableQuantity;
@@ -89,37 +111,37 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 
 		}
 
-		//±âÁ¸¿¡ °°Àº IDÀÇ ¾ÆÀÌÅÛÀÌ ÀÎº¥Åä¸®¿¡ ¾øÀ» °æ¿ì 
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ IDï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ 
 		else
 		{
-			// ¹«°Ô Á¦ÇÑÀ» °í·ÁÇØ µé ¼ö ÀÖ´Â ÃÖ´ë ¼ö·® °è»ê
+			// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
 			int32 AddableQuantity = FMath::Min
 			(
 				DropItem.Quantity,
 				AvailableWeight / DropStatic->Weight
 			);
 
-			// ÀÏÁ¤ ¼ö·®ÀÌ¶óµµ µé ¼ö ÀÖ´Ù¸é
+			// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì¶ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö´Ù¸ï¿½
 			if (AddableQuantity > 0)
 			{
-				//»õ ¿ÀºêÁ§Æ® »ı¼º
+				//ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 				UBSItemInstance* NewInst = NewObject<UBSItemInstance>(this);
 
-				// µå¶ø ¾ÆÀÌÅÛÀÇ µ¿Àû Á¤º¸ º¹»ç + ¼ö·®Àº AddableQuantity·Î ¼³Á¤
+				// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ + ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ AddableQuantityï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 				FBS_Item NewDyn = DropItem;
 				NewDyn.Quantity = AddableQuantity;
 
-				// Á¤Àû/µ¿Àû Á¤º¸ ¼¼ÆÃ
+				// ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 				NewInst->StaticData = DropStatic;
 				NewInst->Dynamic = NewDyn;
 
-				//ÀÎº¥Åä¸®¿¡ Ãß°¡
+				//ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½ ï¿½ß°ï¿½
 				ItemInventory.Add(NewInst);
 
-				//¹«°Ô Ãß°¡
+				//ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½
 				CurrentWeight += AddableQuantity * DropStatic->Weight;
 
-				// ¿øº» ¾×ÅÍ(DroppedActor)ÀÇ ¼ö·®À» °¨¼Ò½ÃÅ´ ¡æ ¹Ù´Ú¿¡ ³²Àº ¼ö·® À¯Áö
+				// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(DroppedActor)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ò½ï¿½Å´ ï¿½ï¿½ ï¿½Ù´Ú¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 				DropItem.Quantity -= AddableQuantity;
 			}
 
@@ -133,28 +155,32 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 				});
 		}
 	}
-	for (auto& e : ItemInventory)
-	{
-		if (e)
-		{
-			int32 ItemIDValue = e->Dynamic.ItemID;
-			FString ItemName = StaticEnum<EConsumableID>()->GetNameStringByValue(ItemIDValue);
-			UE_LOG(LogTemp, Error, TEXT("Name : %s, Quntity : %d"), *ItemName, e->Dynamic.Quantity);
-		}
-	}
+
+	// ë””ë²„ê·¸: ì¸ë²¤í† ë¦¬ ë‚´ìš© ì¶œë ¥ (ê°œë°œ ì¤‘ì—ë§Œ ì‚¬ìš©)
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	// for (auto& e : ItemInventory)
+	// {
+	// 	if (e)
+	// 	{
+	// 		int32 ItemIDValue = e->Dynamic.ItemID;
+	// 		FString ItemName = StaticEnum<EConsumableID>()->GetNameStringByValue(ItemIDValue);
+	// 		UE_LOG(LogTemp, Log, TEXT("Inventory Item - Name: %s, Quantity: %d"), *ItemName, e->Dynamic.Quantity);
+	// 	}
+	// }
+#endif
 }
 
 void UInventoryComponent::DiscardItem(UBSItemInstance* DroppedItem, int32 Count /*= 1*/)
 {
 	if (!DroppedItem || !GetOwner()) return;
 
-	// µå¶ø ¼ö·®ÀÌ À¯È¿ÇÑÁö Ã¼Å©
+	// ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¿ï¿½ï¿½ï¿½ï¿½ Ã¼Å©
 	if (Count <= 0 || DroppedItem->Dynamic.Quantity < Count) return;
 
-	// ÇöÀç ¼ÒÀ¯ÀÚ ¾×ÅÍÀÇ À§Ä¡
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡
 	const FVector ActorLocation = GetOwner()->GetActorLocation();
 
-	// À§·Î 50, ¾Æ·¡·Î 500 ¶óÀÎÆ®·¹ÀÌ½º
+	// ï¿½ï¿½ï¿½ï¿½ 50, ï¿½Æ·ï¿½ï¿½ï¿½ 500 ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½Ì½ï¿½
 	FVector Start = ActorLocation + FVector(0, 0, 50);
 	FVector End = ActorLocation - FVector(0, 0, 500);
 
@@ -170,15 +196,15 @@ void UInventoryComponent::DiscardItem(UBSItemInstance* DroppedItem, int32 Count 
 		Params
 	);
 
-	// ¶¥À» ¸ÂÃèÀ¸¸é ±× À§Ä¡, ¾Æ´Ï¸é Ä³¸¯ÅÍ ¹ß¹Ø
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ä¡, ï¿½Æ´Ï¸ï¿½ Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½ß¹ï¿½
 	FVector SpawnLocation = bHit ? HitResult.ImpactPoint : ActorLocation;
 
-	// ½ºÆù ÆÄ¶ó¹ÌÅÍ
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride =
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-	// DataAsset¿¡¼­ ÁöÁ¤µÈ ¾ÆÀÌÅÛ ¾×ÅÍ Å¬·¡½º »ç¿ë
+	// DataAssetï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
 	if (!DroppedItem->StaticData)
 	{
 		UE_LOG(LogTemp, Log, TEXT("5"));
@@ -203,7 +229,7 @@ void UInventoryComponent::DiscardItem(UBSItemInstance* DroppedItem, int32 Count 
 	{
 		UE_LOG(LogTemp, Log, TEXT("2"));
 
-		// »õ·Î¿î ¾×ÅÍ¿¡ µ¥ÀÌÅÍ ¼¼ÆÃ (¹ö¸®´Â ¼ö·®¸¸Å­)
+		// ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½Í¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å­)
 		FBS_Item NewItemData = DroppedItem->Dynamic;
 		NewItemData.Quantity = Count;
 
@@ -211,15 +237,15 @@ void UInventoryComponent::DiscardItem(UBSItemInstance* DroppedItem, int32 Count 
 		SpawnedActor->SetOwner(nullptr);
 	}
 
-	// ÀÎº¥Åä¸® ³»ºÎ ¼ö·® Â÷°¨
+	// ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	DroppedItem->Dynamic.Quantity -= Count;
 
-	// ¸¸¾à ¼ö·®ÀÌ 0 ÀÌÇÏ°¡ µÇ¸é ÀÎº¥Åä¸®¿¡¼­ Á¦°Å
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0 ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½Ç¸ï¿½ ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	if (DroppedItem->Dynamic.Quantity <= 0)
 	{
 		UE_LOG(LogTemp, Log, TEXT("3"));
 
 		ItemInventory.Remove(DroppedItem);
-		DroppedItem->MarkAsGarbage(); // GC ´ë»ó Ã³¸®
+		DroppedItem->MarkAsGarbage(); // GC ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½
 	}
 }
