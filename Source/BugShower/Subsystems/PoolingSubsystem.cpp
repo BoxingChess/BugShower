@@ -3,7 +3,7 @@
 #include "Subsystems/PoolingSubsystem.h"
 #include "NPC/Spawnable.h"
 #include "Projectile/MonsterProjectile.h"
-#include "Item/ItemBase.h"
+#include "Item/ItemActor.h"
 #include "NavigationSystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Logging/BugShowerLog.h"
@@ -392,7 +392,7 @@ void UPoolingSubsystem::ProcessMonsterDrop(
 	}
 
 	// Calculate drops from configuration
-	TArray<TSubclassOf<AItemBase>> ItemsToDrop = CalculateDropsFromConfig(*DropConfig, ActiveConditions);
+	TArray<TSubclassOf<AItemActor>> ItemsToDrop = CalculateDropsFromConfig(*DropConfig, ActiveConditions);
 
 	if (ItemsToDrop.Num() == 0)
 	{
@@ -407,11 +407,11 @@ void UPoolingSubsystem::ProcessMonsterDrop(
 		ItemsToDrop.Num(), *MonsterDropID.ToString(), *DropLocation.ToString());
 }
 
-TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
+TArray<TSubclassOf<AItemActor>> UPoolingSubsystem::CalculateDropsFromConfig(
 	const FMonsterDropConfig& Config,
 	const FGameplayTagContainer& ActiveConditions) const
 {
-	TArray<TSubclassOf<AItemBase>> Result;
+	TArray<TSubclassOf<AItemActor>> Result;
 
 	// Layer 1: Guaranteed drops (always drop, ignore drop chance)
 	for (const FItemDropEntry& Entry : Config.GuaranteedDrops)
@@ -440,7 +440,7 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
 
 	// Layer 2: Common drops
 	int32 CommonDropCount = FMath::RandRange(Config.MinTotalDropCount, Config.MaxTotalDropCount);
-	TArray<TSubclassOf<AItemBase>> CommonDrops = SelectDropsByWeight(
+	TArray<TSubclassOf<AItemActor>> CommonDrops = SelectDropsByWeight(
 		Config.CommonDrops,
 		CommonDropCount,
 		ActiveConditions
@@ -448,7 +448,7 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
 	Result.Append(CommonDrops);
 
 	// Layer 3: Unique/Rare drops (usually 0-1 item)
-	TArray<TSubclassOf<AItemBase>> UniqueDrops = SelectDropsByWeight(
+	TArray<TSubclassOf<AItemActor>> UniqueDrops = SelectDropsByWeight(
 		Config.UniqueDrops,
 		1, // Usually only 1 unique drop
 		ActiveConditions
@@ -458,12 +458,12 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
 	return Result;
 }
 
-TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::SelectDropsByWeight(
+TArray<TSubclassOf<AItemActor>> UPoolingSubsystem::SelectDropsByWeight(
 	const TArray<FItemDropEntry>& Entries,
 	int32 MaxSelections,
 	const FGameplayTagContainer& ActiveConditions) const
 {
-	TArray<TSubclassOf<AItemBase>> Result;
+	TArray<TSubclassOf<AItemActor>> Result;
 
 	if (Entries.Num() == 0 || MaxSelections <= 0)
 		return Result;
@@ -514,7 +514,7 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::SelectDropsByWeight(
 }
 
 void UPoolingSubsystem::SpawnDroppedItems(
-	const TArray<TSubclassOf<AItemBase>>& ItemClasses,
+	const TArray<TSubclassOf<AItemActor>>& ItemClasses,
 	const FVector& CenterLocation,
 	float SpreadRadius)
 {
@@ -523,7 +523,7 @@ void UPoolingSubsystem::SpawnDroppedItems(
 
 	for (int32 i = 0; i < ItemClasses.Num(); i++)
 	{
-		TSubclassOf<AItemBase> ItemClass = ItemClasses[i];
+		TSubclassOf<AItemActor> ItemClass = ItemClasses[i];
 		if (!ItemClass)
 			continue;
 
