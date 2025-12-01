@@ -106,6 +106,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void UpdatePickupPrompt(AItemActor* Item);
 
+	/**
+	 * 탄약 UI 업데이트
+	 * @param CurrentAmmo 현재 탄창 탄약
+	 * @param ReserveAmmo 예비 탄약
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateAmmoUI(int32 CurrentAmmo, int32 ReserveAmmo);
+
 protected:
 	/**
 	 * UI 설정 DataAsset
