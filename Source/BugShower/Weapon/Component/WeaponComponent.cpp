@@ -10,6 +10,7 @@
 #include "TimerManager.h"
 #include "Projectile/Bullet.h"
 #include "Projectile/ProjectileBase.h"
+#include "Manager/UIManager/BSUIManager.h"
 
 UWeaponComponent::UWeaponComponent()
 {
@@ -94,6 +95,15 @@ void UWeaponComponent::EquipWeapon(UWeaponDataAsset* WeaponData, int32 AmmoCount
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::EquipWeapon - Equipped %s (Ammo: %d/%d)"),
 		*WeaponData->WeaponName.ToString(), CurrentAmmo, ReserveAmmo);
+
+	// UI 업데이트
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+		}
+	}
 }
 
 void UWeaponComponent::UnequipWeapon()
@@ -272,6 +282,15 @@ void UWeaponComponent::Fire()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Fire - Fired! (Ammo: %d/%d)"), CurrentAmmo, ReserveAmmo);
+
+	// UI 업데이트
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+		}
+	}
 }
 
 bool UWeaponComponent::FireSingleTrace()
@@ -776,6 +795,15 @@ void UWeaponComponent::OnReloadComplete()
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::OnReloadComplete - Reload complete! (Ammo: %d/%d)"),
 		CurrentAmmo, ReserveAmmo);
 
+	// UI 업데이트
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+		}
+	}
+
 	// TODO: 재장전 완료 사운드 재생
 }
 
@@ -789,6 +817,15 @@ void UWeaponComponent::AddAmmo(int32 Amount)
 	ReserveAmmo += Amount;
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::AddAmmo - Added %d ammo (Total: %d)"), Amount, ReserveAmmo);
+
+	// UI 업데이트
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+		}
+	}
 }
 
 // ========================================

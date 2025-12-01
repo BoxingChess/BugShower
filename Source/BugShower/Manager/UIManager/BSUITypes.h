@@ -127,4 +127,5 @@ namespace BSUINames
 	const FName Crosshair = TEXT("Crosshair");
 	const FName PickupPrompt = TEXT("PickupPrompt");
 	const FName Map = TEXT("Map");
+	const FName AmmoDisplay = TEXT("AmmoDisplay");
 }

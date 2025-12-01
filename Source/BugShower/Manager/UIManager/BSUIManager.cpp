@@ -9,6 +9,7 @@
 #include "Player/BSPlayerController.h"
 #include "Widget/LineTraceUI.h"
 #include "Widget/HealthBarWidget.h"
+#include "Widget/AmmoWidget.h"
 void UBSUIManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -357,6 +358,34 @@ void UBSUIManager::UpdatePickupPrompt(AItemActor* Item)
 	{
 		// 아이템이 없으면 위젯 숨김 (아이템에서 시선을 떼었을 때)
 		HideWidget(FName("LineTraceUI"));
+	}
+}
+
+void UBSUIManager::UpdateAmmoUI(int32 CurrentAmmo, int32 ReserveAmmo)
+{
+	if (!LocalPlayerController)
+	{
+		return;
+	}
+
+	// AmmoDisplay Widget 가져오기
+	UUserWidget* Widget = GetWidget(BSUINames::AmmoDisplay);
+	if (!Widget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateAmmoUI - AmmoDisplay widget not found"));
+		return;
+	}
+
+	// AmmoWidget으로 캐스팅
+	if (UAmmoWidget* AmmoWidget = Cast<UAmmoWidget>(Widget))
+	{
+		// Blueprint에서 구현한 UpdateAmmo 이벤트 호출
+		AmmoWidget->UpdateAmmo(CurrentAmmo, ReserveAmmo);
+		UE_LOG(LogTemp, Log, TEXT("BSUIManager::UpdateAmmoUI - Updated Ammo: %d / %d"), CurrentAmmo, ReserveAmmo);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateAmmoUI - Widget is not UAmmoWidget type!"));
 	}
 }
 
