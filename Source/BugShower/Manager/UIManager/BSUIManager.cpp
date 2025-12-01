@@ -356,6 +356,7 @@ void UBSUIManager::UpdatePickupPrompt(AItemActor* Item)
 	}
 	else
 	{
+		UE_LOG(LogTemp, Warning, TEXT("There is no ItemStaticData"));
 		// 아이템이 없으면 위젯 숨김 (아이템에서 시선을 떼었을 때)
 		HideWidget(FName("LineTraceUI"));
 	}

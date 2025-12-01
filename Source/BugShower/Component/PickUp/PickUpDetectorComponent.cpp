@@ -169,6 +169,7 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 	if (bHit)
 	{
 		NewFocus = Cast<AItemActor>(Hit.GetActor());  // ������ �ƴϸ� nullptr
+		//UE_LOG(LogTemp, Warning, TEXT("NewFocus"));
 	}
 
 	// ��Ŀ���� �ٲ���� ���� ��������Ʈ ȣ��
