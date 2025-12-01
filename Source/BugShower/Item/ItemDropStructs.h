@@ -17,7 +17,7 @@ struct FItemDropEntry
 
 	// Item class to drop
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")
-	TSubclassOf<class AItemBase> ItemClass;
+	TSubclassOf<class AItemActor> ItemClass;
 
 	// Drop weight for weighted random selection (higher = more likely)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drop")

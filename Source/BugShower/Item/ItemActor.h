@@ -7,13 +7,29 @@
 #include "BSItem.h"
 #include "BSStaticItemDataAsset.h"
 
+#include "NPC/Spawnable.h"
+#include "ItemEnum.h"
+
 #include "ItemActor.generated.h"
 
 UCLASS()
-class BUGSHOWER_API AItemActor : public AActor
+class BUGSHOWER_API AItemActor : public AActor, public ISpawnable
 {
 	GENERATED_BODY()
-	
+
+// Interface functions
+public:
+	virtual EPoolType GetPoolType() const override { return EPoolType::Item; }
+	virtual void Spawn(const FVector pos) override;
+	virtual void ReturnPool() override;
+
+	//don't use super::LifeSpanExpired() in ISpawnable derived classes
+	virtual void LifeSpanExpired() override;
+
+	UFUNCTION()
+	virtual void DeSpawn() override;
+
+
 public:	
 	// Sets default values for this actor's properties
 	AItemActor();
@@ -43,7 +59,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	TObjectPtr<const UBSStaticItemDataAsset> StaticItemInfo = nullptr;
 
+protected:
+	// Pickup function
+	UFUNCTION(BlueprintCallable, Category = "Item")
+	virtual void OnPickup(AActor* PickupActor);
+
+	UFUNCTION()
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
 public:
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* MeshComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	class USphereComponent* CollisionComponent;
 };

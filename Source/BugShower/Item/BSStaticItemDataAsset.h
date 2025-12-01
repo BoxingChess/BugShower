@@ -62,6 +62,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
     TSubclassOf<class AItemActor> ItemActorClass;
 
+    UPROPERTY(EditAnywhere, Category = "Item")
+	float ItemLifeSpan;
+
 public:
     TSubclassOf<AItemActor> GetItemActorClass() const { return ItemActorClass; }
 	

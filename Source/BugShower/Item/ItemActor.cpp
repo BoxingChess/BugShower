@@ -4,18 +4,84 @@
 #include "Item/ItemActor.h"
 #include "Game/BSGameInstance.h"
 #include "Manager/ResourceManager/ItemResourceManager/ItemResourceManager.h"
+#include "Player/BSCharacterPlayer.h"
+#include "Subsystems/PoolingSubsystem.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SphereComponent.h"
+#include "Logging/BugShowerLog.h"
+
+
+void AItemActor::Spawn(const FVector pos)
+{
+	if (StaticItemInfo)
+	{
+		Activate(this, pos);
+		SetLifeSpan(StaticItemInfo->ItemLifeSpan);
+	}
+}
+
+void AItemActor::ReturnPool()
+{
+	Deactivate(this);
+
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
+	{
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
+		{
+			PoolSys->ReturnToPoolByClass(this);
+		}
+	}
+}
+
+void AItemActor::LifeSpanExpired()
+{
+	DeSpawn();
+}
+
+void AItemActor::DeSpawn()
+{
+	Deactivate(this);
+
+	// Return to pool via subsystem
+	if (UWorld* World = GetWorld())
+	{
+		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
+		{
+			PoolSys->ReturnToPoolByClass(this);
+		}
+	}
+}
+
+
 
 // Sets default values
 AItemActor::AItemActor()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
+
+	// Enable replication(pos,life span, type)
+	bReplicates = true;
+	SetReplicateMovement(true);
+
+	// Create collision component
+	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
+	RootComponent = CollisionComponent;
+	CollisionComponent->InitSphereRadius(50.f);
+	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
 	// �޽� ������Ʈ ����
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	MeshComponent->SetupAttachment(RootComponent);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	MeshComponent->SetIsReplicated(true);
+
 
 	// Ʈ������ ������ �����ϵ��� ��Ʈ ������Ʈ�� ����
-	RootComponent = MeshComponent;
+	//RootComponent = MeshComponent;
 
 }
 
@@ -24,6 +90,10 @@ void AItemActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (HasAuthority())
+	{
+		CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AItemActor::OnOverlapBegin);
+	}
 }
 
 // Called every frame
@@ -85,6 +155,37 @@ void AItemActor::InitializeItemBS_Item(FBS_Item& _item)
 		else
 		{
 			UE_LOG(LogTemp, Error, TEXT("ItemActor::InitializeItemBS_Item - ItemResourceManager Subsystem not found!"));
+		}
+	}
+}
+
+void AItemActor::OnPickup(AActor* PickupActor)
+{
+	if (!HasAuthority())
+		return;
+
+	LOG_LOGIC_INFO(TEXT("Item %s picked up by %s"), *(StaticItemInfo->DisplayName.ToString()), *PickupActor->GetName());
+
+	// TODO: Add item to player inventory and 
+	// TODO: don't runtime destroy change to item pooling
+	DeSpawn();
+}
+
+void AItemActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+ 	if (!HasAuthority())
+		return;
+
+	// Check if overlapping actor is a player
+	if (OtherActor && OtherActor->IsA(ABSCharacterPlayer::StaticClass()))
+	{
+		//test if it's player controller
+		APawn* Pawn = Cast<APawn>(OtherActor);
+
+		if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
+		{
+
+			OnPickup(OtherActor);
 		}
 	}
 }

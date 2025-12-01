@@ -116,13 +116,13 @@ public:
 
 protected:
 	// Calculate drops from configuration
-	TArray<TSubclassOf<class AItemBase>> CalculateDropsFromConfig(
+	TArray<TSubclassOf<class AItemActor>> CalculateDropsFromConfig(
 		const FMonsterDropConfig& Config,
 		const FGameplayTagContainer& ActiveConditions
 	) const;
 
 	// Select items by weight from drop entries
-	TArray<TSubclassOf<class AItemBase>> SelectDropsByWeight(
+	TArray<TSubclassOf<class AItemActor>> SelectDropsByWeight(
 		const TArray<FItemDropEntry>& Entries,
 		int32 MaxSelections,
 		const FGameplayTagContainer& ActiveConditions
@@ -130,7 +130,7 @@ protected:
 
 	// Spawn dropped items in a spread pattern
 	void SpawnDroppedItems(
-		const TArray<TSubclassOf<class AItemBase>>& ItemClasses,
+		const TArray<TSubclassOf<class AItemActor>>& ItemClasses,
 		const FVector& CenterLocation,
 		float SpreadRadius
 	);
