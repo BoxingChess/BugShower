@@ -99,15 +99,18 @@ public:
 	// ========================================
 
 protected:
-	// 현재 장착된 무기 (WeaponActor)
-	// 빈손 상태일 때는 nullptr
+	// 게임 시작 시 기본 무기 자동 장착 여부
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	bool bAutoEquipDefaultWeapon = false;
+
+	// 기본 무기 DataAsset (bAutoEquipDefaultWeapon이 true일 때만 사용)
+	// 에디터에서 설정 가능 (None이면 무기 없이 시작)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (EditCondition = "bAutoEquipDefaultWeapon"))
+	TObjectPtr<class UWeaponDataAsset> DefaultWeaponData;
+
+	// 현재 장착된 무기 (런타임에 자동으로 설정됨)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<AWeaponActor> CurrentWeapon;
-
-	// 테스트용: 게임 시작 시 자동으로 장착할 무기 DataAsset
-	// Blueprint에서 설정 가능 (None이면 무기 없이 시작)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Debug")
-	TObjectPtr<class UWeaponDataAsset> TestWeaponData;
 
 public:
 	/**

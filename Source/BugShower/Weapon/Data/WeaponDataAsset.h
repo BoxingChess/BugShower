@@ -64,6 +64,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
 	FName MuzzleSocketName = TEXT("Muzzle");
 
+	// 총구 위치 오프셋 (무기 기준 상대 좌표, 소켓이 없을 때 사용)
+	// X = 앞/뒤, Y = 좌/우, Z = 위/아래 (cm 단위)
+	// 예: (50, 0, 0) = 무기 앞으로 50cm
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+	FVector MuzzleOffset = FVector(50.0f, 0.0f, 0.0f);
+
 	// ========================================
 	// 발사 메커니즘
 	// ========================================
