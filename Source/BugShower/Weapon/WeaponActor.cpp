@@ -128,6 +128,14 @@ void AWeaponActor::AttachToCharacter(ACharacter* Character, FName SocketName)
 	);
 	AttachToComponent(CharacterMesh, AttachRules, SocketName);
 
+	// 부착 후 WeaponData의 Transform 다시 적용 (소켓 스냅으로 인해 초기화되었을 수 있음)
+	if (WeaponData)
+	{
+		WeaponMesh->SetRelativeLocation(WeaponData->MeshOffset);
+		WeaponMesh->SetRelativeRotation(WeaponData->MeshRotation);
+		WeaponMesh->SetRelativeScale3D(WeaponData->MeshScale);
+	}
+
 	// 물리 시뮬레이션 비활성화 (손에 들고 있을 때)
 	WeaponMesh->SetSimulatePhysics(false);
 	WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
