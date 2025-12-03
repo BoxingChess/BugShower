@@ -21,6 +21,11 @@ void ABSPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Set input mode to Game Only for gameplay
+	FInputModeGameOnly InputMode;
+	SetInputMode(InputMode);
+	bShowMouseCursor = false;
+
 	// Setup Enhanced Input System
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{

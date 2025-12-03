@@ -2,6 +2,7 @@
 
 #include "Game/BSGameModeBase.h"
 #include "Game/BSGameStateBase.h"
+#include "Player/BSPlayerController.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Kismet/GameplayStatics.h"
@@ -15,6 +16,9 @@ ABSGameModeBase::ABSGameModeBase()
 {
 	// Set GameState class
 	GameStateClass = ABSGameStateBase::StaticClass();
+
+	// Set PlayerController class for in-game
+	PlayerControllerClass = ABSPlayerController::StaticClass();
 }
 
 void ABSGameModeBase::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
@@ -78,7 +82,7 @@ void ABSGameModeBase::BeginPlay()
 	if (PoolSys)
 	{
 
-		// Ç® ÃÊ±âÈ­
+		// Ç® ï¿½Ê±ï¿½È­
 		UDataTable* PoolTable = LoadObject<UDataTable>(
 			nullptr,
 			TEXT("/Game/Data/DT_PoolConfig.DT_PoolConfig")
@@ -194,7 +198,7 @@ void ABSGameModeBase::EndGame(bool bVictory)
 	// This can be implemented in Blueprint or with additional C++ code
 
 
-	 // ¸ðµç Pooling ¾×ÅÍÀÇ Tick ºñÈ°¼ºÈ­
+	 // ï¿½ï¿½ï¿½ Pooling ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Tick ï¿½ï¿½È°ï¿½ï¿½È­
 	TArray<AActor*> PoolingActors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APooling::StaticClass(), PoolingActors);
 
@@ -203,10 +207,10 @@ void ABSGameModeBase::EndGame(bool bVictory)
 		APooling* CurPoolingActor = Cast<APooling>(Actor);
 		if (CurPoolingActor)
 		{
-			CurPoolingActor->ReturnAllPoolingActors();	//spawnµÈ ¸ðµç°Í Ç®·Î ¹ÝÈ¯
+			CurPoolingActor->ReturnAllPoolingActors();	//spawnï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ç®ï¿½ï¿½ ï¿½ï¿½È¯
 		}
 
-		Actor->SetActorTickEnabled(false);  // Tick ¿ÏÀüÈ÷ ÁßÁö
+		Actor->SetActorTickEnabled(false);  // Tick ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	}
 
 }
