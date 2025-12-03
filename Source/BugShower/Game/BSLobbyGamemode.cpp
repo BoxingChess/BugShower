@@ -21,7 +21,7 @@ ABSLobbyGameMode::ABSLobbyGameMode()
 	PlayerControllerClass = ABSLobbyPlayerController::StaticClass();
 
 	// Default game map name
-	GameMapName = TEXT("InGame");
+	NextMapName = TEXT("InGame");
 }
 
 void ABSLobbyGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
@@ -47,10 +47,41 @@ void ABSLobbyGameMode::Logout(AController* Exiting)
 	
 }
 
+void ABSLobbyGameMode::InitGameState()
+{
+	Super::InitGameState();
+
+	// Cache GameState reference (called right after GameState is created)
+	BSGameState = Cast<ABSGameStateBase>(GameState);
+
+	if (BSGameState)
+	{
+		LOG_NETWORK_INFO(TEXT("[Lobby] GameState initialized and cached successfully"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Lobby] Failed to cache GameState in InitGameState!"));
+	}
+}
+
 void ABSLobbyGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Double-check GameState reference (backup)
+	if (!BSGameState)
+	{
+		BSGameState = Cast<ABSGameStateBase>(GameState);
+
+		if (BSGameState)
+		{
+			LOG_NETWORK_INFO(TEXT("[Lobby] GameState cached in BeginPlay (backup)"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[Lobby] Failed to cache GameState!"));
+		}
+	}
 }
 
 void ABSLobbyGameMode::StartPlay()
@@ -67,7 +98,7 @@ void ABSLobbyGameMode::StartGame()
 		return;
 	}
 
-	FString MapName = GetGameMapName();
+	FString MapName = GetNextGameMapName();
 
 	if (MapName.IsEmpty())
 	{
@@ -83,7 +114,7 @@ void ABSLobbyGameMode::StartGame()
 	GetWorld()->ServerTravel(MapName, false, false);
 }
 
-FString ABSLobbyGameMode::GetGameMapName_Implementation() const
+FString ABSLobbyGameMode::GetNextGameMapName_Implementation() const
 {
-	return GameMapName;
+	return NextMapName;
 }

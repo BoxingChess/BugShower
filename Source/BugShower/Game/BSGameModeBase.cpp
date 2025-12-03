@@ -19,6 +19,9 @@ ABSGameModeBase::ABSGameModeBase()
 
 	// Set PlayerController class for in-game
 	PlayerControllerClass = ABSPlayerController::StaticClass();
+
+	// Default game map name
+	NextMapName = TEXT("Lobby");
 }
 
 void ABSGameModeBase::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
@@ -61,20 +64,40 @@ void ABSGameModeBase::Logout(AController* Exiting)
 	}
 }
 
-void ABSGameModeBase::BeginPlay()
+void ABSGameModeBase::InitGameState()
 {
-	Super::BeginPlay();
+	Super::InitGameState();
 
-	// Cache GameState reference
+	// Cache GameState reference (called right after GameState is created)
 	BSGameState = Cast<ABSGameStateBase>(GameState);
 
 	if (BSGameState)
 	{
-		UE_LOG(LogTemp, Log, TEXT("GameState cached successfully"));
+		LOG_NETWORK_INFO(TEXT("GameState initialized and cached successfully"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to cache GameState!"));
+		UE_LOG(LogTemp, Error, TEXT("Failed to cache GameState in InitGameState!"));
+	}
+}
+
+void ABSGameModeBase::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// Double-check GameState reference (backup in case InitGameState wasn't called)
+	if (!BSGameState)
+	{
+		BSGameState = Cast<ABSGameStateBase>(GameState);
+
+		if (BSGameState)
+		{
+			LOG_NETWORK_INFO(TEXT("GameState cached in BeginPlay (backup)"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to cache GameState! Game logic may not work correctly."));
+		}
 	}
 
 
@@ -127,6 +150,12 @@ void ABSGameModeBase::OnPlayerDied(AController* DeadPlayerController)
 	if (!BSGameState || BSGameState->bGameEnded)
 	{
 		return;
+	}
+
+	// 컨트롤러 분리
+	if (APlayerController* PC = Cast<APlayerController>(DeadPlayerController))
+	{
+		PC->UnPossess();
 	}
 
 	// Update alive player count
@@ -213,6 +242,8 @@ void ABSGameModeBase::EndGame(bool bVictory)
 		Actor->SetActorTickEnabled(false);  // Tick ������ ����
 	}
 
+	FString MapName = GetNextGameMapName();
+	GetWorld()->ServerTravel(MapName, false, false);
 }
 
 int32 ABSGameModeBase::GetAlivePlayerCount() const
@@ -240,3 +271,7 @@ bool ABSGameModeBase::IsEnd() const
 	return BSGameState ? BSGameState->bGameEnded : false;
 }
 
+FString ABSGameModeBase::GetNextGameMapName_Implementation() const
+{
+	return NextMapName;
+}

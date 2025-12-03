@@ -26,6 +26,7 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 
+	virtual void InitGameState() override;
 	virtual void BeginPlay() override;
 	virtual void StartPlay() override;
 
@@ -48,7 +49,7 @@ public:
 	 * Can be overridden in Blueprint to customize the target map
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Lobby")
-	FString GetGameMapName() const;
+	FString GetNextGameMapName() const;
 
 protected:
 	/**
@@ -56,5 +57,5 @@ protected:
 	 * Default: "InGame"
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Lobby")
-	FString GameMapName;
+	FString NextMapName;
 };

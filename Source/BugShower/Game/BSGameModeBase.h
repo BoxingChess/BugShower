@@ -26,6 +26,7 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 
+	virtual void InitGameState() override;
 	virtual void BeginPlay() override;
 	virtual void StartPlay() override;
 
@@ -50,4 +51,16 @@ public:
 	int32 GetAlivePlayerCount() const;
 
 	bool IsEnd() const;
+
+protected:
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InGame")
+	FString GetNextGameMapName() const;
+
+	/**
+	 * Target map name for game start
+	 * Default: "Lobby"
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "InGame")
+	FString NextMapName;
 };
