@@ -416,8 +416,8 @@ bool UWeaponComponent::FireSingleProjectile()
 	FVector Direction = GetFireDirection();
 
 	// 프로젝타일 스폰 위치와 회전
-	// 캐릭터 앞 100cm에서 스폰하여 자기 자신과 충돌 방지
-	FVector SpawnLocation = Start + (Direction * 100.0f);
+	// 총구 위치에서 바로 스폰 (SpawnParams에서 Owner Ignore 설정으로 충돌 방지)
+	FVector SpawnLocation = Start;
 	FRotator SpawnRotation = Direction.Rotation();
 
 	// 스폰 파라미터
@@ -486,18 +486,8 @@ FVector UWeaponComponent::GetFireStartLocation() const
 		return FVector::ZeroVector;
 	}
 
-	// 카메라 중심에서 발사 (FPS 스타일 - 정확한 조준)
-	if (CurrentWeaponData->FireOrigin == EFireOrigin::Camera)
-	{
-		UCameraComponent* Camera = GetOwnerCamera();
-		if (Camera)
-		{
-			// 카메라 위치 반환
-			return Camera->GetComponentLocation();
-		}
-	}
-
-	// 총구에서 발사 (TPS 스타일 - 시각적으로 정확)
+	// TPS 방식: 항상 총구에서 발사 (시각적 일관성)
+	// 방향은 GetFireDirection()에서 카메라 조준점을 향하도록 계산됨
 	USkeletalMeshComponent* WeaponMesh = GetWeaponMesh();
 	if (WeaponMesh)
 	{
@@ -507,8 +497,14 @@ FVector UWeaponComponent::GetFireStartLocation() const
 			return WeaponMesh->GetSocketLocation(CurrentWeaponData->MuzzleSocketName);
 		}
 
-		// 소켓이 없으면 무기 끝점 사용
-		return WeaponMesh->GetComponentLocation();
+		// 소켓이 없으면 MuzzleOffset 사용 (무기 기준 상대 좌표, Scale 적용!)
+		FVector WeaponLoc = WeaponMesh->GetComponentLocation();
+		FRotator WeaponRot = WeaponMesh->GetComponentRotation();
+		FVector WeaponScale = WeaponMesh->GetComponentScale();
+
+		// MuzzleOffset에 메쉬 Scale 적용
+		FVector ScaledOffset = CurrentWeaponData->MuzzleOffset * WeaponScale;
+		return WeaponLoc + WeaponRot.RotateVector(ScaledOffset);
 	}
 
 	// 폴백: WeaponActor 위치
@@ -527,24 +523,58 @@ FVector UWeaponComponent::GetFireDirection() const
 		return FVector::ForwardVector;
 	}
 
-	// 카메라 방향 가져오기
+	// TPS 방식: 카메라 레이캐스트로 조준점 찾기 → 총구에서 조준점으로 방향 계산
+
+	// 1. 카메라에서 레이캐스트로 조준점 찾기
 	UCameraComponent* Camera = GetOwnerCamera();
-	FVector Direction = FVector::ForwardVector;
+	FVector TargetPoint;
 
 	if (Camera)
 	{
-		Direction = Camera->GetForwardVector();
+		FVector CameraLoc = Camera->GetComponentLocation();
+		FVector CameraForward = Camera->GetForwardVector();
+		FVector TraceEnd = CameraLoc + (CameraForward * CurrentWeaponData->MaxRange);
+
+		// 레이캐스트 설정
+		FHitResult Hit;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(GetOwner());  // WeaponActor 무시
+		if (ACharacter* OwnerChar = GetOwnerCharacter())
+		{
+			Params.AddIgnoredActor(OwnerChar);  // 캐릭터 무시
+		}
+
+		// 레이캐스트 실행
+		bool bHit = GetWorld()->LineTraceSingleByChannel(
+			Hit, CameraLoc, TraceEnd, ECC_Visibility, Params
+		);
+
+		// 조준점: 히트 지점 또는 최대사거리 끝
+		TargetPoint = bHit ? Hit.Location : TraceEnd;
 	}
-	else if (ACharacter* OwnerChar = GetOwnerCharacter())
+	else
 	{
-		Direction = OwnerChar->GetActorForwardVector();
-	}
-	else if (AActor* OwnerActor = GetOwner())
-	{
-		Direction = OwnerActor->GetActorForwardVector();
+		// 카메라 없으면 폴백: 캐릭터 또는 Actor 방향
+		FVector FallbackDirection = FVector::ForwardVector;
+		if (ACharacter* OwnerChar = GetOwnerCharacter())
+		{
+			FallbackDirection = OwnerChar->GetActorForwardVector();
+		}
+		else if (AActor* OwnerActor = GetOwner())
+		{
+			FallbackDirection = OwnerActor->GetActorForwardVector();
+		}
+
+		// 총구 위치에서 앞으로
+		FVector MuzzleLoc = GetFireStartLocation();
+		TargetPoint = MuzzleLoc + (FallbackDirection * CurrentWeaponData->MaxRange);
 	}
 
-	// 탄 퍼짐 계산
+	// 2. 총구에서 조준점으로 방향 계산
+	FVector MuzzleLoc = GetFireStartLocation();
+	FVector Direction = (TargetPoint - MuzzleLoc).GetSafeNormal();
+
+	// 3. 탄 퍼짐 계산
 	float SpreadAngle = CalculateCurrentSpread();
 
 	// 산탄총은 별도의 퍼짐 각도 사용
@@ -553,7 +583,7 @@ FVector UWeaponComponent::GetFireDirection() const
 		SpreadAngle = CurrentWeaponData->ShotgunSpreadAngle;
 	}
 
-	// 방향에 랜덤 퍼짐 추가
+	// 4. 방향에 랜덤 퍼짐 추가
 	return AddSpreadToDirection(Direction, SpreadAngle);
 }
 
