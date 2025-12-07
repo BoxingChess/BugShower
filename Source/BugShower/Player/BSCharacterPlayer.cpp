@@ -17,6 +17,8 @@
 #include "Weapon/WeaponActor.h"
 #include "Weapon/Component/WeaponComponent.h"
 #include "Weapon/Data/WeaponDataAsset.h"
+#include "Game/BSGameModeBase.h"
+
 
 ABSCharacterPlayer::ABSCharacterPlayer()
 {
@@ -722,6 +724,13 @@ void ABSCharacterPlayer::OnPlayerDied()
 	// 4. 리스폰 타이머 시작
 	// GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this,
 	//     &ABSCharacterPlayer::Respawn, 5.0f, false);
+
+	auto GameMode = GetWorld()->GetAuthGameMode<ABSGameModeBase>();
+	if (GameMode)
+	{
+		GameMode->OnPlayerDied(GetController());
+	}
+
 }
 
 // ========================================
@@ -782,4 +791,12 @@ float ABSCharacterPlayer::GetSprintSpeed() const
 		return StatComponent->GetSprintSpeed();
 	}
 	return 900.f; // 기본값
+}
+
+void ABSCharacterPlayer::AddItem(class AItemActor* DroppedActor)
+{
+	if (InventoryComponent)
+	{
+		InventoryComponent->AddItem(DroppedActor);
+	}
 }

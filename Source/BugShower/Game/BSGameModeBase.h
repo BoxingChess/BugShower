@@ -52,6 +52,9 @@ public:
 
 	bool IsEnd() const;
 
+	// Save all players' inventory to GameInstance
+	void SaveAllPlayersInventory();
+
 protected:
 
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InGame")

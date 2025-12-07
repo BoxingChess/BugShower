@@ -217,6 +217,9 @@ void ABSGameModeBase::EndGame(bool bVictory)
 	if (bVictory)
 	{
 		LOG_NETWORK_INFO(TEXT("======== VICTORY! ========"));
+
+		// 승리 시 모든 플레이어의 인벤토리 아이템을 GameInstance에 저장
+		SaveAllPlayersInventory();
 	}
 	else
 	{
@@ -269,6 +272,35 @@ int32 ABSGameModeBase::GetAlivePlayerCount() const
 bool ABSGameModeBase::IsEnd() const
 {
 	return BSGameState ? BSGameState->bGameEnded : false;
+}
+
+void ABSGameModeBase::SaveAllPlayersInventory()
+{
+	// 멀티플레이어: 각 클라이언트에게 저장 명령 전송
+	// 클라이언트가 자신의 로컬 디스크에 저장하도록 함
+
+	UE_LOG(LogTemp, Log, TEXT("BSGameModeBase::SaveAllPlayersInventory - Sending save command to all clients..."));
+
+	int32 PlayerCount = 0;
+
+	// 모든 플레이어 컨트롤러 순회
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		ABSPlayerController* PC = Cast<ABSPlayerController>(It->Get());
+		if (!PC)
+		{
+			continue;
+		}
+
+		// 각 클라이언트에게 저장 명령 전송 (RPC)
+		PC->ClientSaveInventory();
+		PlayerCount++;
+
+		UE_LOG(LogTemp, Log, TEXT("BSGameModeBase::SaveAllPlayersInventory - Sent save command to player %s"),
+			*PC->GetName());
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BSGameModeBase::SaveAllPlayersInventory - Save command sent to %d players"), PlayerCount);
 }
 
 FString ABSGameModeBase::GetNextGameMapName_Implementation() const

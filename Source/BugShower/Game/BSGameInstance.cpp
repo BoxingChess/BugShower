@@ -3,6 +3,9 @@
 #include "Game/BSGameInstance.h"
 #include "Manager/UIManager/BSUIManager.h"
 #include "Manager/ResourceManager/ItemResourceManager/ItemResourceManager.h"
+#include "Save/BSPlayerSaveGame.h"
+#include "Item/BSItemInstance.h"
+#include "Kismet/GameplayStatics.h"
 
 void UBSGameInstance::Init()
 {
@@ -35,6 +38,235 @@ void UBSGameInstance::Init()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::Init - ItemResourceManager Subsystem NOT found!"));
+	}
+
+	// 멀티플레이어 환경에서는 PlayerController에서 SetPlayerID 호출 후 LoadPlayerSaveData 호출
+	// 싱글플레이어나 로컬 멀티에서는 Init에서 자동 로드
+	// 데디케이트 서버 클라이언트에서는 PlayerController::BeginPlay에서 로드
+}
+
+void UBSGameInstance::SetPlayerID(const FString& InPlayerID)
+{
+	CurrentPlayerID = InPlayerID;
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SetPlayerID - PlayerID set to: %s"), *CurrentPlayerID);
+}
+
+FString UBSGameInstance::GetSaveSlotName() const
+{
+	// PlayerID가 설정되어 있으면 플레이어별 세이브 슬롯 사용
+	if (!CurrentPlayerID.IsEmpty())
+	{
+		return FString::Printf(TEXT("PlayerSave_%s"), *CurrentPlayerID);
+	}
+
+	// 기본 슬롯 (싱글플레이어 또는 ID 미설정 시)
+	return TEXT("PlayerSaveSlot");
+}
+
+bool UBSGameInstance::LoadPlayerSaveData()
+{
+	// 플레이어별 세이브 슬롯 이름 가져오기
+	FString SaveSlotName = GetSaveSlotName();
+
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::LoadPlayerSaveData - Attempting to load from slot: %s"), *SaveSlotName);
+
+	// 세이브 파일이 존재하는지 확인
+	if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, UserIndex))
+	{
+		// 세이브 파일 로드
+		CurrentSaveGame = Cast<UBSPlayerSaveGame>(
+			UGameplayStatics::LoadGameFromSlot(SaveSlotName, UserIndex));
+
+		if (CurrentSaveGame)
+		{
+			UE_LOG(LogTemp, Log, TEXT("BSGameInstance::LoadPlayerSaveData - Save data loaded successfully!"));
+			UE_LOG(LogTemp, Log, TEXT("  - Saved Items Count: %d"), CurrentSaveGame->SavedItems.Num());
+
+			// 저장된 아이템을 RuntimeItemInventory로 변환
+			// FBS_Item -> UBSItemInstance 변환이 필요
+			RuntimeItemInventory.Empty();
+
+			UItemResourceManager* ItemResourceManager = GetSubsystem<UItemResourceManager>();
+			if (!ItemResourceManager)
+			{
+				UE_LOG(LogTemp, Error, TEXT("BSGameInstance::LoadPlayerSaveData - ItemResourceManager not found!"));
+				return false;
+			}
+
+			for (const FBS_Item& SavedItem : CurrentSaveGame->SavedItems)
+			{
+				// ItemResourceManager를 통해 StaticData 가져오기
+				const UBSStaticItemDataAsset* StaticData = ItemResourceManager->GetStaticItem(
+					SavedItem.ItemType, SavedItem.ItemID);
+
+				if (StaticData)
+				{
+					// UBSItemInstance 생성
+					UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+					NewInstance->StaticData = StaticData;
+					NewInstance->Dynamic = SavedItem;
+
+					RuntimeItemInventory.Add(NewInstance);
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::LoadPlayerSaveData - Failed to find StaticData for ItemType=%d, ItemID=%d"),
+						static_cast<int32>(SavedItem.ItemType), SavedItem.ItemID);
+				}
+			}
+
+			UE_LOG(LogTemp, Log, TEXT("BSGameInstance::LoadPlayerSaveData - Runtime inventory populated with %d items"),
+				RuntimeItemInventory.Num());
+
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("BSGameInstance::LoadPlayerSaveData - Failed to cast save data!"));
+			return false;
+		}
+	}
+	else
+	{
+		// 세이브 파일이 없으면 새로 생성
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::LoadPlayerSaveData - No save file found. Creating new save data."));
+		CurrentSaveGame = Cast<UBSPlayerSaveGame>(
+			UGameplayStatics::CreateSaveGameObject(UBSPlayerSaveGame::StaticClass()));
+
+		if (CurrentSaveGame)
+		{
+			CurrentSaveGame->SaveSlotName = SaveSlotName;
+			CurrentSaveGame->UserIndex = UserIndex;
+			return true;
+		}
+
+		return false;
+	}
+}
+
+bool UBSGameInstance::SavePlayerData()
+{
+	if (!CurrentSaveGame)
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::SavePlayerData - CurrentSaveGame is NULL!"));
+		return false;
+	}
+
+	// 플레이어별 세이브 슬롯 이름 가져오기
+	FString SaveSlotName = GetSaveSlotName();
+
+	// RuntimeItemInventory를 FBS_Item 배열로 변환하여 저장
+	CurrentSaveGame->SavedItems.Empty();
+
+	for (const UBSItemInstance* ItemInstance : RuntimeItemInventory)
+	{
+		if (ItemInstance)
+		{
+			CurrentSaveGame->SavedItems.Add(ItemInstance->Dynamic);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Saving to slot: %s"), *SaveSlotName);
+
+	// 디스크에 저장
+	bool bSuccess = UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, UserIndex);
+
+	if (bSuccess)
+	{
+		UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Save successful! Saved %d items."),
+			CurrentSaveGame->SavedItems.Num());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::SavePlayerData - Save failed!"));
+	}
+
+	return bSuccess;
+}
+
+void UBSGameInstance::AddItemsToRuntimeInventory(const TArray<UBSItemInstance*>& ItemsToAdd)
+{
+	for (UBSItemInstance* Item : ItemsToAdd)
+	{
+		if (Item)
+		{
+			// 중복 체크: 같은 아이템이 이미 있으면 수량 합산
+			bool bFoundExisting = false;
+
+			for (UBSItemInstance* ExistingItem : RuntimeItemInventory)
+			{
+				if (ExistingItem &&
+					ExistingItem->Dynamic.ItemType == Item->Dynamic.ItemType &&
+					ExistingItem->Dynamic.ItemID == Item->Dynamic.ItemID)
+				{
+					// 같은 아이템 발견 - 수량 합산
+					ExistingItem->Dynamic.Quantity += Item->Dynamic.Quantity;
+					bFoundExisting = true;
+
+					UE_LOG(LogTemp, Log, TEXT("BSGameInstance::AddItemsToRuntimeInventory - Merged item (ID=%d, NewQuantity=%d)"),
+						Item->Dynamic.ItemID, ExistingItem->Dynamic.Quantity);
+					break;
+				}
+			}
+
+			// 새로운 아이템이면 추가
+			if (!bFoundExisting)
+			{
+				// 복사본 생성 (GameInstance가 소유하도록)
+				UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+				NewInstance->StaticData = Item->StaticData;
+				NewInstance->Dynamic = Item->Dynamic;
+
+				RuntimeItemInventory.Add(NewInstance);
+
+				UE_LOG(LogTemp, Log, TEXT("BSGameInstance::AddItemsToRuntimeInventory - Added new item (ID=%d, Quantity=%d)"),
+					Item->Dynamic.ItemID, Item->Dynamic.Quantity);
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::AddItemsToRuntimeInventory - Total items in inventory: %d"),
+		RuntimeItemInventory.Num());
+}
+
+void UBSGameInstance::AddSingleItemToRuntimeInventory(UBSItemInstance* ItemToAdd)
+{
+	if (!ItemToAdd)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddSingleItemToRuntimeInventory - ItemToAdd is NULL!"));
+		return;
+	}
+
+	TArray<UBSItemInstance*> TempArray;
+	TempArray.Add(ItemToAdd);
+	AddItemsToRuntimeInventory(TempArray);
+}
+
+const TArray<UBSItemInstance*>& UBSGameInstance::GetPlayerItems() const
+{
+	return RuntimeItemInventory;
+}
+
+void UBSGameInstance::ResetSaveData()
+{
+	// 런타임 인벤토리 초기화
+	RuntimeItemInventory.Empty();
+
+	// 플레이어별 세이브 슬롯 이름 가져오기
+	FString SaveSlotName = GetSaveSlotName();
+
+	// 세이브 데이터 초기화
+	if (CurrentSaveGame)
+	{
+		CurrentSaveGame->SavedItems.Empty();
+		CurrentSaveGame->PlayerLevel = 1;
+		CurrentSaveGame->PlayerExperience = 0;
+		CurrentSaveGame->PlayerGold = 0;
+
+		// 디스크에 빈 데이터 저장
+		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, UserIndex);
+
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::ResetSaveData - All save data has been reset for slot: %s"), *SaveSlotName);
 	}
 }
  
