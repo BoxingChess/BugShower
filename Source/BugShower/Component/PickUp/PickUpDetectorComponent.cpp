@@ -17,6 +17,7 @@
 
 #include "Player/BSCharacterPlayer.h"
 #include "Item/ItemActor.h"
+#include "Weapon/WeaponActor.h"
 
 
 
@@ -165,18 +166,27 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 	);
 
 	// ���� ���Ͱ� ���������� �Ǻ�
-	AItemActor* NewFocus = nullptr;
+	AItemActor* NewFocusItem = nullptr;
+	AWeaponActor* NewFocusWeapon = nullptr;
+
 	if (bHit)
 	{
-		NewFocus = Cast<AItemActor>(Hit.GetActor());  // ������ �ƴϸ� nullptr
-		//UE_LOG(LogTemp, Warning, TEXT("NewFocus"));
+		// 아이템인지 확인
+		NewFocusItem = Cast<AItemActor>(Hit.GetActor());
+		// 무기인지 확인
+		if (!NewFocusItem)
+		{
+			NewFocusWeapon = Cast<AWeaponActor>(Hit.GetActor());
+		}
 	}
 
 	// ��Ŀ���� �ٲ���� ���� ��������Ʈ ȣ��
-	if (FocusedItem.Get() != NewFocus)
+	bool bChanged = (FocusedItem.Get() != NewFocusItem) || (FocusedWeapon.Get() != NewFocusWeapon);
+	if (bChanged)
 	{
-		FocusedItem = NewFocus;
-		OnFocusItemChanged.Broadcast(NewFocus);   //���⼭ UI�� �̺�Ʈ ����
+		FocusedItem = NewFocusItem;
+		FocusedWeapon = NewFocusWeapon;
+		OnFocusItemChanged.Broadcast(NewFocusItem);   //���⼭ UI�� �̺�Ʈ ����
 
 		// Update LineTrace UI through UIManager
 		APawn* OwnerPawn = Cast<APawn>(GetOwner());
@@ -188,8 +198,22 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 				UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
 				if (UIManager)
 				{
-					// Update pickup prompt with item data (or hide if no item)
-					UIManager->UpdatePickupPrompt(NewFocus);
+					// Update pickup prompt with item data (or hide if no item/weapon)
+					if (NewFocusItem)
+					{
+						UIManager->UpdatePickupPrompt(NewFocusItem);
+					}
+					else if (NewFocusWeapon && NewFocusWeapon->GetWeaponData())
+					{
+						// 무기 UI 표시 (무기 이름)
+						// TODO: UpdatePickupPrompt를 무기도 받을 수 있도록 수정하거나 별도 함수 추가
+						// 임시로 로그만 출력
+						UE_LOG(LogTemp, Log, TEXT("Focused Weapon: %s"), *NewFocusWeapon->GetWeaponData()->WeaponName.ToString());
+					}
+					else
+					{
+						UIManager->UpdatePickupPrompt(nullptr);  // UI 숨기기
+					}
 				}
 			}
 		}
@@ -199,16 +223,23 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// ����� �ð�ȭ
-	const FColor LineColor = NewFocus ? FColor::Red : (bHit ? FColor::Yellow : FColor::Cyan);
+	const bool bHasValidTarget = (NewFocusItem != nullptr) || (NewFocusWeapon != nullptr);
+	const FColor LineColor = bHasValidTarget ? FColor::Red : (bHit ? FColor::Yellow : FColor::Cyan);
 	DrawDebugLine(GetWorld(), ViewLoc, End, LineColor, /*bPersistent*/false, /*LifeTime*/0.05f, 0, /*Thickness*/0.1f);
 
 	if (bHit)
 	{
 		DrawDebugPoint(GetWorld(), Hit.ImpactPoint, /*Size*/10.f, LineColor, false, 0.05f);
 
-		const FString NameStr = (NewFocus && NewFocus->GetItemStaticData())
-			? NewFocus->GetItemStaticData()->DisplayName.ToString()
-			: TEXT("<invalid>");
+		FString NameStr = TEXT("<invalid>");
+		if (NewFocusItem && NewFocusItem->GetItemStaticData())
+		{
+			NameStr = NewFocusItem->GetItemStaticData()->DisplayName.ToString();
+		}
+		else if (NewFocusWeapon && NewFocusWeapon->GetWeaponData())
+		{
+			NameStr = NewFocusWeapon->GetWeaponData()->WeaponName.ToString();
+		}
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *NameStr);
 	}
 #endif
@@ -367,10 +398,21 @@ void UPickUpDetectorComponent::TryPickupFocused()
 {
 	UE_LOG(LogTemp, Warning, TEXT("TryPickupFocused"));
 
-	// ���⼱ �����۸� ����
+	// 아이템 픽업 시도
 	if (AItemActor* Item = FocusedItem.Get())
 	{
-		ServerTryPickup(Item);  // ���� RPC
+		ServerTryPickup(Item);  // 서버 RPC
+	}
+	// 무기 픽업 시도
+	else if (AWeaponActor* Weapon = FocusedWeapon.Get())
+	{
+		// 무기 장착 (플레이어 캐릭터의 EquipWeapon 호출)
+		if (ABSCharacterPlayer* Player = Cast<ABSCharacterPlayer>(GetOwner()))
+		{
+			Player->EquipWeapon(Weapon);
+			UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - Equipped weapon: %s"),
+				Weapon->GetWeaponData() ? *Weapon->GetWeaponData()->WeaponName.ToString() : TEXT("Unknown"));
+		}
 	}
 
 }

@@ -134,7 +134,7 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 
 	// 무기 시스템 초기화
 	CurrentWeapon = nullptr;
-	TestWeaponData = nullptr;
+	DefaultWeaponData = nullptr;
 }
 
 /**
@@ -170,36 +170,36 @@ void ABSCharacterPlayer::BeginPlay()
 		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - StatComponent initialized"));
 	}
 
-	// 테스트용 무기 자동 장착 (TestWeaponData가 설정되어 있을 때만)
-	if (TestWeaponData)
+	// 기본 무기 자동 장착 (bAutoEquipDefaultWeapon이 true이고 DefaultWeaponData가 설정되어 있을 때만)
+	if (bAutoEquipDefaultWeapon && DefaultWeaponData)
 	{
-		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - TestWeaponData is set, spawning test weapon..."));
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - DefaultWeaponData is set, spawning default weapon..."));
 
 		// WeaponActor 스폰
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = this;
 		SpawnParams.Instigator = GetInstigator();
 
-		AWeaponActor* TestWeapon = GetWorld()->SpawnActor<AWeaponActor>(
+		AWeaponActor* DefaultWeapon = GetWorld()->SpawnActor<AWeaponActor>(
 			AWeaponActor::StaticClass(),
 			GetActorLocation(),
 			GetActorRotation(),
 			SpawnParams
 		);
 
-		if (TestWeapon)
+		if (DefaultWeapon)
 		{
 			// WeaponData 설정 (탄창 30발, 예비 탄약 90발)
-			TestWeapon->InitializeWeapon(TestWeaponData, 30, 90);
+			DefaultWeapon->InitializeWeapon(DefaultWeaponData, 30, 90);
 
 			// 캐릭터에 장착
-			EquipWeapon(TestWeapon);
+			EquipWeapon(DefaultWeapon);
 
-			UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Test weapon equipped successfully!"));
+			UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Default weapon equipped successfully!"));
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("ABSCharacterPlayer::BeginPlay - Failed to spawn test weapon!"));
+			UE_LOG(LogTemp, Error, TEXT("ABSCharacterPlayer::BeginPlay - Failed to spawn default weapon!"));
 		}
 	}
 	else
@@ -486,13 +486,29 @@ void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 	// 새 무기 설정
 	CurrentWeapon = Weapon;
 
+	// WeaponActor의 Owner를 캐릭터로 설정 (먼저 설정해야 WeaponComponent가 올바르게 작동)
+	CurrentWeapon->SetOwner(this);
+
+	// WeaponData가 설정되어 있으면 초기화 (픽업한 무기의 경우)
+	// 이미 InitializeWeapon이 호출된 경우 (BeginPlay에서 스폰한 무기) 중복 호출되지만 문제없음
+	if (UWeaponDataAsset* WeaponData = CurrentWeapon->GetWeaponData())
+	{
+		// 현재 탄약 정보 가져오기
+		int32 CurrentAmmo, ReserveAmmo;
+		CurrentWeapon->GetAmmoInfo(CurrentAmmo, ReserveAmmo);
+
+		// 탄약 정보가 없으면 (0, 0) 만탄으로 시작
+		CurrentWeapon->InitializeWeapon(WeaponData, CurrentAmmo, ReserveAmmo);
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Initialized weapon with %s"), *WeaponData->WeaponName.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ABSCharacterPlayer::EquipWeapon - Weapon has no WeaponData!"));
+	}
+
 	// WeaponActor를 캐릭터 손에 부착
 	// "hand_r_weapon" 소켓이 캐릭터 스켈레톤에 있어야 함 (언리얼 에디터에서 추가 필요)
 	CurrentWeapon->AttachToCharacter(this, TEXT("hand_r_weapon"));
-
-	// WeaponActor의 Owner를 캐릭터로 설정
-	// 이렇게 하면 WeaponComponent에서 GetOwnerCharacter()로 캐릭터 접근 가능
-	CurrentWeapon->SetOwner(this);
 
 	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Equipped weapon: %s"), *CurrentWeapon->GetName());
 }
