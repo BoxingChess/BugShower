@@ -46,7 +46,7 @@ public:
 public:
 	void InitializeItemBS_Item(FBS_Item& _item);
 
-	FBS_Item& GetItemData() { return ItemInformation; }
+	FBS_Item& GetItemData();
 	const UBSStaticItemDataAsset* GetItemStaticData() const { return StaticItemInfo; }
 
 protected:

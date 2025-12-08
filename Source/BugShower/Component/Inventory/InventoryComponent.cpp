@@ -23,7 +23,15 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 	FBS_Item& DropItem = DroppedActor->GetItemData();
 	const UBSStaticItemDataAsset* DropStatic = DroppedActor->GetItemStaticData();
 	//���� ������ ������ return;
-	if (!DropStatic) return;
+	if (!DropStatic)
+	{
+		UE_LOG(LogTemp, Error, TEXT("❌ AddItem 실패: DropStatic이 null입니다!"));
+		return;
+	}
+
+	// 디버그: 아이템 정보 출력
+	UE_LOG(LogTemp, Log, TEXT("🔍 [AddItem 시작] ItemID: %d, Quantity: %d, Weight: %d, Type: %d"),
+		DropItem.ItemID, DropItem.Quantity, DropStatic->Weight, (int32)DropItem.ItemType);
 
 	// 장비 아이템 처리 (무기, 방어구 등)-------------------------------------------------------------------------------
 	if (DropItem.ItemType == EItemType::Equipment)
@@ -57,6 +65,11 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 
 		// 새 장비로 교체
 		EquipmentItem = DroppedActor;
+
+		// 장비 획득 로그
+		UE_LOG(LogTemp, Warning, TEXT("✅ [F키 획득] 장비 아이템 획득! ItemID: %d (장비 슬롯에 장착됨)"),
+			DropItem.ItemID);
+
 		return;
 	}
 
@@ -79,6 +92,9 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 		const int32 AvailableWeight = MaxWeight - CurrentWeight;
 		const int32 DropWeight = DropItem.Quantity * DropStatic->Weight;
 
+		UE_LOG(LogTemp, Log, TEXT("  💼 무게 계산: AvailableWeight=%d, DropWeight=%d, ItemWeight=%d"),
+			AvailableWeight, DropWeight, DropStatic->Weight);
+
 		//���� ���͸� ã���� ��� 
 		if (FoundInst)
 		{
@@ -100,6 +116,9 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 				AvailableWeight / FoundStatic->Weight		//���� �ѵ�(���� ���԰� 20�̰�, ������ ���԰� 5����� -> 4��)
 			);
 
+			UE_LOG(LogTemp, Log, TEXT("  📊 AddableQuantity 계산 (기존 슬롯): Drop=%d, Stack=%d, Weight=%d → Result=%d"),
+				DropItem.Quantity, AvailableStack, AvailableWeight / FoundStatic->Weight, AddableQuantity);
+
 			//��� ����, ���� ���� ����, ���� �ѵ� ������ ������ �ּ� ���� ���
 			if (AddableQuantity > 0)
 			{
@@ -107,6 +126,14 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 				FoundItem.Quantity += AddableQuantity;
 				CurrentWeight += AddableQuantity * FoundStatic->Weight;
 				DropItem.Quantity -= AddableQuantity;
+
+				// 성공 로그 (기존 슬롯에 추가)
+				UE_LOG(LogTemp, Warning, TEXT("✅ [F키 획득] 아이템 추가됨! ItemID: %d, 추가량: %d, 현재 무게: %d/%d"),
+					DropItem.ItemID, AddableQuantity, CurrentWeight, MaxWeight);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("⚠️ [F키 획득 실패] AddableQuantity = 0 (인벤 꽉참 또는 무게초과)"));
 			}
 
 		}
@@ -120,6 +147,9 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 				DropItem.Quantity,
 				AvailableWeight / DropStatic->Weight
 			);
+
+			UE_LOG(LogTemp, Log, TEXT("  📊 AddableQuantity 계산 (새 슬롯): Drop=%d, Weight=%d → Result=%d"),
+				DropItem.Quantity, AvailableWeight / DropStatic->Weight, AddableQuantity);
 
 			// ���� �����̶� �� �� �ִٸ�
 			if (AddableQuantity > 0)
@@ -143,6 +173,14 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 
 				// ���� ����(DroppedActor)�� ������ ���ҽ�Ŵ �� �ٴڿ� ���� ���� ����
 				DropItem.Quantity -= AddableQuantity;
+
+				// 성공 로그 (새 슬롯 생성)
+				UE_LOG(LogTemp, Warning, TEXT("✅ [F키 획득] 새 아이템 추가됨! ItemID: %d, 수량: %d, 현재 무게: %d/%d"),
+					DropItem.ItemID, AddableQuantity, CurrentWeight, MaxWeight);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("⚠️ [F키 획득 실패] AddableQuantity = 0 (인벤 꽉참 또는 무게초과)"));
 			}
 
 			ItemInventory.Sort([](const UBSItemInstance& A, const UBSItemInstance& B)
@@ -158,15 +196,15 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 
 	// 디버그: 인벤토리 내용 출력 (개발 중에만 사용)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	// for (auto& e : ItemInventory)
-	// {
-	// 	if (e)
-	// 	{
-	// 		int32 ItemIDValue = e->Dynamic.ItemID;
-	// 		FString ItemName = StaticEnum<EConsumableID>()->GetNameStringByValue(ItemIDValue);
-	// 		UE_LOG(LogTemp, Log, TEXT("Inventory Item - Name: %s, Quantity: %d"), *ItemName, e->Dynamic.Quantity);
-	// 	}
-	// }
+	for (auto& e : ItemInventory)
+	{
+		if (e)
+		{
+			int32 ItemIDValue = e->Dynamic.ItemID;
+			FString ItemName = StaticEnum<EConsumableID>()->GetNameStringByValue(ItemIDValue);
+			UE_LOG(LogTemp, Log, TEXT("  📦 인벤토리 - 아이템: %s, 수량: %d"), *ItemName, e->Dynamic.Quantity);
+		}
+	}
 #endif
 }
 
