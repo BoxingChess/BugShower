@@ -792,11 +792,3 @@ float ABSCharacterPlayer::GetSprintSpeed() const
 	}
 	return 900.f; // 기본값
 }
-
-void ABSCharacterPlayer::AddItem(class AItemActor* DroppedActor)
-{
-	if (InventoryComponent)
-	{
-		InventoryComponent->AddItem(DroppedActor);
-	}
-}
