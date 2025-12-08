@@ -49,6 +49,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
     int32 Weight = 1;
 
+    //아이템이 스폰될때 기본적으로 갖추고 스폰되는 수량
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+    int32 SpawnQuntity = 1;
+
     // 하나의 인벤토리 슬롯에 쌓을 수 있는 최대 수량
     // 예: 9mm 탄약은 999개까지, 회복약은 10개까지 등 설정 가능
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")

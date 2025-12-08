@@ -17,6 +17,17 @@ void AItemActor::Spawn(const FVector pos)
 	{
 		Activate(this, pos);
 		SetLifeSpan(StaticItemInfo->ItemLifeSpan);
+
+		ItemInformation.ItemID = StaticItemInfo->ItemID;
+		ItemInformation.ItemType = StaticItemInfo->ItemType;
+		ItemInformation.Quantity = StaticItemInfo->SpawnQuntity;
+
+		UE_LOG(LogTemp, Log, TEXT("Spawn() 호출: ItemID=%d, Type=%d, Quantity=%d"),
+			ItemInformation.ItemID, (int32)ItemInformation.ItemType, ItemInformation.Quantity);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("Spawn() 호출되었지만 StaticItemInfo가 null!"));
 	}
 }
 
@@ -94,6 +105,20 @@ void AItemActor::BeginPlay()
 	if (HasAuthority())
 	{
 		CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AItemActor::OnOverlapBegin);
+
+		// StaticItemInfo가 설정되어 있는데 ItemInformation이 초기화 안된 경우
+		// (에디터에서 배치된 아이템 등, Spawn() 함수가 호출되지 않은 경우)
+		if (StaticItemInfo && ItemInformation.ItemID == 0)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("🔧 BeginPlay에서 ItemInformation 초기화 (Spawn 미호출)"));
+
+			ItemInformation.ItemID = StaticItemInfo->ItemID;
+			ItemInformation.ItemType = StaticItemInfo->ItemType;
+			ItemInformation.Quantity = StaticItemInfo->SpawnQuntity;
+
+			UE_LOG(LogTemp, Log, TEXT("  ✅ 초기화 완료: ItemID=%d, Type=%d, Quantity=%d"),
+				ItemInformation.ItemID, (int32)ItemInformation.ItemType, ItemInformation.Quantity);
+		}
 	}
 }
 
@@ -111,11 +136,11 @@ void AItemActor::OnConstruction(const FTransform& Transform)
 	if (StaticItemInfo && StaticItemInfo->WorldMesh)
 	{
 		MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
+		UE_LOG(LogTemp, Log, TEXT("🏗️ OnConstruction: StaticItemInfo 로드 완료 (ItemID=%d)"), StaticItemInfo->ItemID);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Not Loading StaticItemInfo"));
-
+		UE_LOG(LogTemp, Warning, TEXT("⚠️ OnConstruction: StaticItemInfo 또는 WorldMesh가 null!"));
 	}
 }
 
@@ -158,6 +183,11 @@ void AItemActor::InitializeItemBS_Item(FBS_Item& _item)
 			UE_LOG(LogTemp, Error, TEXT("ItemActor::InitializeItemBS_Item - ItemResourceManager Subsystem not found!"));
 		}
 	}
+}
+
+FBS_Item& AItemActor::GetItemData()
+{
+	return ItemInformation; 
 }
 
 void AItemActor::OnPickup(AActor* PickupActor)

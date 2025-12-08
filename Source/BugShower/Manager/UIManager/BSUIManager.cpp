@@ -734,8 +734,11 @@ void UBSUIManager::SwitchUIConfig(FName ConfigName)
 	UE_LOG(LogTemp, Log, TEXT("BSUIManager::SwitchUIConfig - Switching from '%s' to '%s'"),
 		*CurrentConfigName.ToString(), *ConfigName.ToString());
 
-	// 1단계: 기존 UI 정리 (중요!)
-	CleanupPlayerUI(LocalPlayerController);
+	// LocalPlayerController를 먼저 저장 (CleanupPlayerUI가 null로 만들기 전에!)
+	APlayerController* SavedPC = LocalPlayerController;
+
+	// 1단계: 기존 UI 정리
+	CleanupPlayerUI(SavedPC);
 
 	// 2단계: 새 Config 적용
 	CurrentConfigName = ConfigName;
@@ -745,7 +748,7 @@ void UBSUIManager::SwitchUIConfig(FName ConfigName)
 		WidgetConfigs.Num(), *ConfigName.ToString());
 
 	// 3단계: 새 UI 생성
-	InitializePlayerUI(LocalPlayerController);
+	InitializePlayerUI(SavedPC);
 
 	UE_LOG(LogTemp, Log, TEXT("BSUIManager::SwitchUIConfig - Successfully switched to Config '%s'"),
 		*ConfigName.ToString());
