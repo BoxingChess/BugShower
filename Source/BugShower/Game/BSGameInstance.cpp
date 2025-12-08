@@ -40,9 +40,10 @@ void UBSGameInstance::Init()
 		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::Init - ItemResourceManager Subsystem NOT found!"));
 	}
 
-	// 멀티플레이어 환경에서는 PlayerController에서 SetPlayerID 호출 후 LoadPlayerSaveData 호출
-	// 싱글플레이어나 로컬 멀티에서는 Init에서 자동 로드
-	// 데디케이트 서버 클라이언트에서는 PlayerController::BeginPlay에서 로드
+	// PlayerID를 빈 문자열로 설정하여 기본 SaveSlot "PlayerSaveSlot" 사용
+	// 각 클라이언트는 자신의 로컬 PC에 SaveGame 저장 → 슬롯 이름이 같아도 충돌 없음
+	CurrentPlayerID = TEXT("");
+	UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::Init - Using default save slot: %s"), *GetSaveSlotName());
 }
 
 void UBSGameInstance::SetPlayerID(const FString& InPlayerID)

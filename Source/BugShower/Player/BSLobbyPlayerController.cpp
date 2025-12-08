@@ -22,12 +22,24 @@ void ABSLobbyPlayerController::BeginPlay()
 	bShowMouseCursor = true;
 
 	// Initialize UI Manager for this player
-	UGameInstance* GameInstance = GetGameInstance();
+	UBSGameInstance* GameInstance = Cast<UBSGameInstance>(GetGameInstance());
 	if (!GameInstance)
 	{
 		UE_LOG(LogTemp, Error, TEXT("BSLobbyPlayerController::BeginPlay - GameInstance is NULL!"));
 		return;
 	}
+
+	// Load player's saved data from disk
+	// This populates RuntimeItemInventory with saved items
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+	UE_LOG(LogTemp, Warning, TEXT("BSLobbyPlayerController::BeginPlay - Loading save data..."));
+	UE_LOG(LogTemp, Warning, TEXT("Save Slot Name: %s"), *GameInstance->GetSaveSlotName());
+	UE_LOG(LogTemp, Warning, TEXT("Player ID: %s"), *GameInstance->GetPlayerID());
+
+	GameInstance->LoadPlayerSaveData();
+
+	UE_LOG(LogTemp, Warning, TEXT("Items after load: %d"), GameInstance->GetPlayerItems().Num());
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
 
 	UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>();
 	if (UIManager)
@@ -86,22 +98,43 @@ void ABSLobbyPlayerController::ShowSavedItems()
 
 	const TArray<UBSItemInstance*>& SavedItems = GameInstance->GetPlayerItems();
 
-	UE_LOG(LogTemp, Log, TEXT("========== SAVED ITEMS =========="));
+	UE_LOG(LogTemp, Log, TEXT("========================================"));
+	UE_LOG(LogTemp, Log, TEXT("       PLAYER SAVE DATA SUMMARY"));
+	UE_LOG(LogTemp, Log, TEXT("========================================"));
+	UE_LOG(LogTemp, Log, TEXT("Save Slot: %s"), *GameInstance->GetSaveSlotName());
+	UE_LOG(LogTemp, Log, TEXT("Player ID: %s"), GameInstance->GetPlayerID().IsEmpty() ? TEXT("(Default)") : *GameInstance->GetPlayerID());
+	UE_LOG(LogTemp, Log, TEXT(""));
 	UE_LOG(LogTemp, Log, TEXT("Total Items: %d"), SavedItems.Num());
+	UE_LOG(LogTemp, Log, TEXT("----------------------------------------"));
 
-	for (int32 i = 0; i < SavedItems.Num(); ++i)
+	if (SavedItems.Num() > 0)
 	{
-		const UBSItemInstance* Item = SavedItems[i];
-		if (Item && Item->StaticData)
+		for (int32 i = 0; i < SavedItems.Num(); ++i)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[%d] %s - Quantity: %d"),
-				i + 1,
-				*Item->StaticData->DisplayName.ToString(),
-				Item->Dynamic.Quantity);
+			const UBSItemInstance* Item = SavedItems[i];
+			if (Item && Item->StaticData)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[%d] %s (ID: %d) - Quantity: %d"),
+					i + 1,
+					*Item->StaticData->DisplayName.ToString(),
+					Item->Dynamic.ItemID,
+					Item->Dynamic.Quantity);
+			}
+			else if (Item)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[%d] Unknown Item (ID: %d) - Quantity: %d (StaticData missing)"),
+					i + 1,
+					Item->Dynamic.ItemID,
+					Item->Dynamic.Quantity);
+			}
 		}
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No items found in save data."));
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("================================="));
+	UE_LOG(LogTemp, Log, TEXT("========================================"));
 
 	// TODO: UI 위젯에 아이템 목록 표시
 	// Blueprint에서 InventoryWidget을 생성하고 아이템 목록을 전달할 수 있음

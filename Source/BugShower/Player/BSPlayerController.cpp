@@ -68,25 +68,18 @@ void ABSPlayerController::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("PlayerController is not possessing any pawn"));
 	}
 
-	// 멀티플레이어: 플레이어 ID 설정 및 세이브 로드
-	// 클라이언트에서만 실행 (IsLocalController)
+	// 세이브 데이터 로드 (클라이언트에서만)
+	// 모든 클라이언트는 기본 슬롯 "PlayerSaveSlot" 사용
+	// 각 클라이언트의 로컬 PC에 저장되므로 충돌하지 않음
 	if (IsLocalController())
 	{
 		UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GetGameInstance());
 		if (BSGameInstance)
 		{
-			// PlayerState에서 고유 ID 가져오기
-			if (APlayerState* PS = GetPlayerState<APlayerState>())
-			{
-				// PlayerId를 문자열로 변환하여 사용
-				FString PlayerID = FString::Printf(TEXT("%d"), PS->GetPlayerId());
-				BSGameInstance->SetPlayerID(PlayerID);
-
-				UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - PlayerID set to: %s"), *PlayerID);
-
-				// 세이브 데이터 로드
-				BSGameInstance->LoadPlayerSaveData();
-			}
+			// 세이브 데이터 로드
+			BSGameInstance->LoadPlayerSaveData();
+			UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - Loaded save data from slot: %s"),
+				*BSGameInstance->GetSaveSlotName());
 		}
 	}
 }
@@ -118,7 +111,8 @@ void ABSPlayerController::DisableGameInput()
 void ABSPlayerController::ClientSaveInventory_Implementation()
 {
 	// 클라이언트에서 실행됨!
-	UE_LOG(LogTemp, Log, TEXT("BSPlayerController::ClientSaveInventory - Client saving inventory..."));
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+	UE_LOG(LogTemp, Warning, TEXT("BSPlayerController::ClientSaveInventory - Client saving inventory..."));
 
 	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GetGameInstance());
 	if (!BSGameInstance)
@@ -126,6 +120,9 @@ void ABSPlayerController::ClientSaveInventory_Implementation()
 		UE_LOG(LogTemp, Error, TEXT("BSPlayerController::ClientSaveInventory - GameInstance is NULL!"));
 		return;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Save Slot Name: %s"), *BSGameInstance->GetSaveSlotName());
+	UE_LOG(LogTemp, Warning, TEXT("Player ID: %s"), *BSGameInstance->GetPlayerID());
 
 	// 플레이어 캐릭터의 인벤토리 가져오기
 	ABSCharacterPlayer* PlayerCharacter = Cast<ABSCharacterPlayer>(GetPawn());
@@ -145,24 +142,28 @@ void ABSPlayerController::ClientSaveInventory_Implementation()
 	// 인벤토리 아이템 가져오기
 	TArray<UBSItemInstance*> PlayerItems = InventoryComp->GetItemInventory();
 
+	UE_LOG(LogTemp, Warning, TEXT("Items in InventoryComponent: %d"), PlayerItems.Num());
+
 	if (PlayerItems.Num() > 0)
 	{
 		// GameInstance에 아이템 추가
 		BSGameInstance->AddItemsToRuntimeInventory(PlayerItems);
 
-		UE_LOG(LogTemp, Log, TEXT("BSPlayerController::ClientSaveInventory - Added %d items to GameInstance"),
-			PlayerItems.Num());
+		UE_LOG(LogTemp, Warning, TEXT("Added %d items to GameInstance RuntimeInventory"), PlayerItems.Num());
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Total items in GameInstance before save: %d"), BSGameInstance->GetPlayerItems().Num());
 
 	// 클라이언트의 로컬 디스크에 저장
 	bool bSaveSuccess = BSGameInstance->SavePlayerData();
 
 	if (bSaveSuccess)
 	{
-		UE_LOG(LogTemp, Log, TEXT("BSPlayerController::ClientSaveInventory - Successfully saved to local disk!"));
+		UE_LOG(LogTemp, Warning, TEXT("✅ Successfully saved to local disk!"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("BSPlayerController::ClientSaveInventory - Failed to save to disk!"));
+		UE_LOG(LogTemp, Error, TEXT("❌ Failed to save to disk!"));
 	}
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
 }
