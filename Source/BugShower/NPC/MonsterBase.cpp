@@ -123,8 +123,6 @@ void AMonsterBase::BeginPlay()
 	}
 }
 
-
-
 // Called every frame
 void AMonsterBase::Tick(float DeltaTime)
 {
