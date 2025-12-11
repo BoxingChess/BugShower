@@ -445,28 +445,23 @@ void UPickUpDetectorComponent::TryPickupFocused()
 
 void UPickUpDetectorComponent::ServerTryPickup_Implementation(class AItemActor* Item)
 {
-	///���⼭���ʹ� �������� ����ȴ�.
-
-	//�������� ���ų� �ı������� ���ų� ���� �ı�������?
+	//TODO - 몬스터가 떨어트린 아이템의 경우도 삭제되어버린다.
+	//이쪽을 풀링으로 바꿔볼까?
+	//클로드한테 바닥에 아이템 뿌릴시 Spawn으로 바궈야하는거 아니냐고 물어보기.
 	if (!IsValid(Item) || Item->IsActorBeingDestroyed() || Item->IsPendingKillPending()) return;
 
 	APawn* Pawn = Cast<APawn>(GetOwner());
 	if (!Pawn) return;
 
-	// �κ��丮 ������Ʈ ã��
 	if (UInventoryComponent* Inv = Pawn->FindComponentByClass<UInventoryComponent>())
 	{
-		// ���� AddItem�� DroppedActor�� �޾� ���ο��� ����/����/�ı����� ó����
 		Inv->AddItem(Item);
 
-		//����������� ������ 0�� ��� -> ������ �����ȰŴ� ���͸� ����
 		if (Item->GetItemData().Quantity == 0)
 		{
-			Item->Destroy(); // ������ ������
+			Item->DeSpawn(); // ������ ������
 		}
 
-		// AddItem���� ���� 0�̸� Destroy()���� ó���ϹǷ�
-		// ���⼭ ���� ���Ŵ� ���ʿ�. ��Ŀ���� ������ �ִ� �� ���.
 		if (!IsValid(Item))
 		{
 			FocusedItem = nullptr;

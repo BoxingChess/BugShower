@@ -216,7 +216,7 @@ void AItemActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor
 		if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
 		{
 
-			OnPickup(OtherActor);
+			//OnPickup(OtherActor);
 		}
 	}
 }
