@@ -6,6 +6,7 @@
 #include "Player/BSCharacterBase.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "EnhancedInputComponent.h"
 #include "BSCharacterTypes.h"
 
@@ -69,6 +70,18 @@ protected:
 	// First person camera
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UCameraComponent> FirstPersonCamera;
+
+	// ========================================
+	// 인벤토리 3D 프리뷰용 카메라
+	// ========================================
+
+	// 인벤토리 UI용 카메라 암 (회전용)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class USpringArmComponent> InventoryCameraArm;
+
+	// 인벤토리 UI용 SceneCapture2D (3D 캐릭터를 렌더링하여 UI에 표시)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class USceneCaptureComponent2D> InventoryCamera;
 
 public:
 	// Camera system

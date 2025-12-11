@@ -9,6 +9,8 @@
 
 #include "InventoryComponent.generated.h"
 
+// ì¸ë²¤í† ë¦¬ ë³€ê²½ ë¸ë¦¬ê²Œì´íŠ¸
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryChanged);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class BUGSHOWER_API UInventoryComponent : public UActorComponent
@@ -18,28 +20,46 @@ class BUGSHOWER_API UInventoryComponent : public UActorComponent
 public:
 	// Sets default values for this component's properties
 	UInventoryComponent();
+
+	// Replication setup
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 private:
-	//¼ÒºñÅÛÀÇ ÀÎº¥Åä¸® ÀÔ´Ï´Ù.
-	UPROPERTY()
+	// Consumable item inventory (Replicated to all clients)
+	UPROPERTY(ReplicatedUsing = OnRep_ItemInventory)
 	TArray<TObjectPtr<UBSItemInstance>> ItemInventory;
 
-	//ÀåºñÅÛ - ÃÑ / Ä® µî 
-	///TODO : ÀÌÈÄ ±ÙÁ¢¹«±â´Â µû·Î »©¼­ ¿ø°Å¸® ¹«±â¶ûÀº º°°³·Î µé°í´Ù´Ò¼ö ÀÖ°Ô ÇÑ´Ù. Áö±İÀº ¹«±â ±³Ã¼ ¾Ö´Ï¸ŞÀÌ¼ÇÀÌ ¾ø´Ù. 
+	// Called when ItemInventory is replicated to client
+	UFUNCTION()
+	void OnRep_ItemInventory();
+
+	// Equipment slot - Weapon / Tool
+	// TODO: Implement equipment system with mesh attachment and animations
 	UPROPERTY()
 	TObjectPtr<AItemActor> EquipmentItem = nullptr;
 
-	//ÀÎº¥Åä¸®³» ¾ÆÀÌÅÛµéÀÌ °¡Áú¼ö ÀÖ´Â ÃÖ´ë ¹«°Ô
+	// Maximum weight capacity
 	int32 MaxWeight = 500;
 
-	//ÇöÀç µé°íÀÖ´Â ¹«°Ô
+	// Current weight
 	int32 CurrentWeight = 0;
 public:
-	//¾ÆÀÌÅÛÀ» ÀÎº¥Åä¸® or ÀåºñÅÛ¿¡ Ãß°¡ÇÑ´Ù.
+	// Add item to inventory or equipment slot
 	void AddItem(AItemActor* DroppedActor);
 
-	//ÀÎº¥Åä¸® or ÀåºñÅÛÀ» ¹ö¸°´Ù.
-	void DiscardItem(UBSItemInstance* DroppedActor, int32 Count = 1);
+	// Discard item from inventory by index (Internal function - Do not call from client)
+	void DiscardItemByIndex(int32 ItemIndex, int32 Count = 1);
+
+	// [Server RPC] Discard item from inventory by index. Automatically synced to all clients
+	UFUNCTION(Server, Reliable)
+	void ServerDiscardItem(int32 ItemIndex, int32 Count = 1);
+
+	// Find item index in inventory
+	int32 FindItemIndex(UBSItemInstance* ItemInstance) const;
 public:
 	TArray<UBSItemInstance*> GetItemInventory() { return ItemInventory; };
 
+	// Delegate broadcast when inventory changes
+	UPROPERTY(BlueprintAssignable)
+	FOnInventoryChanged OnInventoryChanged;
 };

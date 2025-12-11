@@ -383,6 +383,32 @@ void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 		// �α� Ȯ�ο�
 		UE_LOG(LogTemp, Warning, TEXT("Nearby items changed! Count = %d"), NearbyItems.Num());
 
+		// ========== [DEBUG LOG - START] 주변 아이템 상세 정보 출력 ==========
+		if (NearbyItems.Num() > 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("=== Nearby Items Detail ==="));
+			for (int32 i = 0; i < NearbyItems.Num(); ++i)
+			{
+				if (AActor* Item = NearbyItems[i])
+				{
+					FVector ItemLocation = Item->GetActorLocation();
+					FVector OwnerLocation = Owner->GetActorLocation();
+					float Distance = FVector::Dist(ItemLocation, OwnerLocation);
+
+					UE_LOG(LogTemp, Log, TEXT("  [%d] %s - Distance: %.1f units"),
+						i + 1,
+						*Item->GetName(),
+						Distance);
+				}
+			}
+			UE_LOG(LogTemp, Log, TEXT("==========================="));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("=== No nearby items found ==="));
+		}
+		// ========== [DEBUG LOG - END] 주변 아이템 상세 정보 출력 ==========
+
 		//���!
 		OnRefreshNearbyList.Broadcast();
 
@@ -534,7 +560,13 @@ void UPickUpDetectorComponent::ChangeState()
 	if (bIsInventoryOpen)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ChangeState - Opening inventory (calling ShowWidget)"));
+
+		// 주변 아이템 검색 (델리게이트가 자동으로 VicinityList 업데이트함)
+		RefreshNearbyList(true);
+
+		// 인벤토리 UI 표시
 		UIManager->ShowWidget(FName("Inventory"), PC);
+
 		PC->SetShowMouseCursor(true);
 	}
 	else

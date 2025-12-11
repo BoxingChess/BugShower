@@ -113,7 +113,64 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 	bUseControllerRotationYaw = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f); // ȸ�� �ӵ� ������
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f);
+
+	// ========================================
+	// Inventory 3D Preview Camera Setup
+	// ========================================
+	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Constructor START"));
+
+	// Inventory camera arm (for rotation)
+	InventoryCameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("InventoryCameraArm"));
+	if (InventoryCameraArm)
+	{
+		InventoryCameraArm->SetupAttachment(GetMesh());
+		InventoryCameraArm->TargetArmLength = 400.0f; // 400cm distance (same as gameplay camera)
+		InventoryCameraArm->SetRelativeLocation(FVector(0.0f, 0.0f, 90.0f)); // 90cm up (character chest height)
+		InventoryCameraArm->SetRelativeRotation(FRotator(10.0f, 90.0f, 0.0f)); // Pitch=10 (look up slightly), Yaw=90 (front view)
+		InventoryCameraArm->bUsePawnControlRotation = false;
+		InventoryCameraArm->bInheritPitch = false;
+		InventoryCameraArm->bInheritYaw = false;
+		InventoryCameraArm->bInheritRoll = false;
+
+		// CRITICAL: Disable collision test so camera doesn't get blocked by character mesh
+		InventoryCameraArm->bDoCollisionTest = false;
+
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCameraArm: Distance=400cm, Height=90cm, Pitch=10, Yaw=90"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCameraArm"));
+	}
+
+	// Inventory SceneCapture2D
+	InventoryCamera = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("InventoryCamera"));
+	if (InventoryCamera)
+	{
+		InventoryCamera->SetupAttachment(InventoryCameraArm, USpringArmComponent::SocketName);
+		InventoryCamera->bCaptureEveryFrame = false;
+		InventoryCamera->bCaptureOnMovement = false;
+		InventoryCamera->FOVAngle = 50.0f;
+		InventoryCamera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+
+		// ShowFlags
+		InventoryCamera->ShowFlags.SetAtmosphere(false);
+		InventoryCamera->ShowFlags.SetFog(false);
+		InventoryCamera->ShowFlags.SetVolumetricFog(false);
+		InventoryCamera->ShowFlags.SetSkeletalMeshes(true);
+
+		// Render only player mesh (add to ShowOnlyList in BeginPlay)
+		InventoryCamera->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera created successfully"));
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] FOV: %f"), InventoryCamera->FOVAngle);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] CaptureSource: %d"), (int32)InventoryCamera->CaptureSource);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] PrimitiveRenderMode: %d"), (int32)InventoryCamera->PrimitiveRenderMode);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCamera"));
+	} // ȸ�� �ӵ� ������
 
 
 	// bUseControllerRotationPitch:
@@ -151,6 +208,52 @@ void ABSCharacterPlayer::BeginPlay()
 	Super::BeginPlay();
 
 	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Character spawned"));
+
+	// ========================================
+	// Inventory Camera: Add Player Mesh to ShowOnlyList
+	// ========================================
+	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] BeginPlay - Adding Mesh to ShowOnlyList"));
+
+	if (!InventoryCamera)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] InventoryCamera is NULL in BeginPlay"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera found: %s"), *InventoryCamera->GetName());
+	}
+
+	if (!GetMesh())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] GetMesh() returned NULL"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Mesh found: %s"), *GetMesh()->GetName());
+		if (GetMesh()->GetSkeletalMeshAsset())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] SkeletalMeshAsset: %s"), *GetMesh()->GetSkeletalMeshAsset()->GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] SkeletalMeshAsset is NULL"));
+		}
+	}
+
+	if (InventoryCamera && GetMesh())
+	{
+		InventoryCamera->ShowOnlyComponents.Add(GetMesh());
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Added Mesh to ShowOnlyList - Count: %d"), InventoryCamera->ShowOnlyComponents.Num());
+
+		// ShowFlags 확인
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] ShowFlags.SkeletalMeshes: %d"), InventoryCamera->ShowFlags.SkeletalMeshes);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] bCaptureEveryFrame: %d"), InventoryCamera->bCaptureEveryFrame);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] TextureTarget: %s"), InventoryCamera->TextureTarget ? TEXT("SET") : TEXT("NULL"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to add Mesh - InventoryCamera or Mesh is NULL"));
+	}
 
 	// ========================================
 	// 스탯 컴포넌트 초기화
