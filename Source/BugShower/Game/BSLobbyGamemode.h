@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "BSGameModeBase.generated.h"
+#include "BSLobbyGameMode.generated.h"
 
 class ABSGameStateBase;
 
@@ -13,12 +13,12 @@ class ABSGameStateBase;
  * Handles game rules: win condition (survive for duration) and lose condition (all players dead)
  */
 UCLASS()
-class BUGSHOWER_API ABSGameModeBase : public AGameModeBase
+class BUGSHOWER_API ABSLobbyGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
-	ABSGameModeBase();
+	ABSLobbyGameMode();
 
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 	virtual APlayerController* Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
@@ -36,34 +36,26 @@ protected:
 	TObjectPtr<ABSGameStateBase> BSGameState;
 
 public:
-	// Called when a player dies (to be called from player character)
-	UFUNCTION(BlueprintCallable, Category = "Game Rules")
-	void OnPlayerDied(AController* DeadPlayerController);
-
-	// Check if game end conditions are met
-	void CheckGameEndConditions();
-
-	// End the game with victory or defeat
-	UFUNCTION(BlueprintCallable, Category = "Game Rules")
-	void EndGame(bool bVictory);
-
-	// Get alive player count
-	int32 GetAlivePlayerCount() const;
-
-	bool IsEnd() const;
-
-	// Save all players' inventory to GameInstance
-	void SaveAllPlayersInventory();
-
-protected:
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InGame")
-	FString GetNextGameMapName() const;
+	/**
+	 * Start the game and transition to the InGame map
+	 * Called from UI when players are ready
+	 * Only executes on server (uses ServerTravel for multiplayer)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Lobby")
+	void StartGame();
 
 	/**
-	 * Target map name for game start
-	 * Default: "Lobby"
+	 * Get the map name to transition to
+	 * Can be overridden in Blueprint to customize the target map
 	 */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "InGame")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Lobby")
+	FString GetNextGameMapName() const;
+
+protected:
+	/**
+	 * Target map name for game start
+	 * Default: "InGame"
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Lobby")
 	FString NextMapName;
 };

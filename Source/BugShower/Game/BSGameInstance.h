@@ -4,7 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
+#include "Item/BSItem.h"
 #include "BSGameInstance.generated.h"
+
+class UBSPlayerSaveGame;
+class UBSItemInstance;
 
 /**
  * BugShower Game Instance
@@ -27,4 +31,112 @@ public:
 	// Game Instance initialization
 	// 게임 인스턴스 초기화 (서브시스템 확인)
 	virtual void Init() override;
+
+	// ========================================
+	// 플레이어 영구 저장 시스템
+	// ========================================
+
+private:
+	/**
+	 * 현재 로드된 세이브 데이터
+	 * 게임 시작 시 자동으로 로드됨
+	 */
+	UPROPERTY()
+	TObjectPtr<UBSPlayerSaveGame> CurrentSaveGame;
+
+	/**
+	 * 현재 플레이어의 고유 ID
+	 * 멀티플레이어에서 각 클라이언트를 구분하기 위해 사용
+	 * 예: "Player_12345"
+	 */
+	UPROPERTY()
+	FString CurrentPlayerID;
+
+	/**
+	 * 유저 인덱스 (기본값 = 0)
+	 */
+	UPROPERTY()
+	int32 UserIndex = 0;
+
+	/**
+	 * 런타임에 임시로 저장되는 아이템 목록
+	 * 인게임에서 획득한 아이템들이 여기 저장되고, SaveGame 호출 시 디스크에 저장됨
+	 */
+	UPROPERTY()
+	TArray<TObjectPtr<UBSItemInstance>> RuntimeItemInventory;
+
+public:
+	/**
+	 * 플레이어 ID 설정
+	 * 멀티플레이어에서 각 클라이언트가 자신의 고유 ID를 설정
+	 * 이 ID로 개별 세이브 파일 관리 (예: "PlayerSave_12345")
+	 *
+	 * @param InPlayerID - 플레이어 고유 식별자
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void SetPlayerID(const FString& InPlayerID);
+
+	/**
+	 * 현재 설정된 플레이어 ID 가져오기
+	 */
+	UFUNCTION(BlueprintPure, Category = "SaveGame")
+	FString GetPlayerID() const { return CurrentPlayerID; }
+
+	/**
+	 * 플레이어별 세이브 슬롯 이름 생성
+	 * PlayerID가 설정되어 있으면 "PlayerSave_{ID}" 형식 사용
+	 * 설정 안 되어 있으면 "PlayerSaveSlot" (기본값)
+	 */
+	FString GetSaveSlotName() const;
+
+	/**
+	 * 세이브 데이터 로드
+	 * 게임 시작 시 자동으로 호출되며, 저장된 아이템을 불러옴
+	 *
+	 * @return 로드 성공 여부
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	bool LoadPlayerSaveData();
+
+	/**
+	 * 세이브 데이터 저장
+	 * 인게임에서 획득한 아이템들을 디스크에 영구 저장
+	 *
+	 * @return 저장 성공 여부
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	bool SavePlayerData();
+
+	/**
+	 * 인게임에서 획득한 아이템을 런타임 인벤토리에 추가
+	 * 레벨 클리어 시 또는 실시간으로 호출 가능
+	 *
+	 * @param ItemsToAdd - 추가할 아이템 목록
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddItemsToRuntimeInventory(const TArray<UBSItemInstance*>& ItemsToAdd);
+
+	/**
+	 * 단일 아이템을 런타임 인벤토리에 추가
+	 *
+	 * @param ItemToAdd - 추가할 아이템
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddSingleItemToRuntimeInventory(UBSItemInstance* ItemToAdd);
+
+	/**
+	 * 저장된 아이템 목록 가져오기 (로비에서 사용)
+	 * RuntimeItemInventory를 반환하여 현재 세션에서 획득한 아이템까지 포함
+	 *
+	 * @return 플레이어가 보유한 모든 아이템
+	 */
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	const TArray<UBSItemInstance*>& GetPlayerItems() const;
+
+	/**
+	 * 세이브 데이터 초기화 (개발/테스트 용도)
+	 * 모든 저장된 아이템과 데이터를 삭제
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SaveGame")
+	void ResetSaveData();
 };
