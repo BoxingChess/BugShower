@@ -129,7 +129,7 @@ void ABSGameModeBase::BeginPlay()
 		// Register pool for ground items (inventory drop/pickup)
 		// TODO : YSY 나중에 이부분 CSV에 추가해주세요 일단 제가 이렇게 추가해서 쓰도록 하겠습니다. -SDJ
 		PoolSys->RegisterPoolForClass(AItemActor::StaticClass(), 500);
-		UE_LOG(LogTemp, Log, TEXT("✅ Registered item pool for ground items: 500 AItemActor instances"));
+		UE_LOG(LogTemp, Log, TEXT("Registered item pool for ground items: 500 AItemActor instances"));
 	}
 }
 
