@@ -59,6 +59,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	TObjectPtr<const UBSStaticItemDataAsset> StaticItemInfo = nullptr;
 
+	// Flag to track if this actor came from pooling system
+	UPROPERTY()
+	bool bIsPooled = false;
+
+public:
+	void SetPooled(bool bValue) { bIsPooled = bValue; }
+	bool IsPooled() const { return bIsPooled; }
+
 protected:
 	// Pickup function
 	UFUNCTION(BlueprintCallable, Category = "Item")

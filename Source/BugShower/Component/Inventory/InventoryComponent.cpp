@@ -3,6 +3,7 @@
 
 #include "Component/Inventory/InventoryComponent.h"
 #include "Item/ItemActor.h"
+#include "Subsystems/PoolingSubsystem.h"
 #include "Net/UnrealNetwork.h"
 
 // Sets default values for this component's properties
@@ -40,6 +41,9 @@ AddItem Function Notes:
 */
 void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 {
+	// DEBUG: Log function call with actor pointer
+	UE_LOG(LogTemp, Warning, TEXT("[AddItem] 🟣 Called with Actor: %p"), DroppedActor);
+
 	// Validate input
 	if (!DroppedActor) return;
 
@@ -57,6 +61,13 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 	// Debug: Log item info
 	UE_LOG(LogTemp, Log, TEXT("[AddItem Start] ItemID: %d, Quantity: %d, Weight: %d, Type: %d"),
 		DropItem.ItemID, DropItem.Quantity, DropStatic->Weight, (int32)DropItem.ItemType);
+
+	// DEBUG: Check if quantity is 0
+	if (DropItem.Quantity <= 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AddItem] ❌ Quantity is 0! Item not initialized properly. Ignoring."));
+		return;
+	}
 
 	// ========================================
 	// Equipment Item Handling (Weapon, Armor, etc.)
@@ -96,6 +107,10 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 		// Log equipment acquisition
 		UE_LOG(LogTemp, Warning, TEXT("[Pickup] Equipment acquired! ItemID: %d (Equipped in slot)"),
 			DropItem.ItemID);
+
+		// Equipment always takes full item, so remove from world
+		// Note: Equipment items don't use pooling in current design
+		// They are kept as actors and attached to player
 
 		return;
 	}
@@ -223,6 +238,35 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 		}
 	}
 
+	// ========================================
+	// Remove Item from World if Fully Picked Up
+	// ========================================
+	if (DropItem.Quantity <= 0)
+	{
+		// All quantity moved to inventory - remove from world
+		if (DroppedActor->IsPooled())
+		{
+			// DEBUG: Log actor pointer when returning to pool
+			UE_LOG(LogTemp, Warning, TEXT("[AddItem] 🔴 Returning actor to pool: %p (ItemID=%d)"),
+				DroppedActor, DropItem.ItemID);
+
+			// Pooled item → return to pool
+			DroppedActor->DeSpawn();
+			UE_LOG(LogTemp, Log, TEXT("[AddItem] ✅ Pooled item returned to pool (ItemID=%d)"), DropItem.ItemID);
+		}
+		else
+		{
+			// Map-placed item → destroy
+			DroppedActor->Destroy();
+			UE_LOG(LogTemp, Log, TEXT("[AddItem] ✅ Map-placed item destroyed (ItemID=%d)"), DropItem.ItemID);
+		}
+	}
+	else
+	{
+		// Partial pickup - item remains in world with reduced quantity
+		UE_LOG(LogTemp, Log, TEXT("[AddItem] Partial pickup - %d items remaining in world"), DropItem.Quantity);
+	}
+
 	// Debug: Print inventory contents (Development only)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	for (auto& e : ItemInventory)
@@ -304,7 +348,15 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 	);
 
 	// Use hit point if ground found, otherwise use actor location
+	// Spawn above ground so item can fall with physics
 	FVector SpawnLocation = bHit ? HitResult.ImpactPoint : ActorLocation;
+	SpawnLocation.Z += 100.0f;  // Spawn 100 units above ground (let it fall with physics)
+
+	// Add random horizontal offset for variety
+	float RandomAngle = FMath::FRandRange(0.0f, 2.0f * PI);
+	float RandomDistance = FMath::FRandRange(20.0f, 50.0f);  // Smaller spread (items will roll naturally)
+	SpawnLocation.X += FMath::Cos(RandomAngle) * RandomDistance;
+	SpawnLocation.Y += FMath::Sin(RandomAngle) * RandomDistance;
 
 	// Get item actor class from DataAsset
 	if (!DroppedItem->StaticData)
@@ -326,7 +378,7 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 		ActorClass = AItemActor::StaticClass();
 	}
 
-	// Spawn item actor in world
+	// Get world
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -334,26 +386,38 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 		return;
 	}
 
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	// ========================================
+	// Use PoolingSubsystem to get item from pool
+	// ========================================
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (!PoolSys)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] PoolingSubsystem not found!"));
+		return;
+	}
 
-	AItemActor* SpawnedActor = World->SpawnActor<AItemActor>(
-		ActorClass,
-		SpawnLocation,
-		FRotator::ZeroRotator,
-		SpawnParams
-	);
+	// DEBUG: Before getting from pool
+	UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] ⚪ About to get actor from pool..."));
+
+	// Get item from pool
+	TScriptInterface<ISpawnable> SpawnedObj = PoolSys->SpawnFromClass(ActorClass, SpawnLocation);
+	AItemActor* SpawnedActor = Cast<AItemActor>(SpawnedObj.GetObject());
 
 	if (SpawnedActor)
 	{
+		// DEBUG: Log actor pointer to track reuse
+		UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] 🔵 Got actor from pool: %p, Location: %s, Hidden: %d"),
+			SpawnedActor, *SpawnLocation.ToString(), SpawnedActor->IsHidden());
+
 		// Set item data (discarded quantity)
 		FBS_Item NewItemData = DroppedItem->Dynamic;
 		NewItemData.Quantity = Count;
 
 		SpawnedActor->InitializeItemBS_Item(NewItemData);
 		SpawnedActor->SetOwner(nullptr);
+		SpawnedActor->SetPooled(true);  // Mark as pooled item
 
-		UE_LOG(LogTemp, Log, TEXT("[DiscardItemByIndex] Item spawned: %s (ItemID: %d, Quantity: %d) at %s"),
+		UE_LOG(LogTemp, Log, TEXT("[DiscardItemByIndex] ✅ Item spawned from pool: %s (ItemID: %d, Quantity: %d) at %s"),
 			*ActorClass->GetName(),
 			DroppedItem->Dynamic.ItemID,
 			Count,
@@ -361,11 +425,26 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Failed to spawn item actor"));
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] ❌❌❌ POOL EXHAUSTED! Failed to spawn item! ❌❌❌"));
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Item NOT removed from inventory (ItemID: %d, Count: %d)"),
+			DroppedItem->Dynamic.ItemID, Count);
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Solution: Increase pool size in GameMode or wait for items to be picked up"));
+
+		// Do NOT decrease inventory quantity - spawn failed!
+		// Broadcast to update UI (to show item is still there)
+		OnInventoryChanged.Broadcast();
+		return;
 	}
 
-	// Decrease inventory quantity
+	// Decrease inventory quantity and weight
 	DroppedItem->Dynamic.Quantity -= Count;
+
+	// Calculate and decrease weight
+	int32 DiscardedWeight = Count * DroppedItem->StaticData->Weight;
+	CurrentWeight -= DiscardedWeight;
+
+	UE_LOG(LogTemp, Log, TEXT("[DiscardItemByIndex] Weight decreased: -%d (New total: %d/%d)"),
+		DiscardedWeight, CurrentWeight, MaxWeight);
 
 	// Remove from inventory if quantity reaches 0
 	if (DroppedItem->Dynamic.Quantity <= 0)

@@ -171,21 +171,15 @@ void UInventoryWidget::SetVicinity(const TArray<AActor*>& Actors)
 		AItemActor* Item = Cast<AItemActor>(A);
 		if (!Item) continue;
 
-		// 정적 데이터(아이콘/이름/설명 등)
-		const UBSStaticItemDataAsset* Static = Item->GetItemStaticData(); // 네 Getter명에 맞춰 변경
+		const UBSStaticItemDataAsset* Static = Item->GetItemStaticData();
 		if (!Static) continue;
 
-		// 수량(인스턴스 데이터) — 네 프로젝트 변수/함수로 교체
-		const int32 StackCount = Item->GetItemData().Quantity; // 없으면 1로 두거나 네 변수 사용
+		const int32 StackCount = Item->GetItemData().Quantity;
 
 		Rows.Add(MakeRow(this, Static->Icon, Static->DisplayName, StackCount, Item, nullptr));
 	}
 
-	//VicinityList->ClearListItems();
 	VicinityList->SetListItems(Rows);
-
-	UE_LOG(LogTemp, Warning, TEXT("ListItems.Num = %d"), VicinityList->GetListItems().Num());
-	UE_LOG(LogTemp, Warning, TEXT("VisibleEntries.Num = %d"), VicinityList->GetDisplayedEntryWidgets().Num());
 }
 
 void UInventoryWidget::SetInventory(const TArray<UBSItemInstance*>& InventoryItems)
@@ -362,8 +356,10 @@ bool UInventoryWidget::NativeOnDrop(const FGeometry& InGeometry, const FDragDrop
 							int32 ItemIndex = Inv->FindItemIndex(SourceInstance);
 							if (ItemIndex != INDEX_NONE)
 							{
-								Inv->ServerDiscardItem(ItemIndex, 1);
-								UE_LOG(LogTemp, Log, TEXT("아이템 버리기 요청: %s (Index: %d)"), *DroppedObj->Name.ToString(), ItemIndex);
+								// Alt 안 눌렀을 때: 전체 수량 버리기
+								int32 TotalQuantity = SourceInstance->Dynamic.Quantity;
+								Inv->ServerDiscardItem(ItemIndex, TotalQuantity);
+								UE_LOG(LogTemp, Log, TEXT("아이템 버리기 요청: %s (Index: %d, 수량: %d)"), *DroppedObj->Name.ToString(), ItemIndex, TotalQuantity);
 							}
 							else
 							{

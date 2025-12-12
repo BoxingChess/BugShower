@@ -8,26 +8,54 @@
 #include "Subsystems/PoolingSubsystem.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SphereComponent.h"
+#include "Component/Inventory/InventoryComponent.h"
 #include "Logging/BugShowerLog.h"
 
 
 void AItemActor::Spawn(const FVector pos)
 {
+	// DEBUG: Log this actor being spawned with current lifespan and hidden state
+	float CurrentLifeSpan = GetLifeSpan();
+	bool bIsCurrentlyHidden = IsHidden();
+	UE_LOG(LogTemp, Warning, TEXT("[ItemActor::Spawn] 🟢 Actor %p spawning at %s, CurrentLifeSpan: %.2f, WasHidden: %d"),
+		this, *pos.ToString(), CurrentLifeSpan, bIsCurrentlyHidden);
+
+	// IMPORTANT: Clear lifespan FIRST to prevent immediate expiration!
+	SetLifeSpan(0.0f);
+
+	// For physics-enabled actors, need special handling
+	if (MeshComponent && MeshComponent->IsSimulatingPhysics())
+	{
+		// Temporarily disable physics, set location, then re-enable
+		MeshComponent->SetSimulatePhysics(false);
+		SetActorLocation(pos);
+		SetActorHiddenInGame(false);
+		SetActorEnableCollision(true);
+		SetActorTickEnabled(true);
+		MeshComponent->SetSimulatePhysics(true);
+		MeshComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);  // Reset velocity
+		MeshComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);  // Reset rotation
+	}
+	else
+	{
+		// Standard activation
+		Activate(this, pos);
+	}
+
+	// Set data from StaticItemInfo if available
 	if (StaticItemInfo)
 	{
-		Activate(this, pos);
-		SetLifeSpan(StaticItemInfo->ItemLifeSpan);
-
 		ItemInformation.ItemID = StaticItemInfo->ItemID;
 		ItemInformation.ItemType = StaticItemInfo->ItemType;
 		ItemInformation.Quantity = StaticItemInfo->SpawnQuntity;
 
-		UE_LOG(LogTemp, Log, TEXT("Spawn() 호출: ItemID=%d, Type=%d, Quantity=%d"),
-			ItemInformation.ItemID, (int32)ItemInformation.ItemType, ItemInformation.Quantity);
+		UE_LOG(LogTemp, Log, TEXT("Spawn() 호출: ItemID=%d, Type=%d, Quantity=%d, Position=%s"),
+			ItemInformation.ItemID, (int32)ItemInformation.ItemType, ItemInformation.Quantity, *pos.ToString());
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Spawn() 호출되었지만 StaticItemInfo가 null!"));
+		// StaticItemInfo will be set later via InitializeItemBS_Item()
+		UE_LOG(LogTemp, Warning, TEXT("Spawn() 호출: StaticItemInfo is null (will be initialized later), Position=%s"), *pos.ToString());
 	}
 }
 
@@ -52,6 +80,9 @@ void AItemActor::LifeSpanExpired()
 
 void AItemActor::DeSpawn()
 {
+	// DEBUG: Log this actor being despawned
+	UE_LOG(LogTemp, Warning, TEXT("[ItemActor::DeSpawn] 🟠 Actor %p despawning"), this);
+
 	Deactivate(this);
 
 	// Return to pool via subsystem
@@ -76,24 +107,38 @@ AItemActor::AItemActor()
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	// Create collision component
+	// Create mesh component as root (required for physics simulation)
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	RootComponent = MeshComponent;
+
+	// Enable physics simulation
+	MeshComponent->SetSimulatePhysics(true);
+	MeshComponent->SetEnableGravity(true);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
+
+	// Set collision responses
+	MeshComponent->SetCollisionObjectType(ECC_PhysicsBody);
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
+	MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
+	MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
+	MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
+	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
+
+	// Physics properties
+	MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
+	MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
+	MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
+
+	MeshComponent->SetIsReplicated(true);
+
+	// Create collision component (sphere for pickup detection)
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
-	RootComponent = CollisionComponent;
+	CollisionComponent->SetupAttachment(RootComponent);
 	CollisionComponent->InitSphereRadius(50.f);
 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	CollisionComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-
-	// �޽� ������Ʈ ����
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
-	MeshComponent->SetupAttachment(RootComponent);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComponent->SetIsReplicated(true);
-
-
-	// Ʈ������ ������ �����ϵ��� ��Ʈ ������Ʈ�� ����
-	//RootComponent = MeshComponent;
 
 }
 
@@ -171,6 +216,10 @@ void AItemActor::InitializeItemBS_Item(FBS_Item& _item)
 				{
 					MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
 				}
+
+				// Set LifeSpan to 0 for dropped items (infinite - stay forever)
+				// 바닥에 버린 아이템은 무제한 (0 = 영구)
+				SetLifeSpan(0.0f);
 			}
 			else
 			{
@@ -197,9 +246,9 @@ void AItemActor::OnPickup(AActor* PickupActor)
 
 	LOG_LOGIC_INFO(TEXT("Item %s picked up by %s"), *(StaticItemInfo->DisplayName.ToString()), *PickupActor->GetName());
 
-	// TODO: Add item to player inventory and 
-	// TODO: don't runtime destroy change to item pooling
-	DeSpawn();
+	// NOTE: This function is currently not called anywhere
+	// Pickup is handled by PickUpDetectorComponent -> InventoryComponent::AddItem()
+	// DeSpawn() is called inside AddItem() when quantity reaches 0
 }
 
 void AItemActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -215,8 +264,17 @@ void AItemActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor
 
 		if (APlayerController* PC = Cast<APlayerController>(Pawn->GetController()))
 		{
-
-			//OnPickup(OtherActor);
+			// Find InventoryComponent and add item
+			if (UInventoryComponent* InvComp = Pawn->FindComponentByClass<UInventoryComponent>())
+			{
+				//InvComp->AddItem(this);  // Commented out: pickup handled by key press, not automatic
+				UE_LOG(LogTemp, Log, TEXT("[ItemActor] Player overlapping item: ItemID=%d, Quantity=%d"),
+					ItemInformation.ItemID, ItemInformation.Quantity);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ItemActor] Player has no InventoryComponent!"));
+			}
 		}
 	}
 }

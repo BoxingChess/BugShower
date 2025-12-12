@@ -457,10 +457,9 @@ void UPickUpDetectorComponent::ServerTryPickup_Implementation(class AItemActor* 
 	{
 		Inv->AddItem(Item);
 
-		if (Item->GetItemData().Quantity == 0)
-		{
-			Item->DeSpawn(); // ������ ������
-		}
+		// NOTE: DeSpawn() is now handled inside AddItem()
+		// Don't call DeSpawn() here to avoid duplicate pool returns!
+		// AddItem()에서 이미 DeSpawn()을 처리하므로 여기서는 호출하지 않음!
 
 		if (!IsValid(Item))
 		{
