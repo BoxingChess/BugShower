@@ -10,16 +10,16 @@
  * 
  */
 
-// ºĞ±â ¸ğµå
+// ï¿½Ğ±ï¿½ ï¿½ï¿½ï¿½
 UENUM()
 enum class ESplitMode : uint8
 {
     None,
-    VicinityToInventory,   // ÁÖº¯(¿ùµå) ¡æ ÀÎº¥Åä¸® : Áİ±â(ÀÏºÎ)
-    InventoryToVicinity    // ÀÎº¥Åä¸® ¡æ ÁÖº¯ : ¹ö¸®±â(ÀÏºÎ)
+    VicinityToInventory,   // ï¿½Öºï¿½(ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸® : ï¿½İ±ï¿½(ï¿½Ïºï¿½)
+    InventoryToVicinity    // ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ ï¿½Öºï¿½ : ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(ï¿½Ïºï¿½)
 };
 
-class UListView;                    // Àü¹æ¼±¾ğ
+class UListView;                    // ï¿½ï¿½ï¿½æ¼±ï¿½ï¿½
 class USplitQuantityDialog;
 
 UCLASS()
@@ -27,7 +27,9 @@ class BUGSHOWER_API UInventoryWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-	void BeginPlay();
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 public:
 	UPROPERTY(meta = (BindWidget))
@@ -36,16 +38,16 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UListView* InventoryList;
 	
-    // ¿¡µğÅÍ¿¡¼­ WBP_SplitQuantityDialog ÁöÁ¤
+    // ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ï¿½ï¿½ WBP_SplitQuantityDialog ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(EditDefaultsOnly, Category="DragDrop")
     TSubclassOf<USplitQuantityDialog> SplitDialogClass;
 
 public:
-	//ÁÖº¯ ¾ÆÀÌÅÛÀ» ¼¼ÆÃÇÑ´Ù.
+	//ï¿½Öºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
 	UFUNCTION(BlueprintCallable) 
 	void SetVicinity(const TArray<AActor*>& Rows);
 
-	//ÀÎº¥Åä¸® ¾ÆÀÌÅÛÀ» ¼¼ÆÃÇÑ´Ù.
+	//ï¿½Îºï¿½ï¿½ä¸® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ñ´ï¿½.
     UFUNCTION(BlueprintCallable) 
 	void SetInventory(const TArray<UBSItemInstance*>& InventoryItems);
 
@@ -53,15 +55,22 @@ private:
 	UItemListEntryObject* MakeRow(UObject* Outer, UTexture2D* Icon, const FText& Name, int32 Qty, AItemActor* Source, UBSItemInstance* SourceInstance);
 
 public:
-	//µå·¡±× ¾Ø µå¶ø¿¡¼­ µå¶øÀÌ ¹ß»ıÇßÀ» ¶§ ½ÇÇàµÇ´Â ÇÔ¼ö.
-	//InGeometry : ÀÌ À§Á¬ÀÇ È­¸é »ó À§Ä¡ / Å©±â Á¤º¸.µå¶ø ÁÂÇ¥ °è»ê µî¿¡ »ç¿ëÇÒ ¼ö ÀÖÀ½.
-	//InDragDropEvent : µå·¡±× »óÅÂ(¸¶¿ì½º ÁÂÇ¥ µî)°¡ ´ã±ä ÀÌº¥Æ®.
-	//InOperation : µå·¡±× ½ÃÀÛ ½Ã »ı¼ºµÈ UDragDropOperation °´Ã¼.¿©±â ¾ÈÀÇ Payload¿¡ µå·¡±×ÇÑ ½ÇÁ¦ µ¥ÀÌÅÍ°¡ µé¾î ÀÖÀ½.
-	//¹İÈ¯°ª bool : µå¶øÀ» Ã³¸®ÇßÀ¸¸é true, ¹«½ÃÇÏ¸é false.
+	//ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß»ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ç´ï¿½ ï¿½Ô¼ï¿½.
+	//InGeometry : ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È­ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ä¡ / Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½ï¿½ ï¿½î¿¡ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.
+	//InDragDropEvent : ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(ï¿½ï¿½ï¿½ì½º ï¿½ï¿½Ç¥ ï¿½ï¿½)ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ìºï¿½Æ®.
+	//InOperation : ï¿½å·¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ UDragDropOperation ï¿½ï¿½Ã¼.ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Payloadï¿½ï¿½ ï¿½å·¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í°ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.
+	//ï¿½ï¿½È¯ï¿½ï¿½ bool : ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ true, ï¿½ï¿½ï¿½ï¿½ï¿½Ï¸ï¿½ false.
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
-	private:
-    // Alt-µå¶ø ½Ã ÄÁÅØ½ºÆ® º¸°ü
+private:
+	// ë“œë¡­ëœ ìœ„ì¹˜ê°€ ì–´ëŠ ìœ„ì ¯ ìœ„ì¸ì§€ í™•ì¸
+	// @param InGeometry: ì´ ìœ„ì ¯(InventoryWidget)ì˜ ì§€ì˜¤ë©”íŠ¸ë¦¬
+	// @param InDragDropEvent: ë“œë¡­ ì´ë²¤íŠ¸ (ë§ˆìš°ìŠ¤ ìœ„ì¹˜ í¬í•¨)
+	// @return: 0=ì•Œ ìˆ˜ ì—†ìŒ, 1=VicinityList, 2=InventoryList
+	int32 GetDropTargetWidget(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent);
+
+private:
+    // Alt-ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
     UPROPERTY() 
 	TWeakObjectPtr<UItemListEntryObject> PendingSplitObj = nullptr;
 
@@ -71,7 +80,72 @@ public:
     UFUNCTION() 
 	void HandleSplitConfirm(int32 Quantity);
 
-    UFUNCTION() 
+    UFUNCTION()
 	void HandleSplitCancel();
 
+private:
+	// PickUpDetectorComponentì—ì„œ ì£¼ë³€ ì•„ì´í…œ ê°±ì‹  ì´ë²¤íŠ¸ë¥¼ ë°›ê¸° ìœ„í•œ ì½œë°±
+	UFUNCTION()
+	void OnNearbyItemsRefreshed();
+
+	// InventoryComponentì—ì„œ ì¸ë²¤í† ë¦¬ ë³€ê²½ ì´ë²¤íŠ¸ë¥¼ ë°›ê¸° ìœ„í•œ ì½œë°±
+	UFUNCTION()
+	void OnInventoryItemsChanged();
+
+	// PickUpDetectorComponent ìºì‹±
+	UPROPERTY()
+	TWeakObjectPtr<class UPickUpDetectorComponent> CachedPickUpDetector;
+
+	// InventoryComponent ìºì‹±
+	UPROPERTY()
+	TWeakObjectPtr<class UInventoryComponent> CachedInventory;
+
+	// ========================================
+	// 3D ìºë¦­í„° í”„ë¦¬ë·°
+	// ========================================
+
+public:
+	// Image ìœ„ì ¯ (Blueprintì—ì„œ BindWidget)
+	UPROPERTY(meta = (BindWidget))
+	class UImage* Img_CharacterPreview;
+
+private:
+	// Render Target (Scene Captureì˜ ì¶œë ¥)
+	UPROPERTY()
+	TObjectPtr<class UTextureRenderTarget2D> RenderTarget;
+
+	// Scene Capture Component (3Dë¥¼ 2D í…ìŠ¤ì²˜ë¡œ ë Œë”ë§)
+	UPROPERTY()
+	TObjectPtr<class USceneCaptureComponent2D> SceneCapture;
+
+	// í”„ë¦¬ë·°ìš© ìºë¦­í„° ë©”ì‹œ (Actorê°€ ì•„ë‹ˆë¼ Componentë§Œ)
+	UPROPERTY()
+	TObjectPtr<class USkeletalMeshComponent> PreviewMesh;
+
+	// ì¹´ë©”ë¼ ì•” (íšŒì „ìš©)
+	UPROPERTY()
+	TObjectPtr<class USceneComponent> CameraArm;
+
+	// í˜„ì¬ íšŒì „ ê°ë„
+	float CurrentYaw = 0.0f;
+
+	// ë§ˆìš°ìŠ¤ ë“œë˜ê·¸ ì¤‘ì¸ì§€
+	bool bIsDraggingCharacter = false;
+
+	// ë“œë˜ê·¸ ì‹œì‘ ìœ„ì¹˜
+	FVector2D DragStartPosition;
+
+	// 3D í”„ë¦¬ë·° ì”¬ ì´ˆê¸°í™”
+	void SetupPreviewScene();
+
+	// 3D í”„ë¦¬ë·° ì”¬ ì •ë¦¬
+	void CleanupPreviewScene();
+
+	// ì¹´ë©”ë¼ ìœ„ì¹˜ ì—…ë°ì´íŠ¸ (Yaw ê°ë„ ê¸°ë°˜ ê³µì „)
+	void UpdateCameraPosition(float Yaw);
+
+	// ë§ˆìš°ìŠ¤ ì´ë²¤íŠ¸ ì²˜ë¦¬
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 };

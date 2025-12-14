@@ -3,184 +3,228 @@
 
 #include "Component/Inventory/InventoryComponent.h"
 #include "Item/ItemActor.h"
+#include "Subsystems/PoolingSubsystem.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
 {
+	// Enable replication for this component
+	SetIsReplicatedByDefault(true);
+}
 
+// ========================================
+// Replication Setup
+// ========================================
+void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// Replicate ItemInventory to all clients
+	DOREPLIFETIME(UInventoryComponent, ItemInventory);
+}
+
+// Called automatically when ItemInventory is replicated (on client)
+void UInventoryComponent::OnRep_ItemInventory()
+{
+	UE_LOG(LogTemp, Log, TEXT("[Client] OnRep_ItemInventory called - Inventory changed on server, syncing to client"));
+
+	// Broadcast delegate to update UI
+	OnInventoryChanged.Broadcast();
 }
 
 /*
-AddItem�Լ��� ���� �� �ٵ��� �ʿ䰡 �ִ�. MaxStackó���� ���� ���� �ʾҰ� Sort�Լ��� ��� �Լ��� �и��ϴ°� �������� �� ���ƺ��δ�.
-���� ���� Bool���� return�ϵ��� �ٲٸ� ������ �ϴ�.
+AddItem Function Notes:
+- TODO: Implement MaxStack handling
+- TODO: Separate Sort functionality
+- TODO: Consider returning bool for success/failure
 */
 void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 {
-	//��ȿ���� ���� ���Ͱ� ������ ��� ����
+	// DEBUG: Log function call with actor pointer
+	UE_LOG(LogTemp, Warning, TEXT("[AddItem] 🟣 Called with Actor: %p"), DroppedActor);
+
+	// Validate input
 	if (!DroppedActor) return;
 
-	//�ֿ� ���Ϳ��� ���� ������ ���� ���� ��������
+	// Get item data (dynamic) and static data asset
 	FBS_Item& DropItem = DroppedActor->GetItemData();
 	const UBSStaticItemDataAsset* DropStatic = DroppedActor->GetItemStaticData();
-	//���� ������ ������ return;
+
+	// Validate static data
 	if (!DropStatic)
 	{
-		UE_LOG(LogTemp, Error, TEXT("❌ AddItem 실패: DropStatic이 null입니다!"));
+		UE_LOG(LogTemp, Error, TEXT("AddItem Failed: DropStatic is null!"));
 		return;
 	}
 
-	// 디버그: 아이템 정보 출력
-	UE_LOG(LogTemp, Log, TEXT("🔍 [AddItem 시작] ItemID: %d, Quantity: %d, Weight: %d, Type: %d"),
+	// Debug: Log item info
+	UE_LOG(LogTemp, Log, TEXT("[AddItem Start] ItemID: %d, Quantity: %d, Weight: %d, Type: %d"),
 		DropItem.ItemID, DropItem.Quantity, DropStatic->Weight, (int32)DropItem.ItemType);
 
-	// 장비 아이템 처리 (무기, 방어구 등)-------------------------------------------------------------------------------
+	// DEBUG: Check if quantity is 0
+	if (DropItem.Quantity <= 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AddItem] ❌ Quantity is 0! Item not initialized properly. Ignoring."));
+		return;
+	}
+
+	// ========================================
+	// Equipment Item Handling (Weapon, Armor, etc.)
+	// ========================================
 	if (DropItem.ItemType == EItemType::Equipment)
 	{
-		// 기존 장비가 있으면 바닥에 드롭 (수정: 아이템 손실 버그 해결)
+		// If equipment slot is occupied, drop existing equipment
 		if (EquipmentItem)
 		{
-			// 플레이어의 현재 위치에서 바닥을 찾아 장비를 떨어뜨림
+			// Find ground position below player and drop equipment
 			FVector DropLocation = GetOwner()->GetActorLocation();
 
-			// Line Trace로 플레이어 발 밑 바닥 위치 찾기
-			FVector Start = DropLocation + FVector(0, 0, 50);   // 플레이어 위치에서 약간 위
-			FVector End = DropLocation - FVector(0, 0, 500);     // 아래로 500 유닛
+			// Line trace to find ground position below player
+			FVector Start = DropLocation + FVector(0, 0, 50);   // Slightly above player
+			FVector End = DropLocation - FVector(0, 0, 500);     // 500 units below
 
 			FHitResult HitResult;
 			FCollisionQueryParams Params;
-			Params.AddIgnoredActor(GetOwner());  // 플레이어 자신은 무시
+			Params.AddIgnoredActor(GetOwner());  // Ignore player
 
-			// 바닥 충돌 체크
+			// Check ground collision
 			bool bHit = GetWorld()->LineTraceSingleByChannel(
 				HitResult, Start, End, ECC_Visibility, Params);
 
-			// 바닥을 찾았으면 그 위치에, 못 찾았으면 플레이어 위치에 배치
+			// Use hit point if ground found, otherwise use player location
 			DropLocation = bHit ? HitResult.ImpactPoint : DropLocation;
-			DropLocation += FVector(0, 100, 0); // 플레이어 앞쪽으로 100 유닛 이동
+			DropLocation += FVector(0, 100, 0); // Move 100 units forward
 
-			// 기존 장비를 월드에 배치하고 주인 해제 (다시 주울 수 있게 함)
+			// Place existing equipment in world and clear owner (allow re-pickup)
 			EquipmentItem->SetActorLocation(DropLocation);
 			EquipmentItem->SetOwner(nullptr);
 		}
 
-		// 새 장비로 교체
+		// Equip new item
 		EquipmentItem = DroppedActor;
 
-		// 장비 획득 로그
-		UE_LOG(LogTemp, Warning, TEXT("✅ [F키 획득] 장비 아이템 획득! ItemID: %d (장비 슬롯에 장착됨)"),
+		// Log equipment acquisition
+		UE_LOG(LogTemp, Warning, TEXT("[Pickup] Equipment acquired! ItemID: %d (Equipped in slot)"),
 			DropItem.ItemID);
+
+		// Equipment always takes full item, so remove from world
+		// Note: Equipment items don't use pooling in current design
+		// They are kept as actors and attached to player
 
 		return;
 	}
 
-	// �Һ� ������--------------------------------------------------------------------------------
+	// ========================================
+	// Consumable Item Handling
+	// ========================================
 	if (DropItem.ItemType == EItemType::Consumable)
 	{
-		//�κ��丮�� ���� ItemID�� ���� ������Ʈ�� �ִ��� ã�´�.
+		// Find existing slot with same ItemID
 		UBSItemInstance* FoundInst = nullptr;
 
 		if (TObjectPtr<UBSItemInstance>* FoundSlot = ItemInventory.FindByPredicate(
 			[&](const TObjectPtr<UBSItemInstance>& Elem)
 			{
-				return Elem && Elem->StaticData == DropStatic; // ���� �ڻ��̸� ���� ������
+				return Elem && Elem->StaticData == DropStatic; // Same static data = same item type
 			}))
 		{
 			FoundInst = FoundSlot->Get();
 		}
 
-		//���� ����ִ� ���Կ� ����� �������� �� ���Ը� ����Ѵ�.
+		// Calculate available weight capacity
 		const int32 AvailableWeight = MaxWeight - CurrentWeight;
 		const int32 DropWeight = DropItem.Quantity * DropStatic->Weight;
 
 		UE_LOG(LogTemp, Log, TEXT("  💼 무게 계산: AvailableWeight=%d, DropWeight=%d, ItemWeight=%d"),
 			AvailableWeight, DropWeight, DropStatic->Weight);
 
-		//���� ���͸� ã���� ��� 
+		// Case 1: Existing slot found with same ItemID
 		if (FoundInst)
 		{
-			//�ش� �������� ���� / ���� ���� ��ȹ��
+			// Get dynamic and static data of found slot
 			FBS_Item& FoundItem = FoundInst->GetItemData();
 			const UBSStaticItemDataAsset* FoundStatic = FoundInst->GetItemStaticData();
 
-			//�̶� FFL_StaticItem�� ������ ����..
+			// Validate static data
 			if (!FoundStatic) return;
 
-			// ���� ���� ������ �ִ�ġ ���
+			// Calculate available stack space
 			const int32 AvailableStack = FoundStatic->MaxStackSize - FoundItem.Quantity;
 
-			//��� ����, ���� ���� ����, ���� �ѵ� ������ ������ �ּ� ���� ���
+			// Calculate addable quantity (minimum of: drop quantity, stack space, weight capacity)
 			const int32 AddableQuantity = FMath::Min3
 			(
-				DropItem.Quantity,							//����� ����
-				AvailableStack,								//���� ������ ���� ����(�̹� 995�� �ִµ� 999�������� ����ִٸ�? -> 4�� �� ������ ����)
-				AvailableWeight / FoundStatic->Weight		//���� �ѵ�(���� ���԰� 20�̰�, ������ ���԰� 5����� -> 4��)
+				DropItem.Quantity,							// Dropped quantity
+				AvailableStack,								// Available stack space (e.g., 995 existing + 999 dropped = only 4 can be added)
+				AvailableWeight / FoundStatic->Weight		// Weight capacity (e.g., 20 available weight, 5 weight per item = max 4 items)
 			);
 
-			UE_LOG(LogTemp, Log, TEXT("  📊 AddableQuantity 계산 (기존 슬롯): Drop=%d, Stack=%d, Weight=%d → Result=%d"),
+			UE_LOG(LogTemp, Log, TEXT("  AddableQuantity (existing slot): Drop=%d, Stack=%d, Weight=%d -> Result=%d"),
 				DropItem.Quantity, AvailableStack, AvailableWeight / FoundStatic->Weight, AddableQuantity);
 
-			//��� ����, ���� ���� ����, ���� �ѵ� ������ ������ �ּ� ���� ���
+			// If can add items
 			if (AddableQuantity > 0)
 			{
-				//������ �����ϰ�, ���� �߰�, ��� ������ ���� ����
+				// Add to existing slot, update weight, decrease dropped quantity
 				FoundItem.Quantity += AddableQuantity;
 				CurrentWeight += AddableQuantity * FoundStatic->Weight;
 				DropItem.Quantity -= AddableQuantity;
 
-				// 성공 로그 (기존 슬롯에 추가)
-				UE_LOG(LogTemp, Warning, TEXT("✅ [F키 획득] 아이템 추가됨! ItemID: %d, 추가량: %d, 현재 무게: %d/%d"),
+				// Success log (added to existing slot)
+				UE_LOG(LogTemp, Warning, TEXT("[Pickup Success] Item added! ItemID: %d, Added: %d, Weight: %d/%d"),
 					DropItem.ItemID, AddableQuantity, CurrentWeight, MaxWeight);
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("⚠️ [F키 획득 실패] AddableQuantity = 0 (인벤 꽉참 또는 무게초과)"));
+				UE_LOG(LogTemp, Warning, TEXT("[Pickup Failed] AddableQuantity = 0 (Inventory full or weight exceeded)"));
 			}
 
 		}
 
-		//������ ���� ID�� �������� �κ��丮�� ���� ��� 
+		// Case 2: No existing slot found - create new slot
 		else
 		{
-			// ���� ������ ������ �� �� �ִ� �ִ� ���� ���
+			// Calculate addable quantity based on weight capacity
 			int32 AddableQuantity = FMath::Min
 			(
 				DropItem.Quantity,
 				AvailableWeight / DropStatic->Weight
 			);
 
-			UE_LOG(LogTemp, Log, TEXT("  📊 AddableQuantity 계산 (새 슬롯): Drop=%d, Weight=%d → Result=%d"),
+			UE_LOG(LogTemp, Log, TEXT("  AddableQuantity (new slot): Drop=%d, Weight=%d -> Result=%d"),
 				DropItem.Quantity, AvailableWeight / DropStatic->Weight, AddableQuantity);
 
-			// ���� �����̶� �� �� �ִٸ�
+			// If can add items
 			if (AddableQuantity > 0)
 			{
-				//�� ������Ʈ ����
+				// Create new instance
 				UBSItemInstance* NewInst = NewObject<UBSItemInstance>(this);
 
-				// ��� �������� ���� ���� ���� + ������ AddableQuantity�� ����
+				// Copy dynamic data and set quantity to addable amount
 				FBS_Item NewDyn = DropItem;
 				NewDyn.Quantity = AddableQuantity;
 
-				// ����/���� ���� ����
+				// Set static/dynamic data
 				NewInst->StaticData = DropStatic;
 				NewInst->Dynamic = NewDyn;
 
-				//�κ��丮�� �߰�
+				// Add to inventory
 				ItemInventory.Add(NewInst);
 
-				//���� �߰�
+				// Update weight
 				CurrentWeight += AddableQuantity * DropStatic->Weight;
 
-				// ���� ����(DroppedActor)�� ������ ���ҽ�Ŵ �� �ٴڿ� ���� ���� ����
+				// Decrease dropped actor quantity (or destroy if 0)
 				DropItem.Quantity -= AddableQuantity;
 
-				// 성공 로그 (새 슬롯 생성)
-				UE_LOG(LogTemp, Warning, TEXT("✅ [F키 획득] 새 아이템 추가됨! ItemID: %d, 수량: %d, 현재 무게: %d/%d"),
+				// Success log (new slot created)
+				UE_LOG(LogTemp, Warning, TEXT("[Pickup Success] New item added! ItemID: %d, Quantity: %d, Weight: %d/%d"),
 					DropItem.ItemID, AddableQuantity, CurrentWeight, MaxWeight);
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("⚠️ [F키 획득 실패] AddableQuantity = 0 (인벤 꽉참 또는 무게초과)"));
+				UE_LOG(LogTemp, Warning, TEXT("[Pickup Failed] AddableQuantity = 0 (Inventory full or weight exceeded)"));
 			}
 
 			ItemInventory.Sort([](const UBSItemInstance& A, const UBSItemInstance& B)
@@ -194,7 +238,36 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 		}
 	}
 
-	// 디버그: 인벤토리 내용 출력 (개발 중에만 사용)
+	// ========================================
+	// Remove Item from World if Fully Picked Up
+	// ========================================
+	if (DropItem.Quantity <= 0)
+	{
+		// All quantity moved to inventory - remove from world
+		if (DroppedActor->IsPooled())
+		{
+			// DEBUG: Log actor pointer when returning to pool
+			UE_LOG(LogTemp, Warning, TEXT("[AddItem] 🔴 Returning actor to pool: %p (ItemID=%d)"),
+				DroppedActor, DropItem.ItemID);
+
+			// Pooled item → return to pool
+			DroppedActor->DeSpawn();
+			UE_LOG(LogTemp, Log, TEXT("[AddItem] ✅ Pooled item returned to pool (ItemID=%d)"), DropItem.ItemID);
+		}
+		else
+		{
+			// Map-placed item → destroy
+			DroppedActor->Destroy();
+			UE_LOG(LogTemp, Log, TEXT("[AddItem] ✅ Map-placed item destroyed (ItemID=%d)"), DropItem.ItemID);
+		}
+	}
+	else
+	{
+		// Partial pickup - item remains in world with reduced quantity
+		UE_LOG(LogTemp, Log, TEXT("[AddItem] Partial pickup - %d items remaining in world"), DropItem.Quantity);
+	}
+
+	// Debug: Print inventory contents (Development only)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	for (auto& e : ItemInventory)
 	{
@@ -202,23 +275,63 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 		{
 			int32 ItemIDValue = e->Dynamic.ItemID;
 			FString ItemName = StaticEnum<EConsumableID>()->GetNameStringByValue(ItemIDValue);
-			UE_LOG(LogTemp, Log, TEXT("  📦 인벤토리 - 아이템: %s, 수량: %d"), *ItemName, e->Dynamic.Quantity);
+			UE_LOG(LogTemp, Log, TEXT("  [Inventory] Item: %s, Quantity: %d"), *ItemName, e->Dynamic.Quantity);
 		}
 	}
 #endif
+
+	// Broadcast inventory changed event
+	OnInventoryChanged.Broadcast();
 }
 
-void UInventoryComponent::DiscardItem(UBSItemInstance* DroppedItem, int32 Count /*= 1*/)
+// ========================================
+// Find Item Index in Inventory
+// ========================================
+int32 UInventoryComponent::FindItemIndex(UBSItemInstance* ItemInstance) const
 {
-	if (!DroppedItem || !GetOwner()) return;
+	if (!ItemInstance) return INDEX_NONE;
 
-	// ��� ������ ��ȿ���� üũ
-	if (Count <= 0 || DroppedItem->Dynamic.Quantity < Count) return;
+	for (int32 i = 0; i < ItemInventory.Num(); ++i)
+	{
+		if (ItemInventory[i] == ItemInstance)
+		{
+			return i;
+		}
+	}
 
-	// ���� ������ ������ ��ġ
+	return INDEX_NONE;
+}
+
+// ========================================
+// Discard Item By Index
+// ========================================
+void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*/)
+{
+	// Validate index
+	if (!ItemInventory.IsValidIndex(ItemIndex) || !GetOwner())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Invalid index: %d (Inventory size: %d)"), ItemIndex, ItemInventory.Num());
+		return;
+	}
+
+	UBSItemInstance* DroppedItem = ItemInventory[ItemIndex];
+	if (!DroppedItem)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Item at index %d is null"), ItemIndex);
+		return;
+	}
+
+	// Validate quantity
+	if (Count <= 0 || DroppedItem->Dynamic.Quantity < Count)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Invalid count: %d (Item has: %d)"), Count, DroppedItem->Dynamic.Quantity);
+		return;
+	}
+
+	// Get owner location
 	const FVector ActorLocation = GetOwner()->GetActorLocation();
 
-	// ���� 50, �Ʒ��� 500 ����Ʈ���̽�
+	// Line trace to find ground (50 units up, 500 units down)
 	FVector Start = ActorLocation + FVector(0, 0, 50);
 	FVector End = ActorLocation - FVector(0, 0, 500);
 
@@ -234,56 +347,125 @@ void UInventoryComponent::DiscardItem(UBSItemInstance* DroppedItem, int32 Count 
 		Params
 	);
 
-	// ���� �������� �� ��ġ, �ƴϸ� ĳ���� �߹�
+	// Use hit point if ground found, otherwise use actor location
+	// Spawn above ground so item can fall with physics
 	FVector SpawnLocation = bHit ? HitResult.ImpactPoint : ActorLocation;
+	SpawnLocation.Z += 100.0f;  // Spawn 100 units above ground (let it fall with physics)
 
-	// ���� �Ķ����
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	// Add random horizontal offset for variety
+	float RandomAngle = FMath::FRandRange(0.0f, 2.0f * PI);
+	float RandomDistance = FMath::FRandRange(20.0f, 50.0f);  // Smaller spread (items will roll naturally)
+	SpawnLocation.X += FMath::Cos(RandomAngle) * RandomDistance;
+	SpawnLocation.Y += FMath::Sin(RandomAngle) * RandomDistance;
 
-	// DataAsset���� ������ ������ ���� Ŭ���� ���
+	// Get item actor class from DataAsset
 	if (!DroppedItem->StaticData)
 	{
-		UE_LOG(LogTemp, Log, TEXT("5"));
-
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] StaticData is null - ItemID: %d"),
+			DroppedItem->Dynamic.ItemID);
 		return;
 	}
+
 	TSubclassOf<AItemActor> ActorClass = DroppedItem->StaticData->GetItemActorClass();
+
+	// Fallback: Use default ItemActor class if not set in DataAsset
 	if (!ActorClass)
 	{
-		UE_LOG(LogTemp, Log, TEXT("6"));
+		UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] ActorClass not set in DataAsset (Item: %s, ID: %d) - Using AItemActor as fallback"),
+			*DroppedItem->StaticData->DisplayName.ToString(),
+			DroppedItem->Dynamic.ItemID);
+
+		ActorClass = AItemActor::StaticClass();
+	}
+
+	// Get world
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] World is null"));
 		return;
 	}
 
-	AItemActor* SpawnedActor = GetWorld()->SpawnActor<AItemActor>(
-		ActorClass,
-		SpawnLocation,
-		FRotator::ZeroRotator,
-		SpawnParams
-	);
+	// ========================================
+	// Use PoolingSubsystem to get item from pool
+	// ========================================
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (!PoolSys)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] PoolingSubsystem not found!"));
+		return;
+	}
+
+	// DEBUG: Before getting from pool
+	UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] ⚪ About to get actor from pool..."));
+
+	// Get item from pool
+	TScriptInterface<ISpawnable> SpawnedObj = PoolSys->SpawnFromClass(ActorClass, SpawnLocation);
+	AItemActor* SpawnedActor = Cast<AItemActor>(SpawnedObj.GetObject());
 
 	if (SpawnedActor)
 	{
-		UE_LOG(LogTemp, Log, TEXT("2"));
+		// DEBUG: Log actor pointer to track reuse
+		UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] 🔵 Got actor from pool: %p, Location: %s, Hidden: %d"),
+			SpawnedActor, *SpawnLocation.ToString(), SpawnedActor->IsHidden());
 
-		// ���ο� ���Ϳ� ������ ���� (������ ������ŭ)
+		// Set item data (discarded quantity)
 		FBS_Item NewItemData = DroppedItem->Dynamic;
 		NewItemData.Quantity = Count;
 
 		SpawnedActor->InitializeItemBS_Item(NewItemData);
 		SpawnedActor->SetOwner(nullptr);
+		SpawnedActor->SetPooled(true);  // Mark as pooled item
+
+		UE_LOG(LogTemp, Log, TEXT("[DiscardItemByIndex] ✅ Item spawned from pool: %s (ItemID: %d, Quantity: %d) at %s"),
+			*ActorClass->GetName(),
+			DroppedItem->Dynamic.ItemID,
+			Count,
+			*SpawnLocation.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] ❌❌❌ POOL EXHAUSTED! Failed to spawn item! ❌❌❌"));
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Item NOT removed from inventory (ItemID: %d, Count: %d)"),
+			DroppedItem->Dynamic.ItemID, Count);
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Solution: Increase pool size in GameMode or wait for items to be picked up"));
+
+		// Do NOT decrease inventory quantity - spawn failed!
+		// Broadcast to update UI (to show item is still there)
+		OnInventoryChanged.Broadcast();
+		return;
 	}
 
-	// �κ��丮 ���� ���� ����
+	// Decrease inventory quantity and weight
 	DroppedItem->Dynamic.Quantity -= Count;
 
-	// ���� ������ 0 ���ϰ� �Ǹ� �κ��丮���� ����
+	// Calculate and decrease weight
+	int32 DiscardedWeight = Count * DroppedItem->StaticData->Weight;
+	CurrentWeight -= DiscardedWeight;
+
+	UE_LOG(LogTemp, Log, TEXT("[DiscardItemByIndex] Weight decreased: -%d (New total: %d/%d)"),
+		DiscardedWeight, CurrentWeight, MaxWeight);
+
+	// Remove from inventory if quantity reaches 0
 	if (DroppedItem->Dynamic.Quantity <= 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("3"));
-
 		ItemInventory.Remove(DroppedItem);
-		DroppedItem->MarkAsGarbage(); // GC ��� ó��
+		DroppedItem->MarkAsGarbage(); // Mark for garbage collection
 	}
+
+	// Broadcast inventory changed event
+	OnInventoryChanged.Broadcast();
+}
+
+// ========================================
+// [Dedicated Server] ServerDiscardItem RPC Implementation
+// ========================================
+void UInventoryComponent::ServerDiscardItem_Implementation(int32 ItemIndex, int32 Count /*= 1*/)
+{
+	UE_LOG(LogTemp, Log, TEXT("[Server] ServerDiscardItem_Implementation called - ItemIndex: %d, Count: %d"), ItemIndex, Count);
+
+	// Executed on server - calls DiscardItemByIndex to handle actual logic
+	// Item spawned on server is automatically replicated to all clients
+	// Inventory change is replicated via OnRep_ItemInventory
+	DiscardItemByIndex(ItemIndex, Count);
 }
