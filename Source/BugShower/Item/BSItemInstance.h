@@ -13,7 +13,7 @@
 /*
  인벤토리에서 아이템의 정보를 저장하기 위한 얕은 데이터.
  */
-UCLASS()
+UCLASS(BlueprintType)
 class BUGSHOWER_API UBSItemInstance : public UObject
 {
 	GENERATED_BODY()
