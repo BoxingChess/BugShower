@@ -339,3 +339,8 @@ void UBSGameInstance::AddItemsToInventoryForGame(UBSItemInstance* AddData, int32
 		UE_LOG(LogTemp, Log, TEXT("🗑️ Removed depleted item from RuntimeInventory (ID=%d)"), ItemID);
 	}
 }
+
+const TArray<UBSItemInstance*>& UBSGameInstance::GetSelecedItems() const
+{
+	return SelectedItemsForGame;
+}

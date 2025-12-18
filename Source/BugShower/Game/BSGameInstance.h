@@ -125,7 +125,7 @@ public:
 
 	
 	/**
-	 * 저장된 아이템 목록 가져오기 (로비에서 사용)
+	 * 저장된 아이템 목록 가져오기 (로비 창고에서 사용)
 	 * RuntimeItemInventory를 반환하여 현재 세션에서 획득한 아이템까지 포함
 	 *
 	 * @return 플레이어가 보유한 모든 아이템
@@ -150,4 +150,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void AddItemsToInventoryForGame(UBSItemInstance* AddData, int32 Amount);
 
+	/**
+	 * 선택한 아이템 목록 가져오기 (창고에서 선택된 아이템)
+	 * SelectedItemsForGame를 반환하여 인게임에 전달할 목록
+	 *
+	 * @return 플레이어가 창고에서 선택한 모든 아이템
+	 */
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	const TArray<UBSItemInstance*>& GetSelecedItems() const;
 };

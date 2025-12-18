@@ -19,26 +19,34 @@ public:
 	// Sets default values for this component's properties
 	UInventoryComponent();
 private:
-	//¼ÒºñÅÛÀÇ ÀÎº¥Åä¸® ÀÔ´Ï´Ù.
+	//ï¿½Òºï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸® ï¿½Ô´Ï´ï¿½.
 	UPROPERTY()
 	TArray<TObjectPtr<UBSItemInstance>> ItemInventory;
 
-	//ÀåºñÅÛ - ÃÑ / Ä® µî 
-	///TODO : ÀÌÈÄ ±ÙÁ¢¹«±â´Â µû·Î »©¼­ ¿ø°Å¸® ¹«±â¶ûÀº º°°³·Î µé°í´Ù´Ò¼ö ÀÖ°Ô ÇÑ´Ù. Áö±ÝÀº ¹«±â ±³Ã¼ ¾Ö´Ï¸ÞÀÌ¼ÇÀÌ ¾ø´Ù. 
+	//ï¿½ï¿½ï¿½ï¿½ï¿½ - ï¿½ï¿½ / Ä® ï¿½ï¿½ 
+	///TODO : ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Å¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ù´Ò¼ï¿½ ï¿½Ö°ï¿½ ï¿½Ñ´ï¿½. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½. 
 	UPROPERTY()
 	TObjectPtr<AItemActor> EquipmentItem = nullptr;
 
-	//ÀÎº¥Åä¸®³» ¾ÆÀÌÅÛµéÀÌ °¡Áú¼ö ÀÖ´Â ÃÖ´ë ¹«°Ô
+	//ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ûµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½
 	int32 MaxWeight = 500;
 
-	//ÇöÀç µé°íÀÖ´Â ¹«°Ô
+	//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½
 	int32 CurrentWeight = 0;
 public:
-	//¾ÆÀÌÅÛÀ» ÀÎº¥Åä¸® or ÀåºñÅÛ¿¡ Ãß°¡ÇÑ´Ù.
+	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸® or ï¿½ï¿½ï¿½ï¿½Û¿ï¿½ ï¿½ß°ï¿½ï¿½Ñ´ï¿½.
 	void AddItem(AItemActor* DroppedActor);
 
-	//ÀÎº¥Åä¸® or ÀåºñÅÛÀ» ¹ö¸°´Ù.
+	//ï¿½Îºï¿½ï¿½ä¸® or ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.
 	void DiscardItem(UBSItemInstance* DroppedActor, int32 Count = 1);
+
+	/**
+	 * UBSItemInstanceë¥¼ ì§ì ‘ ì¸ë²¤í† ë¦¬ì— ì¶”ê°€
+	 * ItemActor ì—†ì´ ë°”ë¡œ ì¶”ê°€ (ë¡œë¹„ ì„ íƒ ì•„ì´í…œìš©)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool AddItemInstance(UBSItemInstance* ItemInstance);
+
 public:
 	TArray<UBSItemInstance*> GetItemInventory() { return ItemInventory; };
 

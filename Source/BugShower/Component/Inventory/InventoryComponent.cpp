@@ -287,3 +287,101 @@ void UInventoryComponent::DiscardItem(UBSItemInstance* DroppedItem, int32 Count 
 		DroppedItem->MarkAsGarbage(); // GC ��� ó��
 	}
 }
+
+bool UInventoryComponent::AddItemInstance(UBSItemInstance* ItemInstance)
+{
+	if (!ItemInstance || !ItemInstance->StaticData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InventoryComponent::AddItemInstance - Invalid ItemInstance"));
+		return false;
+	}
+
+	const FBS_Item& ItemData = ItemInstance->Dynamic;
+	const UBSStaticItemDataAsset* StaticData = ItemInstance->StaticData;
+
+	// 장비 아이템은 현재 미지원 (기존 AddItem 로직 참고하여 확장 가능)
+	if (ItemData.ItemType == EItemType::Equipment)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InventoryComponent::AddItemInstance - Equipment not supported yet"));
+		return false;
+	}
+
+	// 소비 아이템 처리
+	if (ItemData.ItemType == EItemType::Consumable)
+	{
+		// 기존 아이템 찾기
+		UBSItemInstance* FoundInst = nullptr;
+
+		if (TObjectPtr<UBSItemInstance>* FoundSlot = ItemInventory.FindByPredicate(
+			[&](const TObjectPtr<UBSItemInstance>& Elem)
+			{
+				return Elem && Elem->Dynamic.ItemID == ItemData.ItemID;
+			}))
+		{
+			FoundInst = FoundSlot->Get();
+		}
+
+		const int32 AvailableWeight = MaxWeight - CurrentWeight;
+		const int32 ItemWeight = ItemData.Quantity * StaticData->Weight;
+
+		// 무게 초과 체크
+		if (ItemWeight > AvailableWeight)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("InventoryComponent::AddItemInstance - Not enough weight"));
+			return false;
+		}
+
+		// 기존 슬롯에 추가
+		if (FoundInst)
+		{
+			const int32 AvailableStack = StaticData->MaxStackSize - FoundInst->Dynamic.Quantity;
+			const int32 AddableQuantity = FMath::Min3(
+				ItemData.Quantity,
+				AvailableStack,
+				AvailableWeight / StaticData->Weight
+			);
+
+			if (AddableQuantity > 0)
+			{
+				FoundInst->Dynamic.Quantity += AddableQuantity;
+				CurrentWeight += AddableQuantity * StaticData->Weight;
+				UE_LOG(LogTemp, Log, TEXT("✅ Added %d items to existing slot (ID=%d)"),
+					AddableQuantity, ItemData.ItemID);
+				return true;
+			}
+			return false;
+		}
+		// 새 슬롯 생성
+		else
+		{
+			const int32 AddableQuantity = FMath::Min(
+				ItemData.Quantity,
+				AvailableWeight / StaticData->Weight
+			);
+
+			if (AddableQuantity > 0)
+			{
+				UBSItemInstance* NewInst = NewObject<UBSItemInstance>(this);
+				NewInst->StaticData = StaticData;
+				NewInst->Dynamic = ItemData;
+				NewInst->Dynamic.Quantity = AddableQuantity;
+
+				ItemInventory.Add(NewInst);
+				CurrentWeight += AddableQuantity * StaticData->Weight;
+
+				// 정렬
+				ItemInventory.Sort([](const UBSItemInstance& A, const UBSItemInstance& B)
+				{
+					return A.Dynamic.ItemID < B.Dynamic.ItemID;
+				});
+
+				UE_LOG(LogTemp, Log, TEXT("✅ Created new slot with %d items (ID=%d)"),
+					AddableQuantity, ItemData.ItemID);
+				return true;
+			}
+			return false;
+		}
+	}
+
+	return false;
+}
