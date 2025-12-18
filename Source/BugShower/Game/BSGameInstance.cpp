@@ -44,6 +44,11 @@ void UBSGameInstance::Init()
 	// 각 클라이언트는 자신의 로컬 PC에 SaveGame 저장 → 슬롯 이름이 같아도 충돌 없음
 	CurrentPlayerID = TEXT("");
 	UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::Init - Using default save slot: %s"), *GetSaveSlotName());
+
+	// 게임 시작 시 한 번만 SaveData 로드
+	// ServerTravel 후에는 메모리에 있는 RuntimeItemInventory 유지
+	LoadPlayerSaveData();
+	UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::Init - SaveData loaded at startup"));
 }
 
 void UBSGameInstance::SetPlayerID(const FString& InPlayerID)
@@ -230,19 +235,6 @@ void UBSGameInstance::AddItemsToRuntimeInventory(const TArray<UBSItemInstance*>&
 		RuntimeItemInventory.Num());
 }
 
-void UBSGameInstance::AddSingleItemToRuntimeInventory(UBSItemInstance* ItemToAdd)
-{
-	if (!ItemToAdd)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddSingleItemToRuntimeInventory - ItemToAdd is NULL!"));
-		return;
-	}
-
-	TArray<UBSItemInstance*> TempArray;
-	TempArray.Add(ItemToAdd);
-	AddItemsToRuntimeInventory(TempArray);
-}
-
 const TArray<UBSItemInstance*>& UBSGameInstance::GetPlayerItems() const
 {
 	return RuntimeItemInventory;
@@ -270,4 +262,80 @@ void UBSGameInstance::ResetSaveData()
 		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::ResetSaveData - All save data has been reset for slot: %s"), *SaveSlotName);
 	}
 }
- 
+
+void UBSGameInstance::AddItemsToInventoryForGame(UBSItemInstance* AddData, int32 Amount)
+{
+	if (!AddData || Amount <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddItemsToInventoryForGame - Invalid AddData or Amount"));
+		return;
+	}
+
+	int32 ItemID = AddData->Dynamic.ItemID;
+
+	// 1. RuntimeItemInventory에서 차감 가능한지 확인
+	UBSItemInstance* SourceItem = nullptr;
+	for (UBSItemInstance* Item : RuntimeItemInventory)
+	{
+		if (Item && Item->Dynamic.ItemID == ItemID)
+		{
+			SourceItem = Item;
+			break;
+		}
+	}
+
+	if (!SourceItem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddItemsToInventoryForGame - Item not found in RuntimeInventory (ID=%d)"), ItemID);
+		return;
+	}
+
+	if (SourceItem->Dynamic.Quantity < Amount)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddItemsToInventoryForGame - Not enough items (Have=%d, Want=%d)"),
+			SourceItem->Dynamic.Quantity, Amount);
+		return;
+	}
+
+	// 2. SelectedItemsForGame에서 같은 아이템 찾기
+	UBSItemInstance* FoundSelected = nullptr;
+	for (UBSItemInstance* Item : SelectedItemsForGame)
+	{
+		if (Item && Item->Dynamic.ItemID == ItemID)
+		{
+			FoundSelected = Item;
+			break;
+		}
+	}
+
+	// 3-1. 이미 선택된 아이템이면 수량만 증가
+	if (FoundSelected)
+	{
+		FoundSelected->Dynamic.Quantity += Amount;
+		UE_LOG(LogTemp, Log, TEXT("✅ Updated existing selected item (ID=%d, NewQuantity=%d)"),
+			ItemID, FoundSelected->Dynamic.Quantity);
+	}
+	// 3-2. 새로운 아이템이면 복사본 생성 후 추가
+	else
+	{
+		UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+		NewInstance->StaticData = AddData->StaticData;
+		NewInstance->Dynamic = AddData->Dynamic;
+		NewInstance->Dynamic.Quantity = Amount;
+		SelectedItemsForGame.Add(NewInstance);
+
+		UE_LOG(LogTemp, Log, TEXT("✅ Added new selected item (ID=%d, Quantity=%d)"), ItemID, Amount);
+	}
+
+	// 4. RuntimeItemInventory에서 차감
+	SourceItem->Dynamic.Quantity -= Amount;
+	UE_LOG(LogTemp, Log, TEXT("📉 Deducted from RuntimeInventory (ID=%d, Remaining=%d)"),
+		ItemID, SourceItem->Dynamic.Quantity);
+
+	// 5. 수량이 0이 되면 배열에서 제거
+	if (SourceItem->Dynamic.Quantity <= 0)
+	{
+		RuntimeItemInventory.Remove(SourceItem);
+		UE_LOG(LogTemp, Log, TEXT("🗑️ Removed depleted item from RuntimeInventory (ID=%d)"), ItemID);
+	}
+}

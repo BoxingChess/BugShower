@@ -65,6 +65,13 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UBSItemInstance>> RuntimeItemInventory;
 
+	/**
+	 * 로비에서 선택한 아이템 목록 (인게임 전달용)
+	 * ServerTravel 후에도 유지됨
+	 */
+	UPROPERTY()
+	TArray<TObjectPtr<UBSItemInstance>> SelectedItemsForGame;
+
 public:
 	/**
 	 * 플레이어 ID 설정
@@ -116,14 +123,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void AddItemsToRuntimeInventory(const TArray<UBSItemInstance*>& ItemsToAdd);
 
-	/**
-	 * 단일 아이템을 런타임 인벤토리에 추가
-	 *
-	 * @param ItemToAdd - 추가할 아이템
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void AddSingleItemToRuntimeInventory(UBSItemInstance* ItemToAdd);
-
+	
 	/**
 	 * 저장된 아이템 목록 가져오기 (로비에서 사용)
 	 * RuntimeItemInventory를 반환하여 현재 세션에서 획득한 아이템까지 포함
@@ -139,4 +139,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame")
 	void ResetSaveData();
+
+
+	/**
+	 * 로비에서 개별 아이템을 선택하여 인게임으로 전달할 목록에 추가
+	 * RuntimeItemInventory에서 차감하고 SelectedItemsForGame에 추가
+	 * @param AddData - 추가할 아이템 정보
+	 * @param Amount - 추가할 수량
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddItemsToInventoryForGame(UBSItemInstance* AddData, int32 Amount);
+
 };
