@@ -2,6 +2,7 @@
 
 #include "Game/BSLobbyGameMode.h"
 #include "Game/BSGameStateBase.h"
+#include "Game/BSGameInstance.h"
 #include "Player/BSLobbyPlayerController.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
@@ -106,12 +107,46 @@ void ABSLobbyGameMode::StartGame()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Starting game - Traveling to map: %s"), *MapName);
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+	UE_LOG(LogTemp, Warning, TEXT("Starting game - Saving all clients..."));
 
-	// Use ServerTravel to move all connected clients to the game map
-	// bAbsolute = false: Use relative path (map name only)
-	// bShouldSkipGameNotify = false: Call proper game mode transitions
-	GetWorld()->ServerTravel(MapName, false, false);
+	// 모든 클라이언트(+서버)에게 저장 명령 전송
+	MulticastSaveBeforeGameStart();
+
+	// 저장 시간 확보를 위해 0.5초 후 ServerTravel 실행
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(TimerHandle, [this, MapName]()
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Traveling to map: %s"), *MapName);
+		UE_LOG(LogTemp, Warning, TEXT("========================================"));
+
+		// Use ServerTravel to move all connected clients to the game map
+		// bAbsolute = false: Use relative path (map name only)
+		// bShouldSkipGameNotify = false: Call proper game mode transitions
+		GetWorld()->ServerTravel(MapName, false, false);
+	}, 0.5f, false);
+}
+
+void ABSLobbyGameMode::MulticastSaveBeforeGameStart_Implementation()
+{
+	// 각 클라이언트(+서버)에서 실행됨
+	if (UBSGameInstance* GameInstance = Cast<UBSGameInstance>(GetGameInstance()))
+	{
+		bool bSaveSuccess = GameInstance->SavePlayerData();
+
+		if (bSaveSuccess)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("✅ Saved player data before game start"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("❌ Failed to save player data before game start!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("MulticastSaveBeforeGameStart - GameInstance is NULL!"));
+	}
 }
 
 FString ABSLobbyGameMode::GetNextGameMapName_Implementation() const

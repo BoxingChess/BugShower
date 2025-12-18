@@ -45,6 +45,13 @@ public:
 	void StartGame();
 
 	/**
+	 * 게임 시작전 가지온 아이템에 대한 정보를 저장
+	 * 모든 클라이언트(+서버)에게 저장 명령 전송
+	 */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSaveBeforeGameStart();
+
+	/**
 	 * Get the map name to transition to
 	 * Can be overridden in Blueprint to customize the target map
 	 */
