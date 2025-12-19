@@ -432,11 +432,11 @@ void UPickUpDetectorComponent::TryPickupFocused()
 	// 무기 픽업 시도
 	else if (AWeaponActor* Weapon = FocusedWeapon.Get())
 	{
-		// 무기 장착 (플레이어 캐릭터의 EquipWeapon 호출)
+		// 무기 장착 서버 RPC 호출 (데디케이티드 서버 환경 대응)
 		if (ABSCharacterPlayer* Player = Cast<ABSCharacterPlayer>(GetOwner()))
 		{
-			Player->EquipWeapon(Weapon);
-			UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - Equipped weapon: %s"),
+			Player->ServerEquipWeapon(Weapon);  // 서버 RPC로 변경
+			UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - Requesting weapon equip from server: %s"),
 				Weapon->GetWeaponData() ? *Weapon->GetWeaponData()->WeaponName.ToString() : TEXT("Unknown"));
 		}
 	}
