@@ -233,6 +233,9 @@ void UBSGameInstance::AddItemsToRuntimeInventory(const TArray<UBSItemInstance*>&
 
 	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::AddItemsToRuntimeInventory - Total items in inventory: %d"),
 		RuntimeItemInventory.Num());
+
+	// 인벤토리 변경 알림
+	OnStorageChanged.Broadcast(RuntimeItemInventory);
 }
 
 const TArray<UBSItemInstance*>& UBSGameInstance::GetPlayerItems() const
@@ -338,6 +341,91 @@ void UBSGameInstance::AddItemsToInventoryForGame(UBSItemInstance* AddData, int32
 		RuntimeItemInventory.Remove(SourceItem);
 		UE_LOG(LogTemp, Log, TEXT("🗑️ Removed depleted item from RuntimeInventory (ID=%d)"), ItemID);
 	}
+
+	// 인벤토리 변경 알림
+	OnSelectedItemsChanged.Broadcast(SelectedItemsForGame);
+	OnStorageChanged.Broadcast(RuntimeItemInventory);
+}
+
+void UBSGameInstance::AddItemsToStarage(UBSItemInstance* AddData, int32 Amount)
+{
+	if (!AddData || Amount <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddItemsToStarage - Invalid AddData or Amount"));
+		return;
+	}
+
+	int32 ItemID = AddData->Dynamic.ItemID;
+
+	// 1. SelectedItemsForGame에서 차감 가능한지 확인
+	UBSItemInstance* SourceItem = nullptr;
+	for (UBSItemInstance* Item : SelectedItemsForGame)
+	{
+		if (Item && Item->Dynamic.ItemID == ItemID)
+		{
+			SourceItem = Item;
+			break;
+		}
+	}
+
+	if (!SourceItem)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddItemsToStarage - Item not found in SelectedItemsForGame (ID=%d)"), ItemID);
+		return;
+	}
+
+	if (SourceItem->Dynamic.Quantity < Amount)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddItemsToStarage - Not enough items (Have=%d, Want=%d)"),
+			SourceItem->Dynamic.Quantity, Amount);
+		return;
+	}
+
+	// 2. RuntimeItemInventory에서 같은 아이템 찾기
+	UBSItemInstance* FoundSelected = nullptr;
+	for (UBSItemInstance* Item : RuntimeItemInventory)
+	{
+		if (Item && Item->Dynamic.ItemID == ItemID)
+		{
+			FoundSelected = Item;
+			break;
+		}
+	}
+
+	// 3-1. 이미 선택된 아이템이면 수량만 증가
+	if (FoundSelected)
+	{
+		FoundSelected->Dynamic.Quantity += Amount;
+		UE_LOG(LogTemp, Log, TEXT("✅ Updated existing selected item (ID=%d, NewQuantity=%d)"),
+			ItemID, FoundSelected->Dynamic.Quantity);
+	}
+	// 3-2. 새로운 아이템이면 복사본 생성 후 추가
+	else
+	{
+		UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+		NewInstance->StaticData = AddData->StaticData;
+		NewInstance->Dynamic = AddData->Dynamic;
+		NewInstance->Dynamic.Quantity = Amount;
+		RuntimeItemInventory.Add(NewInstance);
+
+		UE_LOG(LogTemp, Log, TEXT("✅ Added new RuntimeItemInventory item (ID=%d, Quantity=%d)"), ItemID, Amount);
+	}
+
+	// 4. SelectedItemsForGame에서 차감
+	SourceItem->Dynamic.Quantity -= Amount;
+	UE_LOG(LogTemp, Log, TEXT("📉 Deducted from SelectedItems (ID=%d, Remaining=%d)"),
+		ItemID, SourceItem->Dynamic.Quantity);
+
+	// 5. 수량이 0이 되면 배열에서 제거
+	if (SourceItem->Dynamic.Quantity <= 0)
+	{
+		SelectedItemsForGame.Remove(SourceItem);
+		UE_LOG(LogTemp, Log, TEXT("🗑️ Removed depleted item from SelectedItems (ID=%d)"), ItemID);
+	}
+
+	// 인벤토리 변경 알림
+	OnSelectedItemsChanged.Broadcast(SelectedItemsForGame);
+	OnStorageChanged.Broadcast(RuntimeItemInventory);
 }
 
 const TArray<UBSItemInstance*>& UBSGameInstance::GetSelecedItems() const
