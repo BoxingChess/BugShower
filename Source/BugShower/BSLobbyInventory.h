@@ -70,6 +70,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateDisplay(FText InName, FText InDescript, UObject* InIconTex);
+	FName GetWidgetName() const;
 
 protected:
 	UPROPERTY(meta = (BindWidget))
@@ -89,7 +90,10 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	class UTextBlock* ItemDescript;
+
 private:
+	FName WidgetName;
+	
 };
 
 
@@ -129,6 +133,12 @@ protected:
 	UFUNCTION()
 	void OnItemHovered();
 
+	UFUNCTION()
+	void OnItemUnHovered();
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FText ClickPopUpUIName;
+
 private:
 	UPROPERTY()
 	class UBSItemInstance* ItemData;
@@ -144,7 +154,15 @@ class BUGSHOWER_API UBSLobbyInventory : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-	void NativeConstruct() override;
+	//블루프린트 그래프에서 게임 인스턴스를 통해 원하는 아이템 목록 가져와야함
+	UFUNCTION(BlueprintCallable,Category = "Inventory")
+	void InitializeInventory(const TArray<UBSItemInstance*>& InItems);
+
+	UFUNCTION(BlueprintCallable)
+	void SetItemList(TArray<UBSItemInstance*>& InItems);
+
+	UFUNCTION(BlueprintCallable)
+	void UpdateDisplay();
 
 
 protected:
@@ -161,9 +179,11 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	class UButton* Close;
 
-private:
+protected:
 
-	UPROPERTY()
-	TArray<UBSTileItem*> SavedItems;
+
+	UPROPERTY(BlueprintReadWrite)
+	TArray<UBSItemInstance*> SavedItems;
+private:
 
 };

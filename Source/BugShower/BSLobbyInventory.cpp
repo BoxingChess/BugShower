@@ -28,14 +28,14 @@ void UBSClickPopUp::NativeConstruct()
 
 void UBSTooltip::NativeConstruct()
 {
-
+	WidgetName = TEXT("ToolTip");
 }
 
 
 
 void UBSTooltip::UpdateDisplay(FText InName, FText InDescript, UObject* InIconTex)
 {
-	if (InIconTex == nullptr)
+	if (InIconTex == nullptr || ItemIcon == nullptr || ItemName == nullptr || ItemDescript == nullptr)
 	{
 		return;
 	}
@@ -43,6 +43,11 @@ void UBSTooltip::UpdateDisplay(FText InName, FText InDescript, UObject* InIconTe
 	ItemIcon->SetBrushResourceObject(InIconTex);
 	ItemName->SetText(InName);
 	ItemDescript->SetText(InDescript);
+}
+
+FName UBSTooltip::GetWidgetName() const
+{
+	return WidgetName;
 }
 
 ///// Tile Item UI
@@ -56,6 +61,7 @@ void UBSTileItem::NativeConstruct()
 	{
 		ItemSelect->OnClicked.AddDynamic(this, &UBSTileItem::OnItemClicked);
 		ItemSelect->OnHovered.AddDynamic(this, &UBSTileItem::OnItemHovered);
+		ItemSelect->OnUnhovered.AddDynamic(this, &UBSTileItem::OnItemUnHovered);
 	}
 }
 
@@ -107,7 +113,7 @@ void UBSTileItem::OnItemClicked()
 		return;
 	}
 
-	
+
 	UBSUIManager* BSUIManager = GameInstance->GetSubsystem<UBSUIManager>();
 
 	if (BSUIManager == nullptr)
@@ -132,7 +138,7 @@ void UBSTileItem::OnItemHovered()
 	UGameInstance* GameInstance = GetGameInstance();
 	if (GameInstance == nullptr)
 	{
-		LOG_LOGIC_INFO(TEXT("OnItemClicked: GameInstance is NULL"));
+		LOG_LOGIC_INFO(TEXT("OnItemHovered: GameInstance is NULL"));
 		return;
 	}
 
@@ -141,54 +147,98 @@ void UBSTileItem::OnItemHovered()
 
 	if (BSUIManager == nullptr)
 	{
-		LOG_LOGIC_INFO(TEXT("OnItemClicked: BSUIManager is NULL"));
+		LOG_LOGIC_INFO(TEXT("OnItemHovered: BSUIManager is NULL"));
 		return;
 	}
 
-	BSUIManager->ShowWidget("");
+	if (ItemSelect->GetToolTip() == nullptr)
+	{
+		UUserWidget* Widget = BSUIManager->GetWidget("Tooltip");
+		UBSTooltip* SharedTooltip = Cast<UBSTooltip>(Widget);
+
+		if (SharedTooltip == nullptr)
+		{
+			LOG_LOGIC_INFO(TEXT("OnItemHovered: SharedTooltip is NULL"));
+			return;
+		}
+
+		ItemSelect->SetToolTip(SharedTooltip);
+
+		if (SharedTooltip == nullptr)
+		{
+			LOG_LOGIC_INFO(TEXT("OnItemHovered: SharedTooltip is NULL"));
+			return;
+		}
+
+		FText Name = ItemData->StaticData->DisplayName;
+		FText Descript = ItemData->StaticData->Description;
+		UTexture2D* Icon = ItemData->StaticData->Icon;
+
+		//tootip은 자동 on off됨
+		SharedTooltip->UpdateDisplay(Name, Descript, Icon);
+	}
+	else
+	{
+		FText Name = ItemData->StaticData->DisplayName;
+		FText Descript = ItemData->StaticData->Description;
+		UTexture2D* Icon = ItemData->StaticData->Icon;
+
+		UBSTooltip* SharedTooltip = Cast<UBSTooltip>(ItemSelect->GetToolTip());
+
+		if (SharedTooltip == nullptr)
+		{
+			LOG_LOGIC_INFO(TEXT("OnItemHovered: SharedTooltip is NULL"));
+			return;
+		}
+
+		//tootip은 자동 on off됨
+		SharedTooltip->UpdateDisplay(Name, Descript, Icon);
+	}
 }
 
 
 
+void UBSTileItem::OnItemUnHovered()
+{
+	
+}
+
 ///// Inventory UI
 
 
-void UBSLobbyInventory::NativeConstruct()
+
+void UBSLobbyInventory::InitializeInventory(const TArray<UBSItemInstance*>& InItems)
 {
-	Super::NativeConstruct();
 
-	UGameInstance* GameInstance = GetGameInstance();
-	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GameInstance);
+	// TileView 초기화 및 아이템 설정
+	Inventory->ClearListItems();
+	SavedItems.Empty();
 
-	if (BSGameInstance == nullptr)
+	// 아이템 목록을 TileView에 추가
+	for (UBSItemInstance* Item : InItems)
 	{
-		LOG_LOGIC_INFO(TEXT("BSGameInstance is NULL"));
-		return;
+		if (Item != nullptr)
+		{
+			Inventory->AddItem(Item);
+			SavedItems.Add(Item);
+		}
 	}
 
+	LOG_LOGIC_INFO(TEXT("Loaded %d items to inventory"), SavedItems.Num());
+}
+
+void UBSLobbyInventory::SetItemList(TArray<UBSItemInstance*>& InItems)
+{
 	if (Inventory == nullptr)
 	{
 		LOG_LOGIC_INFO(TEXT("Inventory TileView is NULL"));
 		return;
 	}
-	
 
+}
 
-	// 게임 인스턴스에서 플레이어 아이템 목록 가져오기
-	const TArray<UBSItemInstance*>& ItemList = BSGameInstance->GetPlayerItems();
+void UBSLobbyInventory::UpdateDisplay()
+{
 
-	// TileView 초기화 및 아이템 설정
-	Inventory->ClearListItems();
-
-	// 아이템 목록을 TileView에 추가
-	for (UBSItemInstance* Item : ItemList)
-	{
-		if (Item != nullptr)
-		{
-			Inventory->AddItem(Item);
-		}
-	}
-
-	LOG_LOGIC_INFO(TEXT("Loaded %d items to inventory"), ItemList.Num());
 }
 
