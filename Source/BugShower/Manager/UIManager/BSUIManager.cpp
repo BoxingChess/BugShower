@@ -265,8 +265,6 @@ void UBSUIManager::InitializePlayerUI(APlayerController* PC)
 			// AddToViewport 하지 않음 (툴팁 등 특수 용도)
 			UE_LOG(LogTemp, Log, TEXT("BSUIManager::InitializePlayerUI - Created Widget '%s' (Not added to Viewport)"), *WidgetName.ToString());
 		}
-
-		UE_LOG(LogTemp, Log, TEXT("BSUIManager::InitializePlayerUI - Created Widget '%s'"), *WidgetName.ToString());
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("BSUIManager::InitializePlayerUI - UI initialized for local player"));
