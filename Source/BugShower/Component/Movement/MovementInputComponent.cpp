@@ -62,6 +62,13 @@ UMovementInputComponent::UMovementInputComponent()
 		ALTKeyAction = ALTKeyActionRef.Object;
 	}
 
+	//Sprint action은 블루프린트에서 설정하거나, 여기서 경로 지정 가능
+	///하지만 혹시 몰라 세팅은 해둘께요 나중에 다 뺄 예정입니다. 이런식의 하드코딩은 별로라고 생각합니다. 밑에 주석해도 정상적으로 돌아가는거 확인함.
+		static ConstructorHelpers::FObjectFinder<UInputAction> SprintActionRef(TEXT("/Game/Input/IA_Sprint.IA_Sprint"));
+	if (SprintActionRef.Succeeded())
+	{
+		SprintAction = SprintActionRef.Object;
+	}
 }
 
 
@@ -79,6 +86,9 @@ void UMovementInputComponent::BeginPlay()
 
 	RefreshControllerCache();
 
+	// 초기 이동 속도를 Walk 속도로 설정 (PlayerStatComponent에서 가져옴)
+	// PlayerStatComponent가 먼저 초기화되므로, 그곳의 값을 사용
+	// BeginPlay는 PlayerStatComponent가 이미 설정한 값을 유지하면 됨
 }
 
 void UMovementInputComponent::RefreshControllerCache()
@@ -122,6 +132,14 @@ void UMovementInputComponent::FL_SetupPlayerInputComponent(class UInputComponent
 		EnhancedInput->BindAction(FKeyAction, ETriggerEvent::Triggered, this, &UMovementInputComponent::OnFKeyPressed);
 		EnhancedInput->BindAction(TapKeyAction, ETriggerEvent::Triggered, this, &UMovementInputComponent::ToggleInventory);
 		EnhancedInput->BindAction(ALTKeyAction, ETriggerEvent::Triggered, this, &UMovementInputComponent::OnALTKeyPressed);
+
+		// Sprint binding
+		if (SprintAction)
+		{
+			EnhancedInput->BindAction(SprintAction, ETriggerEvent::Started, this, &UMovementInputComponent::OnSprintStarted);
+			EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &UMovementInputComponent::OnSprintStopped);
+			UE_LOG(LogTemp, Log, TEXT("MovementInputComponent - SprintAction bound"));
+		}
 	}
 }
 
@@ -289,5 +307,33 @@ void UMovementInputComponent::OnALTKeyPressed()
 	if (OwnerPlayer.IsValid() && OwnerPlayer->IsLocallyControlled())
 	{
 		OnALTKeyToggleRequested.Broadcast();
+	}
+}
+
+void UMovementInputComponent::OnSprintStarted()
+{
+	if (!OwnerPlayer.IsValid()) return;
+
+	// BSCharacterPlayer의 Getter를 통해 Sprint 속도 가져오기
+	// StatComponent를 직접 알 필요 없음 (Loose Coupling)
+	if (UCharacterMovementComponent* MovementComp = OwnerPlayer->GetCharacterMovement())
+	{
+		float SprintSpeed = OwnerPlayer->GetSprintSpeed();
+		MovementComp->MaxWalkSpeed = SprintSpeed;
+		UE_LOG(LogTemp, Log, TEXT("Sprint Started - MaxWalkSpeed: %.1f"), SprintSpeed);
+	}
+}
+
+void UMovementInputComponent::OnSprintStopped()
+{
+	if (!OwnerPlayer.IsValid()) return;
+
+	// BSCharacterPlayer의 Getter를 통해 Walk 속도 가져오기
+	// StatComponent를 직접 알 필요 없음 (Loose Coupling)
+	if (UCharacterMovementComponent* MovementComp = OwnerPlayer->GetCharacterMovement())
+	{
+		float WalkSpeed = OwnerPlayer->GetWalkSpeed();
+		MovementComp->MaxWalkSpeed = WalkSpeed;
+		UE_LOG(LogTemp, Log, TEXT("Sprint Stopped - MaxWalkSpeed: %.1f"), WalkSpeed);
 	}
 }

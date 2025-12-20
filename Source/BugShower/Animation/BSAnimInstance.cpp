@@ -4,18 +4,25 @@
 #include "Animation/BSAnimInstance.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Player/BSCharacterPlayer.h"
+#include "Weapon/WeaponActor.h"
+#include "Weapon/Component/WeaponComponent.h"
 
 UBSAnimInstance::UBSAnimInstance()
 {
 	MovingThreshould = 3.0f;
 	JumpingThreshould = 0.f;
+	SprintingThreshold = 600.f; // Walk(300) ì´ìƒì˜ ì†ë„ë©´ Sprintë¡œ íŒë‹¨
+	bIsArmed = false;
+	bIsFiring = false;
+	bIsSprinting = false;
 }
 
 void UBSAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
 
-	//ÇöÀç AnimInstance¸¦ ¼ÒÀ¯ÇÏ°í ÀÌ´Â ¾×ÅÍ Á¤º¸¸¦ ¾ò¾î¿Ã¼ö ÀÖ´Ù ÇÏÁö¸¸ ÀÌ°ÍÀº ¾×ÅÍÅ¸ÀÔÀ¸·Î º¯È¯µÇ±â¿¡ Ä³¸¯ÅÍÀÎÁö ¾Ë¼ö X -> µû¶ó¼­ Çüº¯È¯ ½ÃÄÑÁØ´Ù.
+	//ï¿½ï¿½ï¿½ï¿½ AnimInstanceï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ã¼ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Ç±â¿¡ Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë¼ï¿½ X -> ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½È¯ ï¿½ï¿½ï¿½ï¿½ï¿½Ø´ï¿½.
 	Owner = Cast<ACharacter>(GetOwningActor());
 	if (Owner)
 	{
@@ -27,20 +34,84 @@ void UBSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
-	//ÇÁ·¹ÀÓ¸¶´Ù ¾÷µ¥ÀÌÆ®µÈ´Ù.
+	//ï¿½ï¿½ï¿½ï¿½ï¿½Ó¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½È´ï¿½.
 	if (Movement)
 	{
 		Velocity = Movement->Velocity;
-		//¶¥¿¡¼­ ¾ó¸¶³ª »¡¸® ¿òÁ÷ÀÌ´ÂÁö? Velocity´Â (x,y,z)·Î ±¸¼ºµÇ¾îÀÖ´Âµ¥ x-¾Õ,µÚ, y-ÁÂ,¿ì, z-À§,¾Æ·¡ /size2D - ÀÌ¸§¿¡¼­ ¾Ë¼öÀÖµí xyÆò¸é¿¡¼­ÀÇ ¼Óµµ¸¦ ¹İÈ¯ÇÏ´Â ÇÔ¼ö
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ó¸¶³ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½? Velocityï¿½ï¿½ (x,y,z)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½Ö´Âµï¿½ x-ï¿½ï¿½,ï¿½ï¿½, y-ï¿½ï¿½,ï¿½ï¿½, z-ï¿½ï¿½,ï¿½Æ·ï¿½ /size2D - ï¿½Ì¸ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë¼ï¿½ï¿½Öµï¿½ xyï¿½ï¿½é¿¡ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ï¿½ï¿½ ï¿½ï¿½È¯ï¿½Ï´ï¿½ ï¿½Ô¼ï¿½
 		GroundSpeed = Velocity.Size2D();
 
 		bIsIdle = GroundSpeed < MovingThreshould;
+		bIsSprinting = GroundSpeed > SprintingThreshold;
 
+		bool bPreviousJumping = bIsJumping;
+		bool bPreviousFalling = bIsFalling;
 
 		bIsJumping = (Velocity.Z > JumpingThreshould);
 
 		bIsFalling = Movement->IsFalling();
-		//UE_LOG(LogTemp, Warning, TEXT("bIsJumping(%d), bIsFalling(%d)"), bIsJumping, bIsFalling);
 
+		// ì í”„/ë‚™í•˜ ìƒíƒœê°€ ë³€ê²½ë˜ì—ˆì„ ë•Œë§Œ ë¡œê·¸ ì¶œë ¥
+		if (bPreviousJumping != bIsJumping || bPreviousFalling != bIsFalling)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[ANIM] *** JUMP STATE CHANGE *** bIsJumping: %d, bIsFalling: %d, VelocityZ: %.2f"),
+				bIsJumping, bIsFalling, Velocity.Z);
+		}
+	}
+
+	// ë¬´ê¸° ì¥ì°© ìƒíƒœë¥¼ Owner(BSCharacterPlayer)ë¡œë¶€í„° ê°€ì ¸ì˜¤ê¸°
+	if (Owner)
+	{
+		if (ABSCharacterPlayer* PlayerOwner = Cast<ABSCharacterPlayer>(Owner))
+		{
+			bIsArmed = PlayerOwner->GetIsArmed();
+
+			// ë°œì‚¬ ì¤‘ ì—¬ë¶€ë¥¼ WeaponComponentë¡œë¶€í„° ê°€ì ¸ì˜¤ê¸°
+			if (AWeaponActor* CurrentWeapon = PlayerOwner->GetCurrentWeapon())
+			{
+				if (UWeaponComponent* WeaponComp = CurrentWeapon->GetWeaponComponent())
+				{
+					bIsFiring = WeaponComp->IsFiring();
+				}
+				else
+				{
+					bIsFiring = false;
+				}
+			}
+			else
+			{
+				bIsFiring = false;
+			}
+		}
+	}
+}
+
+// ========================================
+// ë°œì‚¬ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
+// ========================================
+
+void UBSAnimInstance::PlayFireMontage()
+{
+	if (FireMontage)
+	{
+		Montage_Play(FireMontage);
+		UE_LOG(LogTemp, Log, TEXT("BSAnimInstance - Playing Fire Montage"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSAnimInstance - FireMontage is not set!"));
+	}
+}
+
+void UBSAnimInstance::PlayReloadMontage()
+{
+	if (ReloadMontage)
+	{
+		Montage_Play(ReloadMontage);
+		UE_LOG(LogTemp, Log, TEXT("BSAnimInstance - Playing Reload Montage"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSAnimInstance - ReloadMontage is not set!"));
 	}
 }

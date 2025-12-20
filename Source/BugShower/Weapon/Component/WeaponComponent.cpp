@@ -11,6 +11,7 @@
 #include "Projectile/Bullet.h"
 #include "Projectile/ProjectileBase.h"
 #include "Manager/UIManager/BSUIManager.h"
+#include "Animation/BSAnimInstance.h"
 
 UWeaponComponent::UWeaponComponent()
 {
@@ -41,8 +42,8 @@ void UWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	// 탄 퍼짐 점진적으로 감소 (시간이 지나면 정확도 회복)
 	DecreaseSpread(DeltaTime);
 
-	// 연발 모드일 때 계속 발사
-	if (bIsFiring && CurrentWeaponData && CurrentWeaponData->FireMode == EFireMode::Auto)
+	// 발사 중이면 계속 발사 (연발)
+	if (bIsFiring && CurrentWeaponData)
 	{
 		if (CanFire() && HasFireIntervalPassed())
 		{
@@ -59,6 +60,7 @@ void UWeaponComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(UWeaponComponent, CurrentAmmo);
 	DOREPLIFETIME(UWeaponComponent, ReserveAmmo);
 	DOREPLIFETIME(UWeaponComponent, bIsReloading);
+	DOREPLIFETIME(UWeaponComponent, bIsFiring);  // 발사 상태 동기화
 }
 
 void UWeaponComponent::OnRep_CurrentWeaponData()
@@ -146,23 +148,18 @@ void UWeaponComponent::StartFire()
 	}
 
 	bIsFiring = true;
-	CurrentBurstCount = 0;
 
-	// 단발/점사 모드는 즉시 발사
-	if (CurrentWeaponData->FireMode == EFireMode::Single || CurrentWeaponData->FireMode == EFireMode::Burst)
+	// 즉시 1발 발사
+	if (CanFire())
 	{
-		if (CanFire())
-		{
-			Fire();
-		}
+		Fire();
 	}
-	// 연발 모드는 Tick에서 처리
+	// 이후 연발은 Tick에서 처리
 }
 
 void UWeaponComponent::StopFire()
 {
 	bIsFiring = false;
-	CurrentBurstCount = 0;
 }
 
 bool UWeaponComponent::CanFire() const
@@ -269,17 +266,8 @@ void UWeaponComponent::Fire()
 	// 반동 적용
 	ApplyRecoil();
 
-	// 점사 모드 처리
-	if (CurrentWeaponData->FireMode == EFireMode::Burst)
-	{
-		CurrentBurstCount++;
-		if (CurrentBurstCount >= CurrentWeaponData->BurstCount)
-		{
-			// 점사 완료
-			bIsFiring = false;
-			CurrentBurstCount = 0;
-		}
-	}
+	// 발사 애니메이션 재생
+	PlayFireAnimation();
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Fire - Fired! (Ammo: %d/%d)"), CurrentAmmo, ReserveAmmo);
 
@@ -798,7 +786,10 @@ void UWeaponComponent::Reload()
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Reload - Reloading... (%.1f seconds)"), CurrentWeaponData->ReloadTime);
 
-	// TODO: 재장전 애니메이션/사운드 재생
+	// 재장전 애니메이션 재생
+	PlayReloadAnimation();
+
+	// TODO: 재장전 사운드 재생
 }
 
 void UWeaponComponent::OnReloadComplete()
@@ -898,4 +889,50 @@ UCameraComponent* UWeaponComponent::GetOwnerCamera() const
 
 	// 캐릭터의 카메라 컴포넌트 찾기
 	return OwnerChar->FindComponentByClass<UCameraComponent>();
+}
+
+// ========================================
+// 애니메이션 재생
+// ========================================
+
+void UWeaponComponent::PlayFireAnimation()
+{
+	ACharacter* OwnerChar = GetOwnerCharacter();
+	if (!OwnerChar || !OwnerChar->GetMesh())
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	// BSAnimInstance로 캐스팅하여 PlayFireMontage 호출
+	if (UBSAnimInstance* BSAnim = Cast<UBSAnimInstance>(AnimInstance))
+	{
+		BSAnim->PlayFireMontage();
+	}
+}
+
+void UWeaponComponent::PlayReloadAnimation()
+{
+	ACharacter* OwnerChar = GetOwnerCharacter();
+	if (!OwnerChar || !OwnerChar->GetMesh())
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	// BSAnimInstance로 캐스팅하여 PlayReloadMontage 호출
+	if (UBSAnimInstance* BSAnim = Cast<UBSAnimInstance>(AnimInstance))
+	{
+		BSAnim->PlayReloadMontage();
+	}
 }
