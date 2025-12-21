@@ -432,3 +432,15 @@ const TArray<UBSItemInstance*>& UBSGameInstance::GetSelecedItems() const
 {
 	return SelectedItemsForGame;
 }
+
+void UBSGameInstance::ClearSelectedItems()
+{
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::ClearSelectedItems - Clearing %d selected items"), SelectedItemsForGame.Num());
+
+	SelectedItemsForGame.Empty();
+
+	// 인벤토리 변경 알림
+	OnSelectedItemsChanged.Broadcast(SelectedItemsForGame);
+
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::ClearSelectedItems - Selected items cleared"));
+}

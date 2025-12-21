@@ -10,6 +10,9 @@
 #include "Component/Inventory/InventoryComponent.h"						//	인벤토리 관련 컴포넌트
 #include "Component/Stat/PlayerStatComponent.h"							// 스탯 컴포넌트
 #include "Manager/UIManager/BSUIManager.h"								// UI 관리자
+#include "Game/BSGameInstance.h"										// Game Instance
+#include "Manager/ResourceManager/ItemResourceManager/ItemResourceManager.h" // 아이템 리소스 매니저
+#include "Item/BSItemInstance.h"										// 아이템 인스턴스
 
 #include "DrawDebugHelpers.h" // ����� ���ο�
 #include "Kismet/GameplayStatics.h" // ��������
@@ -311,6 +314,57 @@ void ABSCharacterPlayer::BeginPlay()
 	else
 	{
 		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - No TestWeaponData set, starting with empty hands"));
+	}
+
+	// ========================================
+	// Load Selected Items from Game Instance (Client-Initiated)
+	// ========================================
+	// 클라이언트가 자신의 GameInstance 확인 후 서버로 전송
+	UBSGameInstance* GameInstance = Cast<UBSGameInstance>(GetGameInstance());
+	if (GameInstance && InventoryComponent)
+	{
+		const TArray<UBSItemInstance*>& SelectedItems = GameInstance->GetSelecedItems();
+
+		if (SelectedItems.Num() > 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Client] ABSCharacterPlayer::BeginPlay - Found %d selected items in GameInstance"),
+				SelectedItems.Num());
+
+			// Convert UBSItemInstance array to FBS_Item array for RPC
+			TArray<FBS_Item> ItemDataArray;
+			for (UBSItemInstance* ItemInstance : SelectedItems)
+			{
+				if (ItemInstance)
+				{
+					ItemDataArray.Add(ItemInstance->Dynamic);
+				}
+			}
+
+			// Send to server via RPC
+			if (ItemDataArray.Num() > 0)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[Client] Sending %d items to server via RPC"), ItemDataArray.Num());
+				ServerLoadSelectedItems(ItemDataArray);
+
+				// Clear selected items from client's GameInstance after sending
+				GameInstance->ClearSelectedItems();
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Client] ABSCharacterPlayer::BeginPlay - No selected items in GameInstance"));
+		}
+	}
+	else
+	{
+		if (!GameInstance)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Client] ABSCharacterPlayer::BeginPlay - GameInstance is null!"));
+		}
+		if (!InventoryComponent)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Client] ABSCharacterPlayer::BeginPlay - InventoryComponent is null!"));
+		}
 	}
 }
 
@@ -967,5 +1021,85 @@ void ABSCharacterPlayer::SetIsArmed(bool bNewIsArmed)
 	if (StatComponent)
 	{
 		StatComponent->SetIsArmed(bNewIsArmed);
+	}
+}
+
+// ========================================
+// 인벤토리 시스템 - 멀티플레이어
+// ========================================
+
+/**
+ * ServerLoadSelectedItems RPC Implementation
+ *
+ * 서버에서 실행되며, 클라이언트로부터 받은 선택된 아이템 배열을 인벤토리에 추가
+ *
+ * 동작:
+ * 1. FBS_Item 배열을 받음 (클라이언트의 GameInstance에서 선택한 아이템)
+ * 2. ItemResourceManager를 통해 StaticData 찾기
+ * 3. UBSItemInstance로 변환
+ * 4. InventoryComponent->AddItemInstances() 호출
+ * 5. 자동으로 모든 클라이언트에 리플리케이트됨 (InventoryComponent의 Replicated 속성)
+ */
+void ABSCharacterPlayer::ServerLoadSelectedItems_Implementation(const TArray<FBS_Item>& SelectedItems)
+{
+	UE_LOG(LogTemp, Log, TEXT("[Server] ServerLoadSelectedItems - Received %d items from client"), SelectedItems.Num());
+
+	if (!InventoryComponent)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Server] ServerLoadSelectedItems - InventoryComponent is null!"));
+		return;
+	}
+
+	// Get ItemResourceManager to retrieve StaticData
+	UBSGameInstance* GameInstance = Cast<UBSGameInstance>(GetGameInstance());
+	if (!GameInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Server] ServerLoadSelectedItems - GameInstance is null!"));
+		return;
+	}
+
+	UItemResourceManager* ItemResourceManager = GameInstance->GetSubsystem<UItemResourceManager>();
+	if (!ItemResourceManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Server] ServerLoadSelectedItems - ItemResourceManager not found!"));
+		return;
+	}
+
+	// Convert FBS_Item array to UBSItemInstance array
+	TArray<UBSItemInstance*> ItemInstances;
+	for (const FBS_Item& ItemData : SelectedItems)
+	{
+		// Get StaticData from ItemResourceManager
+		const UBSStaticItemDataAsset* StaticData = ItemResourceManager->GetStaticItem(
+			ItemData.ItemType, ItemData.ItemID);
+
+		if (StaticData)
+		{
+			// Create UBSItemInstance
+			UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+			NewInstance->StaticData = StaticData;
+			NewInstance->Dynamic = ItemData;
+
+			ItemInstances.Add(NewInstance);
+
+			UE_LOG(LogTemp, Log, TEXT("[Server] Created item instance (Type=%d, ID=%d, Quantity=%d)"),
+				(int32)ItemData.ItemType, ItemData.ItemID, ItemData.Quantity);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Server] Failed to find StaticData for ItemType=%d, ItemID=%d"),
+				(int32)ItemData.ItemType, ItemData.ItemID);
+		}
+	}
+
+	// Add to inventory (will automatically replicate to all clients)
+	if (ItemInstances.Num() > 0)
+	{
+		InventoryComponent->AddItemInstances(ItemInstances);
+		UE_LOG(LogTemp, Log, TEXT("[Server] Successfully added %d items to inventory"), ItemInstances.Num());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Server] No valid items to add to inventory"));
 	}
 }

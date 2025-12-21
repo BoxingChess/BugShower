@@ -182,4 +182,11 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Inventory")
 	const TArray<UBSItemInstance*>& GetSelecedItems() const;
+
+	/**
+	 * 선택한 아이템 목록 비우기
+	 * 인게임 전달 후 호출하여 SelectedItemsForGame 초기화
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void ClearSelectedItems();
 };
