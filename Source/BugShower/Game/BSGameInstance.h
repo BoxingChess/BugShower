@@ -13,7 +13,7 @@ class UBSItemInstance;
 // 인벤토리 변경 델리게이트
 // 아이템이 추가/제거/사용될 때마다 브로드캐스트됨
 // UI들은 이 델리게이트를 구독하여 자동으로 갱신
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInventoryChanged, const TArray<UBSItemInstance*>&, UpdateItems);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLobbyInventoryChanged, const TArray<UBSItemInstance*>&, UpdateItems);
 
 /**
  * BugShower Game Instance
@@ -47,10 +47,10 @@ public:
 	 * UI들은 이 델리게이트를 구독하여 자동으로 갱신할 수 있음
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
-	FOnInventoryChanged OnStorageChanged;
+	FOnLobbyInventoryChanged OnStorageChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
-	FOnInventoryChanged OnSelectedItemsChanged;
+	FOnLobbyInventoryChanged OnSelectedItemsChanged;
 
 private:
 	// ========================================
