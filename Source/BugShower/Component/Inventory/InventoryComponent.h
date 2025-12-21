@@ -25,36 +25,6 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
-<<<<<<< HEAD
-	//�Һ����� �κ��丮 �Դϴ�.
-	UPROPERTY()
-	TArray<TObjectPtr<UBSItemInstance>> ItemInventory;
-
-	//����� - �� / Į �� 
-	///TODO : ���� ��������� ���� ���� ���Ÿ� ������� ������ ����ٴҼ� �ְ� �Ѵ�. ������ ���� ��ü �ִϸ��̼��� ����. 
-	UPROPERTY()
-	TObjectPtr<AItemActor> EquipmentItem = nullptr;
-
-	//�κ��丮�� �����۵��� ������ �ִ� �ִ� ����
-	int32 MaxWeight = 500;
-
-	//���� ����ִ� ����
-	int32 CurrentWeight = 0;
-public:
-	//�������� �κ��丮 or ����ۿ� �߰��Ѵ�.
-	void AddItem(AItemActor* DroppedActor);
-
-	//�κ��丮 or ������� ������.
-	void DiscardItem(UBSItemInstance* DroppedActor, int32 Count = 1);
-
-	/**
-	 * UBSItemInstance를 직접 인벤토리에 추가
-	 * ItemActor 없이 바로 추가 (로비 선택 아이템용)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	bool AddItemInstance(UBSItemInstance* ItemInstance);
-
-=======
 	// Consumable item inventory (Replicated to all clients)
 	UPROPERTY(ReplicatedUsing = OnRep_ItemInventory)
 	TArray<TObjectPtr<UBSItemInstance>> ItemInventory;
@@ -86,7 +56,6 @@ public:
 
 	// Find item index in inventory
 	int32 FindItemIndex(UBSItemInstance* ItemInstance) const;
->>>>>>> development
 public:
 	TArray<UBSItemInstance*> GetItemInventory() { return ItemInventory; };
 
