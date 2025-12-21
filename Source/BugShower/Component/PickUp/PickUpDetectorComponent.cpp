@@ -383,6 +383,32 @@ void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 		// �α� Ȯ�ο�
 		UE_LOG(LogTemp, Warning, TEXT("Nearby items changed! Count = %d"), NearbyItems.Num());
 
+		// ========== [DEBUG LOG - START] 주변 아이템 상세 정보 출력 ==========
+		if (NearbyItems.Num() > 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("=== Nearby Items Detail ==="));
+			for (int32 i = 0; i < NearbyItems.Num(); ++i)
+			{
+				if (AActor* Item = NearbyItems[i])
+				{
+					FVector ItemLocation = Item->GetActorLocation();
+					FVector OwnerLocation = Owner->GetActorLocation();
+					float Distance = FVector::Dist(ItemLocation, OwnerLocation);
+
+					UE_LOG(LogTemp, Log, TEXT("  [%d] %s - Distance: %.1f units"),
+						i + 1,
+						*Item->GetName(),
+						Distance);
+				}
+			}
+			UE_LOG(LogTemp, Log, TEXT("==========================="));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("=== No nearby items found ==="));
+		}
+		// ========== [DEBUG LOG - END] 주변 아이템 상세 정보 출력 ==========
+
 		//���!
 		OnRefreshNearbyList.Broadcast();
 
@@ -406,11 +432,11 @@ void UPickUpDetectorComponent::TryPickupFocused()
 	// 무기 픽업 시도
 	else if (AWeaponActor* Weapon = FocusedWeapon.Get())
 	{
-		// 무기 장착 (플레이어 캐릭터의 EquipWeapon 호출)
+		// 무기 장착 서버 RPC 호출 (데디케이티드 서버 환경 대응)
 		if (ABSCharacterPlayer* Player = Cast<ABSCharacterPlayer>(GetOwner()))
 		{
-			Player->EquipWeapon(Weapon);
-			UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - Equipped weapon: %s"),
+			Player->ServerEquipWeapon(Weapon);  // 서버 RPC로 변경
+			UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - Requesting weapon equip from server: %s"),
 				Weapon->GetWeaponData() ? *Weapon->GetWeaponData()->WeaponName.ToString() : TEXT("Unknown"));
 		}
 	}
@@ -419,28 +445,22 @@ void UPickUpDetectorComponent::TryPickupFocused()
 
 void UPickUpDetectorComponent::ServerTryPickup_Implementation(class AItemActor* Item)
 {
-	///���⼭���ʹ� �������� ����ȴ�.
-
-	//�������� ���ų� �ı������� ���ų� ���� �ı�������?
+	//TODO - 몬스터가 떨어트린 아이템의 경우도 삭제되어버린다.
+	//이쪽을 풀링으로 바꿔볼까?
+	//클로드한테 바닥에 아이템 뿌릴시 Spawn으로 바궈야하는거 아니냐고 물어보기.
 	if (!IsValid(Item) || Item->IsActorBeingDestroyed() || Item->IsPendingKillPending()) return;
 
 	APawn* Pawn = Cast<APawn>(GetOwner());
 	if (!Pawn) return;
 
-	// �κ��丮 ������Ʈ ã��
 	if (UInventoryComponent* Inv = Pawn->FindComponentByClass<UInventoryComponent>())
 	{
-		// ���� AddItem�� DroppedActor�� �޾� ���ο��� ����/����/�ı����� ó����
 		Inv->AddItem(Item);
 
-		//����������� ������ 0�� ��� -> ������ �����ȰŴ� ���͸� ����
-		if (Item->GetItemData().Quantity == 0)
-		{
-			Item->Destroy(); // ������ ������
-		}
+		// NOTE: DeSpawn() is now handled inside AddItem()
+		// Don't call DeSpawn() here to avoid duplicate pool returns!
+		// AddItem()에서 이미 DeSpawn()을 처리하므로 여기서는 호출하지 않음!
 
-		// AddItem���� ���� 0�̸� Destroy()���� ó���ϹǷ�
-		// ���⼭ ���� ���Ŵ� ���ʿ�. ��Ŀ���� ������ �ִ� �� ���.
 		if (!IsValid(Item))
 		{
 			FocusedItem = nullptr;
@@ -534,7 +554,13 @@ void UPickUpDetectorComponent::ChangeState()
 	if (bIsInventoryOpen)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ChangeState - Opening inventory (calling ShowWidget)"));
+
+		// 주변 아이템 검색 (델리게이트가 자동으로 VicinityList 업데이트함)
+		RefreshNearbyList(true);
+
+		// 인벤토리 UI 표시
 		UIManager->ShowWidget(FName("Inventory"), PC);
+
 		PC->SetShowMouseCursor(true);
 	}
 	else

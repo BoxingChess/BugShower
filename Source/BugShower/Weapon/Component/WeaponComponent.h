@@ -64,7 +64,7 @@ protected:
 
 protected:
 	// 현재 발사 중인지 (트리거를 당기고 있는지)
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	bool bIsFiring;
 
 	// 마지막 발사 시간 (연사 속도 제어용)
@@ -236,6 +236,20 @@ protected:
 	class UCameraComponent* GetOwnerCamera() const;
 
 	// ========================================
+	// 애니메이션 재생
+	// ========================================
+
+	/**
+	 * 발사 애니메이션 재생
+	 */
+	void PlayFireAnimation();
+
+	/**
+	 * 재장전 애니메이션 재생
+	 */
+	void PlayReloadAnimation();
+
+	// ========================================
 	// Getter 함수들
 	// ========================================
 
@@ -255,6 +269,10 @@ public:
 	// 재장전 중 여부
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool IsReloading() const { return bIsReloading; }
+
+	// 발사 중 여부 (트리거를 당기고 있는지)
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool IsFiring() const { return bIsFiring; }
 
 	// 현재 무기 데이터
 	UFUNCTION(BlueprintPure, Category = "Weapon")

@@ -18,6 +18,7 @@
 #include "Weapon/Component/WeaponComponent.h"
 #include "Weapon/Data/WeaponDataAsset.h"
 #include "Game/BSGameModeBase.h"
+#include "Animation/BSAnimInstance.h"									// 애니메이션 인스턴스
 
 
 ABSCharacterPlayer::ABSCharacterPlayer()
@@ -111,11 +112,68 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 	FirstPersonCamera->SetActive(false); // �ʱ⿣ ��Ȱ��ȭ
 
 	// bUseControllerRotationYaw:
-	// true�� ���, ĳ������ Yaw ȸ��(�¿� ȸ��)�� PlayerController�� Rotation�� ���� ȸ����Ų��.
+	// true일 때, 캐릭터의 Yaw 회전(좌우 회전)이 PlayerController의 Rotation을 따라 회전시킨다.
 	bUseControllerRotationYaw = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f); // ȸ�� �ӵ� ������
+	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f);
+
+	// ========================================
+	// Inventory 3D Preview Camera Setup
+	// ========================================
+	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Constructor START"));
+
+	// Inventory camera arm (for rotation)
+	InventoryCameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("InventoryCameraArm"));
+	if (InventoryCameraArm)
+	{
+		InventoryCameraArm->SetupAttachment(GetMesh());
+		InventoryCameraArm->TargetArmLength = 400.0f; // 400cm distance (same as gameplay camera)
+		InventoryCameraArm->SetRelativeLocation(FVector(0.0f, 0.0f, 90.0f)); // 90cm up (character chest height)
+		InventoryCameraArm->SetRelativeRotation(FRotator(10.0f, 90.0f, 0.0f)); // Pitch=10 (look up slightly), Yaw=90 (front view)
+		InventoryCameraArm->bUsePawnControlRotation = false;
+		InventoryCameraArm->bInheritPitch = false;
+		InventoryCameraArm->bInheritYaw = false;
+		InventoryCameraArm->bInheritRoll = false;
+
+		// CRITICAL: Disable collision test so camera doesn't get blocked by character mesh
+		InventoryCameraArm->bDoCollisionTest = false;
+
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCameraArm: Distance=400cm, Height=90cm, Pitch=10, Yaw=90"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCameraArm"));
+	}
+
+	// Inventory SceneCapture2D
+	InventoryCamera = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("InventoryCamera"));
+	if (InventoryCamera)
+	{
+		InventoryCamera->SetupAttachment(InventoryCameraArm, USpringArmComponent::SocketName);
+		InventoryCamera->bCaptureEveryFrame = false;
+		InventoryCamera->bCaptureOnMovement = false;
+		InventoryCamera->FOVAngle = 50.0f;
+		InventoryCamera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+
+		// ShowFlags
+		InventoryCamera->ShowFlags.SetAtmosphere(false);
+		InventoryCamera->ShowFlags.SetFog(false);
+		InventoryCamera->ShowFlags.SetVolumetricFog(false);
+		InventoryCamera->ShowFlags.SetSkeletalMeshes(true);
+
+		// Render only player mesh (add to ShowOnlyList in BeginPlay)
+		InventoryCamera->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera created successfully"));
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] FOV: %f"), InventoryCamera->FOVAngle);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] CaptureSource: %d"), (int32)InventoryCamera->CaptureSource);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] PrimitiveRenderMode: %d"), (int32)InventoryCamera->PrimitiveRenderMode);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCamera"));
+	} // ȸ�� �ӵ� ������
 
 
 	// bUseControllerRotationPitch:
@@ -153,6 +211,52 @@ void ABSCharacterPlayer::BeginPlay()
 	Super::BeginPlay();
 
 	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Character spawned"));
+
+	// ========================================
+	// Inventory Camera: Add Player Mesh to ShowOnlyList
+	// ========================================
+	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] BeginPlay - Adding Mesh to ShowOnlyList"));
+
+	if (!InventoryCamera)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] InventoryCamera is NULL in BeginPlay"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera found: %s"), *InventoryCamera->GetName());
+	}
+
+	if (!GetMesh())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] GetMesh() returned NULL"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Mesh found: %s"), *GetMesh()->GetName());
+		if (GetMesh()->GetSkeletalMeshAsset())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] SkeletalMeshAsset: %s"), *GetMesh()->GetSkeletalMeshAsset()->GetName());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] SkeletalMeshAsset is NULL"));
+		}
+	}
+
+	if (InventoryCamera && GetMesh())
+	{
+		InventoryCamera->ShowOnlyComponents.Add(GetMesh());
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Added Mesh to ShowOnlyList - Count: %d"), InventoryCamera->ShowOnlyComponents.Num());
+
+		// ShowFlags 확인
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] ShowFlags.SkeletalMeshes: %d"), InventoryCamera->ShowFlags.SkeletalMeshes);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] bCaptureEveryFrame: %d"), InventoryCamera->bCaptureEveryFrame);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] TextureTarget: %s"), InventoryCamera->TextureTarget ? TEXT("SET") : TEXT("NULL"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to add Mesh - InventoryCamera or Mesh is NULL"));
+	}
 
 	// ========================================
 	// 스탯 컴포넌트 초기화
@@ -461,13 +565,28 @@ void ABSCharacterPlayer::Fire()
 // ========================================
 
 /**
- * 무기 장착
+ * 무기 장착 서버 RPC
+ *
+ * 클라이언트가 무기를 주울 때 이 함수를 호출하면
+ * 서버에서 EquipWeapon()이 실행되고 자동으로 모든 클라이언트에 리플리케이트됨
+ */
+void ABSCharacterPlayer::ServerEquipWeapon_Implementation(AWeaponActor* Weapon)
+{
+	// 서버에서 실제 장착 로직 실행
+	EquipWeapon(Weapon);
+}
+
+/**
+ * 무기 장착 (로컬 실행)
  *
  * 동작:
  * 1. 기존 무기가 있으면 먼저 해제
  * 2. 새 무기를 CurrentWeapon에 저장
  * 3. WeaponActor->AttachToCharacter()로 손에 부착
  * 4. WeaponActor의 Owner를 this(캐릭터)로 설정
+ * 5. StatComponent의 bIsArmed를 true로 설정 (자동 리플리케이트)
+ *
+ * 주의: 데디서버 환경에서는 ServerEquipWeapon을 호출해야 함!
  */
 void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 {
@@ -512,20 +631,38 @@ void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 	// "hand_r_weapon" 소켓이 캐릭터 스켈레톤에 있어야 함 (언리얼 에디터에서 추가 필요)
 	CurrentWeapon->AttachToCharacter(this, TEXT("hand_r_weapon"));
 
+	// StatComponent의 bIsArmed를 true로 설정 (AnimInstance가 이 값을 읽어감)
+	SetIsArmed(true);
+
 	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Equipped weapon: %s"), *CurrentWeapon->GetName());
 }
 
 /**
- * 무기 해제
+ * 무기 해제 서버 RPC
+ *
+ * 클라이언트가 무기를 버릴 때 이 함수를 호출하면
+ * 서버에서 UnequipWeapon()이 실행되고 자동으로 모든 클라이언트에 리플리케이트됨
+ */
+void ABSCharacterPlayer::ServerUnequipWeapon_Implementation()
+{
+	// 서버에서 실제 해제 로직 실행
+	UnequipWeapon();
+}
+
+/**
+ * 무기 해제 (로컬 실행)
  *
  * 동작:
  * 1. 현재 무기가 있는지 확인
  * 2. 발사 중지 (혹시라도 발사 중이면)
  * 3. WeaponActor->DetachFromCharacter()로 손에서 분리
- * 4. CurrentWeapon을 nullptr로 초기화 (빈손 상태)
+ * 4. StatComponent의 bIsArmed를 false로 설정 (자동 리플리케이트)
+ * 5. CurrentWeapon을 nullptr로 초기화 (빈손 상태)
  *
  * 참고: WeaponActor는 파괴하지 않고 월드에 떨어뜨림
  *       만약 파괴하려면 CurrentWeapon->Destroy() 호출
+ *
+ * 주의: 데디서버 환경에서는 ServerUnequipWeapon을 호출해야 함!
  */
 void ABSCharacterPlayer::UnequipWeapon()
 {
@@ -543,6 +680,9 @@ void ABSCharacterPlayer::UnequipWeapon()
 	CurrentWeapon->DetachFromCharacter();
 
 	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::UnequipWeapon - Unequipped weapon: %s"), *CurrentWeapon->GetName());
+
+	// StatComponent의 bIsArmed를 false로 설정 (빈손 상태)
+	SetIsArmed(false);
 
 	// 빈손 상태로
 	CurrentWeapon = nullptr;
@@ -577,6 +717,13 @@ void ABSCharacterPlayer::StartFireWeapon()
 		return;
 	}
 
+	// 발사 중에는 카메라 방향으로 회전
+	bUseControllerRotationYaw = true;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
+
+	// 발사 중에는 이동 불가
+	GetCharacterMovement()->DisableMovement();
+
 	// 발사 시작
 	WeaponComp->StartFire();
 }
@@ -607,6 +754,13 @@ void ABSCharacterPlayer::StopFireWeapon()
 
 	// 발사 중지
 	WeaponComp->StopFire();
+
+	// 이동 복구
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+
+	// 발사 중지 시 이동 방향으로 회전 복귀
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 }
 
 /**
@@ -791,4 +945,27 @@ float ABSCharacterPlayer::GetSprintSpeed() const
 		return StatComponent->GetSprintSpeed();
 	}
 	return 900.f; // 기본값
+}
+
+/**
+ * 무기 장착 상태 가져오기
+ */
+bool ABSCharacterPlayer::GetIsArmed() const
+{
+	if (StatComponent)
+	{
+		return StatComponent->IsArmed();
+	}
+	return false; // 기본값: 빈손
+}
+
+/**
+ * 무기 장착 상태 설정
+ */
+void ABSCharacterPlayer::SetIsArmed(bool bNewIsArmed)
+{
+	if (StatComponent)
+	{
+		StatComponent->SetIsArmed(bNewIsArmed);
+	}
 }

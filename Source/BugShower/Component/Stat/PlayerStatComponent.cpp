@@ -29,6 +29,8 @@ UPlayerStatComponent::UPlayerStatComponent()
 	Damage = 10.f;
 	Defense = 5.f;
 
+	bIsArmed = false;
+
 	Level = 1;
 	Experience = 0;
 }
@@ -48,6 +50,7 @@ void UPlayerStatComponent::BeginPlay()
 		{
 			MovementComp->MaxWalkSpeed = WalkSpeed;
 			MovementComp->JumpZVelocity = JumpPower;
+			UE_LOG(LogTemp, Warning, TEXT("PlayerStatComponent - MaxWalkSpeed initialized to %.1f"), WalkSpeed);
 		}
 	}
 }
@@ -96,6 +99,7 @@ void UPlayerStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	// 전투 스탯
 	DOREPLIFETIME(UPlayerStatComponent, Damage);
 	DOREPLIFETIME(UPlayerStatComponent, Defense);
+	DOREPLIFETIME(UPlayerStatComponent, bIsArmed);
 
 	// 레벨 & 경험치
 	DOREPLIFETIME(UPlayerStatComponent, Level);
@@ -329,4 +333,19 @@ void UPlayerStatComponent::ResetAllStats()
 
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
 	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+}
+
+// ========================================
+// 전투 스탯 구현
+// ========================================
+
+void UPlayerStatComponent::SetIsArmed(bool bNewIsArmed)
+{
+	// 서버 권한 체크
+	if (GetOwner() && !GetOwner()->HasAuthority())
+		return;
+
+	bIsArmed = bNewIsArmed;
+
+	UE_LOG(LogTemp, Log, TEXT("PlayerStatComponent - SetIsArmed: %s"), bIsArmed ? TEXT("true") : TEXT("false"));
 }

@@ -151,11 +151,11 @@ public:
 private:
 	// 기본 걷기 속도
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Movement")
-	float WalkSpeed = 600.f;
+	float WalkSpeed = 50.f;  // Walk 최대 속도 (Shift 누르지 않았을 때)
 
 	// 달리기 속도
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Movement")
-	float SprintSpeed = 900.f;
+	float SprintSpeed = 300.f;  // Sprint 최대 속도 (Shift 눌렀을 때)
 
 	// 앉은 상태 속도
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Movement")
@@ -202,6 +202,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stat|Combat")
 	void SetDefense(float NewDefense) { Defense = NewDefense; }
 
+	// 무기 장착 상태
+	UFUNCTION(BlueprintCallable, Category = "Stat|Combat")
+	bool IsArmed() const { return bIsArmed; }
+
+	UFUNCTION(BlueprintCallable, Category = "Stat|Combat")
+	void SetIsArmed(bool bNewIsArmed);
+
 private:
 	// 공격력
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Combat")
@@ -210,6 +217,10 @@ private:
 	// 방어력 (받는 데미지 감소)
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Combat")
 	float Defense = 5.f;
+
+	// 무기 장착 여부
+	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Combat")
+	uint8 bIsArmed : 1;
 
 	// ========================================
 	// 레벨 & 경험치 시스템 (향후 확장용)
