@@ -10,6 +10,11 @@
 class UBSPlayerSaveGame;
 class UBSItemInstance;
 
+// 인벤토리 변경 델리게이트
+// 아이템이 추가/제거/사용될 때마다 브로드캐스트됨
+// UI들은 이 델리게이트를 구독하여 자동으로 갱신
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLobbyInventoryChanged, const TArray<UBSItemInstance*>&, UpdateItems);
+
 /**
  * BugShower Game Instance
  * BugShower 게임 인스턴스
@@ -33,10 +38,25 @@ public:
 	virtual void Init() override;
 
 	// ========================================
+	// 인벤토리 변경 이벤트
+	// ========================================
+
+	/**
+	 * 인벤토리 변경 델리게이트
+	 * 아이템 추가/제거/사용 시 자동으로 브로드캐스트됨
+	 * UI들은 이 델리게이트를 구독하여 자동으로 갱신할 수 있음
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FOnLobbyInventoryChanged OnStorageChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FOnLobbyInventoryChanged OnSelectedItemsChanged;
+
+private:
+	// ========================================
 	// 플레이어 영구 저장 시스템
 	// ========================================
 
-private:
 	/**
 	 * 현재 로드된 세이브 데이터
 	 * 게임 시작 시 자동으로 로드됨
@@ -64,6 +84,13 @@ private:
 	 */
 	UPROPERTY()
 	TArray<TObjectPtr<UBSItemInstance>> RuntimeItemInventory;
+
+	/**
+	 * 로비에서 선택한 아이템 목록 (인게임 전달용)
+	 * ServerTravel 후에도 유지됨
+	 */
+	UPROPERTY()
+	TArray<TObjectPtr<UBSItemInstance>> SelectedItemsForGame;
 
 public:
 	/**
@@ -116,16 +143,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void AddItemsToRuntimeInventory(const TArray<UBSItemInstance*>& ItemsToAdd);
 
+	
 	/**
-	 * 단일 아이템을 런타임 인벤토리에 추가
-	 *
-	 * @param ItemToAdd - 추가할 아이템
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void AddSingleItemToRuntimeInventory(UBSItemInstance* ItemToAdd);
-
-	/**
-	 * 저장된 아이템 목록 가져오기 (로비에서 사용)
+	 * 저장된 아이템 목록 가져오기 (로비 창고에서 사용)
 	 * RuntimeItemInventory를 반환하여 현재 세션에서 획득한 아이템까지 포함
 	 *
 	 * @return 플레이어가 보유한 모든 아이템
@@ -139,4 +159,34 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame")
 	void ResetSaveData();
+
+
+	/**
+	 * 로비에서 개별 아이템을 선택하여 인게임으로 전달할 목록에 추가
+	 * RuntimeItemInventory에서 차감하고 SelectedItemsForGame에 추가
+	 * @param AddData - 추가할 아이템 정보
+	 * @param Amount - 추가할 수량
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddItemsToInventoryForGame(UBSItemInstance* AddData, int32 Amount);
+
+	//창고로 반환
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddItemsToStarage(UBSItemInstance* AddData, int32 Amount);
+
+	/**
+	 * 선택한 아이템 목록 가져오기 (창고에서 선택된 아이템)
+	 * SelectedItemsForGame를 반환하여 인게임에 전달할 목록
+	 *
+	 * @return 플레이어가 창고에서 선택한 모든 아이템
+	 */
+	UFUNCTION(BlueprintPure, Category = "Inventory")
+	const TArray<UBSItemInstance*>& GetSelecedItems() const;
+
+	/**
+	 * 선택한 아이템 목록 비우기
+	 * 인게임 전달 후 호출하여 SelectedItemsForGame 초기화
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void ClearSelectedItems();
 };

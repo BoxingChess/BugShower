@@ -106,6 +106,28 @@ bool UPoolingSubsystem::FireProjectileAt(
 }
 
 
+bool UPoolingSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	if (!Super::ShouldCreateSubsystem(Outer))
+	{
+		return false;
+	}
+
+	UWorld* World = Cast<UWorld>(Outer);
+	if (!World)
+	{
+		return false;
+	}
+	FString MapName = World->GetName();
+
+	if(MapName.Contains(TEXT("Lobby")))
+	{
+		return false; // 로비에서는 생성하지 않음!
+	}
+
+	return true;
+}
+
 // ========== Class-Based Pooling Implementation ==========
 
 void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int32 Size)

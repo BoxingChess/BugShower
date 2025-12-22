@@ -66,12 +66,17 @@ struct FBSWidgetConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	EUIInputMode InputMode = EUIInputMode::GameOnly;
 
+	// Viewport 추가 여부 - false면 생성만 하고 AddToViewport() 호출 안 함 (툴팁용)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	bool bAddToViewport = true;
+
 	FBSWidgetConfig()
 		: WidgetClass(nullptr)
 		, ZOrder(0)
 		, Behavior(EWidgetBehavior::Toggle)
 		, bRequiresMouseCursor(false)
 		, InputMode(EUIInputMode::GameOnly)
+		, bAddToViewport(true)
 	{}
 };
 
