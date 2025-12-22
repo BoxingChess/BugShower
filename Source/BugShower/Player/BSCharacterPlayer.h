@@ -200,6 +200,20 @@ public:
 	bool HasWeaponEquipped() const { return CurrentWeapon != nullptr; }
 
 	// ========================================
+	// 인벤토리 시스템 (멀티플레이어)
+	// ========================================
+
+	/**
+	 * 선택된 아이템을 서버로 전송하는 RPC
+	 * 클라이언트가 BeginPlay에서 자신의 GameInstance에 있는 선택된 아이템을 서버에 전달
+	 * 서버가 해당 플레이어의 인벤토리에 추가
+	 *
+	 * @param SelectedItems - 로비에서 선택한 아이템 배열 (FBS_Item)
+	 */
+	UFUNCTION(Server, Reliable)
+	void ServerLoadSelectedItems(const TArray<FBS_Item>& SelectedItems);
+
+	// ========================================
 	// 입력 액션 (Enhanced Input)
 	// ========================================
 

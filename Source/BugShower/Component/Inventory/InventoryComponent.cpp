@@ -293,6 +293,125 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 }
 
 // ========================================
+// Add UBSItemInstance Directly (For Loading from Save/Selected Items)
+// ========================================
+void UInventoryComponent::AddItemInstances(const TArray<UBSItemInstance*>& ItemInstances)
+{
+	// Server-only function check
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AddItemInstances] This function can only be called on server!"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[AddItemInstances] Adding %d items from selected items"), ItemInstances.Num());
+
+	for (UBSItemInstance* ItemInstance : ItemInstances)
+	{
+		if (!ItemInstance || !ItemInstance->StaticData)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AddItemInstances] Invalid item instance or static data, skipping"));
+			continue;
+		}
+
+		const FBS_Item& ItemData = ItemInstance->Dynamic;
+		const UBSStaticItemDataAsset* StaticData = ItemInstance->StaticData;
+
+		// Only handle Consumable items (Equipment is handled differently)
+		if (ItemData.ItemType != EItemType::Consumable)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AddItemInstances] Item type is not Consumable (Type=%d), skipping"),
+				(int32)ItemData.ItemType);
+			continue;
+		}
+
+		// Check if same item already exists in inventory
+		UBSItemInstance* FoundInst = nullptr;
+		for (UBSItemInstance* ExistingItem : ItemInventory)
+		{
+			if (ExistingItem && ExistingItem->StaticData == StaticData)
+			{
+				FoundInst = ExistingItem;
+				break;
+			}
+		}
+
+		// Calculate available weight
+		const int32 AvailableWeight = MaxWeight - CurrentWeight;
+		const int32 ItemWeight = ItemData.Quantity * StaticData->Weight;
+
+		// If same item exists, merge quantities
+		if (FoundInst)
+		{
+			const int32 AvailableStack = StaticData->MaxStackSize - FoundInst->Dynamic.Quantity;
+			const int32 AddableQuantity = FMath::Min3(
+				ItemData.Quantity,
+				AvailableStack,
+				AvailableWeight / StaticData->Weight
+			);
+
+			if (AddableQuantity > 0)
+			{
+				FoundInst->Dynamic.Quantity += AddableQuantity;
+				CurrentWeight += AddableQuantity * StaticData->Weight;
+
+				UE_LOG(LogTemp, Log, TEXT("[AddItemInstances] Merged item (ID=%d, Added=%d, Total=%d)"),
+					ItemData.ItemID, AddableQuantity, FoundInst->Dynamic.Quantity);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[AddItemInstances] Cannot add item (ID=%d) - inventory full or weight limit"),
+					ItemData.ItemID);
+			}
+		}
+		// Create new inventory slot
+		else
+		{
+			const int32 AddableQuantity = FMath::Min(
+				ItemData.Quantity,
+				AvailableWeight / StaticData->Weight
+			);
+
+			if (AddableQuantity > 0)
+			{
+				// Create new instance
+				UBSItemInstance* NewInst = NewObject<UBSItemInstance>(this);
+				NewInst->StaticData = StaticData;
+				NewInst->Dynamic = ItemData;
+				NewInst->Dynamic.Quantity = AddableQuantity;
+
+				ItemInventory.Add(NewInst);
+				CurrentWeight += AddableQuantity * StaticData->Weight;
+
+				UE_LOG(LogTemp, Log, TEXT("[AddItemInstances] Created new slot (ID=%d, Quantity=%d)"),
+					ItemData.ItemID, AddableQuantity);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[AddItemInstances] Cannot add item (ID=%d) - weight limit exceeded"),
+					ItemData.ItemID);
+			}
+		}
+	}
+
+	// Sort inventory by ItemID
+	ItemInventory.Sort([](const UBSItemInstance& A, const UBSItemInstance& B)
+	{
+		const auto* SA = A.GetItemStaticData();
+		const auto* SB = B.GetItemStaticData();
+		const int32 IDA = SA ? SA->ItemID : A.Dynamic.ItemID;
+		const int32 IDB = SB ? SB->ItemID : B.Dynamic.ItemID;
+		return IDA < IDB;
+	});
+
+	UE_LOG(LogTemp, Log, TEXT("[AddItemInstances] Finished adding items. Total inventory: %d items, Weight: %d/%d"),
+		ItemInventory.Num(), CurrentWeight, MaxWeight);
+
+	// Broadcast inventory changed event
+	OnInventoryChanged.Broadcast();
+}
+
+// ========================================
 // Find Item Index in Inventory
 // ========================================
 int32 UInventoryComponent::FindItemIndex(UBSItemInstance* ItemInstance) const

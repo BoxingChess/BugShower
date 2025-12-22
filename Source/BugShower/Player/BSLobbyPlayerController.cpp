@@ -29,16 +29,11 @@ void ABSLobbyPlayerController::BeginPlay()
 		return;
 	}
 
-	// Load player's saved data from disk
-	// This populates RuntimeItemInventory with saved items
+	// GameInstance::Init()에서 이미 로드했으므로 여기서는 로드하지 않음
+	// ServerTravel 후에도 GameInstance의 RuntimeItemInventory는 유지됨
 	UE_LOG(LogTemp, Warning, TEXT("========================================"));
-	UE_LOG(LogTemp, Warning, TEXT("BSLobbyPlayerController::BeginPlay - Loading save data..."));
-	UE_LOG(LogTemp, Warning, TEXT("Save Slot Name: %s"), *GameInstance->GetSaveSlotName());
-	UE_LOG(LogTemp, Warning, TEXT("Player ID: %s"), *GameInstance->GetPlayerID());
-
-	GameInstance->LoadPlayerSaveData();
-
-	UE_LOG(LogTemp, Warning, TEXT("Items after load: %d"), GameInstance->GetPlayerItems().Num());
+	UE_LOG(LogTemp, Warning, TEXT("BSLobbyPlayerController::BeginPlay - Using existing RuntimeItemInventory"));
+	UE_LOG(LogTemp, Warning, TEXT("Current items in inventory: %d"), GameInstance->GetPlayerItems().Num());
 	UE_LOG(LogTemp, Warning, TEXT("========================================"));
 
 	UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>();

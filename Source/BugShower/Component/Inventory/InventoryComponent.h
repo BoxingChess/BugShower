@@ -47,6 +47,14 @@ public:
 	// Add item to inventory or equipment slot
 	void AddItem(AItemActor* DroppedActor);
 
+	/**
+	 * Add UBSItemInstance directly to inventory (for loading from save or selected items)
+	 * Server-only function
+	 *
+	 * @param ItemInstances - Array of item instances to add
+	 */
+	void AddItemInstances(const TArray<UBSItemInstance*>& ItemInstances);
+
 	// Discard item from inventory by index (Internal function - Do not call from client)
 	void DiscardItemByIndex(int32 ItemIndex, int32 Count = 1);
 

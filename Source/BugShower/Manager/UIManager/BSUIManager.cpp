@@ -242,21 +242,29 @@ void UBSUIManager::InitializePlayerUI(APlayerController* PC)
 			continue;
 		}
 
-		// Viewport에 추가
-		Widget->AddToViewport(Config.ZOrder);
-
-		// 동작 방식에 따라 초기 표시 설정
-		if (Config.Behavior == EWidgetBehavior::AlwaysVisible)
+		// Viewport에 추가 (플래그가 true일 때만)
+		if (Config.bAddToViewport)
 		{
-			Widget->SetVisibility(ESlateVisibility::Visible);
-			UIData.VisibleWidgets.Add(WidgetName);
+			Widget->AddToViewport(Config.ZOrder);
+
+			// 동작 방식에 따라 초기 표시 설정
+			if (Config.Behavior == EWidgetBehavior::AlwaysVisible)
+			{
+				Widget->SetVisibility(ESlateVisibility::Visible);
+				UIData.VisibleWidgets.Add(WidgetName);
+			}
+			else
+			{
+				Widget->SetVisibility(ESlateVisibility::Collapsed);
+			}
+
+			UE_LOG(LogTemp, Log, TEXT("BSUIManager::InitializePlayerUI - Created Widget '%s' (Added to Viewport)"), *WidgetName.ToString());
 		}
 		else
 		{
-			Widget->SetVisibility(ESlateVisibility::Collapsed);
+			// AddToViewport 하지 않음 (툴팁 등 특수 용도)
+			UE_LOG(LogTemp, Log, TEXT("BSUIManager::InitializePlayerUI - Created Widget '%s' (Not added to Viewport)"), *WidgetName.ToString());
 		}
-
-		UE_LOG(LogTemp, Log, TEXT("BSUIManager::InitializePlayerUI - Created Widget '%s'"), *WidgetName.ToString());
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("BSUIManager::InitializePlayerUI - UI initialized for local player"));

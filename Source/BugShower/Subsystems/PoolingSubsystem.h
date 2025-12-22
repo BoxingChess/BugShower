@@ -71,6 +71,8 @@ public:
 		float Damage
 	);
 
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+
 	// ========== Class-Based Pooling API ==========
 	// Register a new pool for a specific monster class
 	UFUNCTION(BlueprintCallable, Category = "Pooling|ClassBased")
