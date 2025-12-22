@@ -96,6 +96,24 @@ void UPickUpDetectorComponent::BeginPlay()
 	{
 		OwnerChar = nullptr;       // Ÿ���� �ٸ��� ��ȿȭ
 	}
+
+	// ========================================
+	// 초기화: LineTraceUI 숨기기
+	// ========================================
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (OwnerPawn)
+	{
+		APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
+		if (PC && PC->GetGameInstance())
+		{
+			UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
+			if (UIManager)
+			{
+				UIManager->UpdatePickupPrompt(nullptr);  // 초기에 UI 숨기기
+				UE_LOG(LogTemp, Log, TEXT("PickUpDetectorComponent::BeginPlay - LineTraceUI hidden on start"));
+			}
+		}
+	}
 }
 
 
@@ -438,6 +456,31 @@ void UPickUpDetectorComponent::TryPickupFocused()
 			Player->ServerEquipWeapon(Weapon);  // 서버 RPC로 변경
 			UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - Requesting weapon equip from server: %s"),
 				Weapon->GetWeaponData() ? *Weapon->GetWeaponData()->WeaponName.ToString() : TEXT("Unknown"));
+
+			// ========================================
+			// 무기 장착 후: FocusedItem 초기화 + UI 숨기기
+			// ========================================
+			FocusedItem = nullptr;
+			FocusedWeapon = nullptr;
+
+			// 델리게이트 브로드캐스트 (UI 업데이트)
+			OnFocusItemChanged.Broadcast(nullptr);
+
+			// UIManager를 통해 LineTraceUI 숨기기
+			APawn* Pawn = Cast<APawn>(GetOwner());
+			if (Pawn && Pawn->IsLocallyControlled())
+			{
+				APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+				if (PC && PC->GetGameInstance())
+				{
+					UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
+					if (UIManager)
+					{
+						UIManager->UpdatePickupPrompt(nullptr);
+						UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - LineTraceUI hidden after weapon pickup"));
+					}
+				}
+			}
 		}
 	}
 
@@ -461,9 +504,28 @@ void UPickUpDetectorComponent::ServerTryPickup_Implementation(class AItemActor* 
 		// Don't call DeSpawn() here to avoid duplicate pool returns!
 		// AddItem()에서 이미 DeSpawn()을 처리하므로 여기서는 호출하지 않음!
 
-		if (!IsValid(Item))
+		// ========================================
+		// 아이템 픽업 후: FocusedItem 초기화 + UI 숨기기
+		// ========================================
+		FocusedItem = nullptr;
+		FocusedWeapon = nullptr;
+
+		// 델리게이트 브로드캐스트 (UI 업데이트)
+		OnFocusItemChanged.Broadcast(nullptr);
+
+		// UIManager를 통해 LineTraceUI 숨기기 (클라이언트에서만)
+		if (Pawn->IsLocallyControlled())
 		{
-			FocusedItem = nullptr;
+			APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+			if (PC && PC->GetGameInstance())
+			{
+				UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
+				if (UIManager)
+				{
+					UIManager->UpdatePickupPrompt(nullptr);
+					UE_LOG(LogTemp, Log, TEXT("ServerTryPickup - LineTraceUI hidden after pickup"));
+				}
+			}
 		}
 	}
 }

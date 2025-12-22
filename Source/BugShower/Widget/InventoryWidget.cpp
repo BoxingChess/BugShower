@@ -13,8 +13,8 @@
 #include "Components/Image.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "Engine/SkyLight.h"
 #include "GameFramework/Character.h"
-#include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
@@ -458,8 +458,9 @@ void UInventoryWidget::SetupPreviewScene()
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] World found: %s"), *World->GetName());
 
-	// 1. Render Target 생성 (512x512 해상도)
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Step 1: Creating RenderTarget"));
+	// ------------------------------------------------------------
+	// 1) RenderTarget 생성 (245x515)
+	// ------------------------------------------------------------
 	RenderTarget = NewObject<UTextureRenderTarget2D>(this);
 	if (!RenderTarget)
 	{
@@ -467,36 +468,39 @@ void UInventoryWidget::SetupPreviewScene()
 		return;
 	}
 
-	RenderTarget->InitAutoFormat(512, 512);
-	RenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	RenderTarget->InitAutoFormat(245, 515);
+	RenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f); // 투명 배경 추천
 	RenderTarget->bAutoGenerateMips = false;
+
 	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] RenderTarget created: %s"), *RenderTarget->GetName());
 	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] RenderTarget Size: %d x %d"), RenderTarget->SizeX, RenderTarget->SizeY);
 
-	// 2. Image 위젯에 Render Target 연결
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Step 2: Connecting to Image widget"));
+	// ------------------------------------------------------------
+	// 2) Image 위젯에 RenderTarget 브러시 연결
+	// ------------------------------------------------------------
 	if (!Img_CharacterPreview)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] Img_CharacterPreview is NULL"));
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] Check WBP_Inventory: Image widget named Img_CharacterPreview with Is Variable checked"));
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] Check WBP_Inventory: Img_CharacterPreview IsVariable"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Image widget found: %s"), *Img_CharacterPreview->GetName());
-
 	FSlateBrush Brush;
 	Brush.SetResourceObject(RenderTarget);
-	Brush.ImageSize = FVector2D(512.0f, 512.0f);
+	Brush.ImageSize = FVector2D(245.0f, 515.0f);
 	Brush.DrawAs = ESlateBrushDrawType::Image;
 	Brush.Tiling = ESlateBrushTileType::NoTile;
 	Brush.TintColor = FLinearColor::White;
+
 	Img_CharacterPreview->SetBrush(Brush);
 	Img_CharacterPreview->SetColorAndOpacity(FLinearColor::White);
 	Img_CharacterPreview->SetOpacity(1.0f);
+
 	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Image widget brush configured"));
 
-	// 3. 플레이어 캐릭터의 InventoryCamera 가져오기
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Step 3: Finding Player Character"));
+	// ------------------------------------------------------------
+	// 3) 플레이어 캐릭터 + SceneCapture 찾기
+	// ------------------------------------------------------------
 	ACharacter* PlayerCharacter = UGameplayStatics::GetPlayerCharacter(World, 0);
 	if (!PlayerCharacter)
 	{
@@ -505,118 +509,121 @@ void UInventoryWidget::SetupPreviewScene()
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Player Character found: %s"), *PlayerCharacter->GetName());
 
-	// BSCharacterPlayer의 InventoryCamera 찾기
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Searching for InventoryCamera component"));
 	USceneCaptureComponent2D* InventoryCamera = PlayerCharacter->FindComponentByClass<USceneCaptureComponent2D>();
 	if (!InventoryCamera)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] InventoryCamera NOT FOUND on Player Character"));
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] Check BSCharacterPlayer has InventoryCamera component"));
-
-		// 모든 컴포넌트 나열
-		TArray<UActorComponent*> Components;
-		PlayerCharacter->GetComponents(Components);
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Available components on Player Character:"));
-		for (UActorComponent* Comp : Components)
-		{
-			if (Comp)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("  - %s (Class: %s)"), *Comp->GetName(), *Comp->GetClass()->GetName());
-			}
-		}
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] InventoryCamera(SceneCapture2D) NOT FOUND on Player Character"));
 		return;
 	}
-
 	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] InventoryCamera FOUND: %s"), *InventoryCamera->GetName());
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] InventoryCamera Class: %s"), *InventoryCamera->GetClass()->GetName());
 
-	// 4. InventoryCamera에 RenderTarget 연결 및 활성화
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Step 4: Configuring InventoryCamera"));
-
-	// IMPORTANT: ShowOnlyComponents 설정
 	USkeletalMeshComponent* PlayerMesh = PlayerCharacter->GetMesh();
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] PlayerMesh pointer: %p"), PlayerMesh);
-
 	if (!PlayerMesh)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] CRITICAL: PlayerMesh is NULL"));
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] PlayerMesh name: %s"), *PlayerMesh->GetName());
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] PlayerMesh class: %s"), *PlayerMesh->GetClass()->GetName());
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] ShowOnlyComponents Count BEFORE clear: %d"), InventoryCamera->ShowOnlyComponents.Num());
-
-	// ShowOnlyComponents로 캐릭터만 렌더링
-	InventoryCamera->ShowOnlyComponents.Empty();
-	InventoryCamera->ShowOnlyComponents.Add(PlayerMesh);
-	InventoryCamera->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] ShowOnlyComponents: Rendering ONLY CharacterMesh"));
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Component count: %d"), InventoryCamera->ShowOnlyComponents.Num());
-
-	// 현재 상태 로그
-	int32 ComponentCount = InventoryCamera->ShowOnlyComponents.Num();
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] ShowOnlyComponents Count AFTER FORCE ADD: %d"), ComponentCount);
-
-	// ShowOnlyComponents 내용 확인
-	if (ComponentCount > 0)
+	// ------------------------------------------------------------
+	// 4) 월드의 SkyLight 확인 (디버그용)
+	// ------------------------------------------------------------
+	TArray<AActor*> SkyLightActors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASkyLight::StaticClass(), SkyLightActors);
+	if (SkyLightActors.Num() > 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Listing %d ShowOnlyComponents:"), ComponentCount);
-		for (int32 i = 0; i < ComponentCount; i++)
-		{
-			UPrimitiveComponent* Comp = InventoryCamera->ShowOnlyComponents[i].Get();
-			if (Comp)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("  Index %d: %s (Class: %s, Valid: YES)"),
-					i, *Comp->GetName(), *Comp->GetClass()->GetName());
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("  Index %d: NULL COMPONENT (TWeakObjectPtr exists but Get() returns nullptr)"), i);
-			}
-		}
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Found %d SkyLight(s) in world"), SkyLightActors.Num());
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] ERROR: ShowOnlyComponents is EMPTY"));
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] BLACK SCREEN expected - no mesh to render"));
+		UE_LOG(LogTemp, Error, TEXT("[INVENTORY WIDGET] NO SkyLight found in world!"));
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] FOV=%.1f Source=%d RenderMode=%d"),
-		InventoryCamera->FOVAngle, (int32)InventoryCamera->CaptureSource, (int32)InventoryCamera->PrimitiveRenderMode);
-
-	// ========================================
-	// Camera Positioning: Initial setup
-	// ========================================
-
-	// Initialize camera at 0 degrees (front of character)
-	CurrentYaw = 0.0f;
-	UpdateCameraPosition(CurrentYaw);
-
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] Initial camera position set (Yaw=0)"));
-
-	// RenderTarget 연결
-	InventoryCamera->TextureTarget = RenderTarget;
-	// [수정] bCaptureEveryFrame을 false로 설정 (성능 최적화)
-	// NativeTick에서 수동으로 CaptureScene() 호출
-	InventoryCamera->bCaptureEveryFrame = false;
-	InventoryCamera->bCaptureOnMovement = false;
-
-	// 즉시 캡처
-	InventoryCamera->CaptureScene();
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] CaptureScene called"));
-
-	// SceneCapture 참조 저장
+	// ------------------------------------------------------------
+	// 5) !!! 중요: SceneCapture 먼저 저장 (UpdateCameraPosition이 이 포인터를 씀)
+	// ------------------------------------------------------------
 	SceneCapture = InventoryCamera;
 
+	// ------------------------------------------------------------
+	// 6) SceneCapture 기본 설정
+	// ------------------------------------------------------------
+	SceneCapture->TextureTarget = RenderTarget;
+	SceneCapture->bCaptureEveryFrame = false;
+	SceneCapture->bCaptureOnMovement = false;
+
+	// 톤매핑/PP 포함한 결과를 받기 (UI 프리뷰는 이게 보통 더 보기 좋음)
+	SceneCapture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+
+	// ========================================
+	// 캐릭터만 렌더링 (배경 제외) + 월드 SkyLight 적용
+	// ========================================
+	SceneCapture->ShowOnlyComponents.Empty();
+	SceneCapture->ShowOnlyComponents.Add(PlayerMesh);
+	SceneCapture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+
+	// ShowFlags 명시적 설정 (SkyLight는 ShowOnlyList와 별개로 적용됨)
+	FEngineShowFlags& ShowFlags = SceneCapture->ShowFlags;
+
+	// 기본 렌더링
+	ShowFlags.SetSkeletalMeshes(true);
+	ShowFlags.SetStaticMeshes(false);             // 배경 StaticMesh 끄기
+	ShowFlags.SetLighting(true);
+	ShowFlags.SetPostProcessing(true);
+
+	// 조명 (SkyLight + Fill Light만)
+	ShowFlags.SetDirectionalLights(true);         // 월드 Directional Light
+	ShowFlags.SetPointLights(true);               // Fill Light
+	ShowFlags.SetSpotLights(false);
+	ShowFlags.SetSkyLighting(true);               // ← 핵심! (ShowOnlyList와 관계없이 적용됨)
+	ShowFlags.SetReflectionEnvironment(true);
+	ShowFlags.SetAmbientOcclusion(false);         // AO 끄기
+
+	// 배경 관련 끄기
+	ShowFlags.SetAtmosphere(false);
+	ShowFlags.SetFog(false);
+	ShowFlags.SetVolumetricFog(false);
+
+	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] SceneCapture: ShowOnly=Character, SkyLighting=ON, Background=OFF"));
+
+	// ------------------------------------------------------------
+	// 7) PostProcess 설정 (간단하게)
+	// ------------------------------------------------------------
+	SceneCapture->PostProcessBlendWeight = 1.0f;
+	FPostProcessSettings& PPS = SceneCapture->PostProcessSettings;
+
+	// 노출 고정 (매우 밝게)
+	PPS.bOverride_AutoExposureMethod = true;
+	PPS.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+	PPS.bOverride_AutoExposureBias = true;
+	PPS.AutoExposureBias = 3.0f; // 매우 밝게! (원래 0.5 → 3.0)
+
+	// AO 완전히 끄기 (뒷면 먹물 방지)
+	PPS.bOverride_AmbientOcclusionIntensity = true;
+	PPS.AmbientOcclusionIntensity = 0.0f; // 완전히 끄기
+
+	// Bloom 끄기 (너무 밝아서 번질 수 있음)
+	PPS.bOverride_BloomIntensity = true;
+	PPS.BloomIntensity = 0.0f;
+
+	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] PostProcess configured"));
+
+	// ------------------------------------------------------------
+	// 8) 카메라 위치 초기화/캡처
+	// ------------------------------------------------------------
+	CurrentYaw = 0.0f;
+	UpdateCameraPosition(CurrentYaw);      // 여기서 CaptureScene()도 호출됨 (너 함수 내부)
+	SceneCapture->CaptureScene();          // 안전하게 한 번 더
+
 	UE_LOG(LogTemp, Warning, TEXT("========================================"));
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] SetupPreviewScene COMPLETE"));
+	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] SetupPreviewScene COMPLETE (Rewritten)"));
 	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+
 }
 
 void UInventoryWidget::CleanupPreviewScene()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY WIDGET] CleanupPreviewScene START"));
+
+	// 정리 작업 (필요시)
 
 	// SceneCapture (=InventoryCamera) 비활성화
 	if (SceneCapture)
@@ -681,8 +688,8 @@ void UInventoryWidget::UpdateCameraPosition(float Yaw)
 	FVector CharacterLocation = PlayerCharacter->GetActorLocation();
 
 	// Camera settings
-	float CameraDistance = 400.0f;
-	float CameraHeight = 90.0f;
+	float CameraDistance = 200.0f;
+	float CameraHeight = 50.0f;
 
 	// Calculate camera position using Yaw angle (orbit around character)
 	FRotator OrbitRotation(0.0f, Yaw, 0.0f);
@@ -697,6 +704,9 @@ void UInventoryWidget::UpdateCameraPosition(float Yaw)
 	// Update camera transform
 	SceneCapture->SetWorldLocation(CameraLocation);
 	SceneCapture->SetWorldRotation(LookAtRotation);
+
+	// 디버그 로그 (필요시)
+	// UE_LOG(LogTemp, Log, TEXT("[INVENTORY CAMERA] Yaw: %.1f, CameraLoc: %s"), Yaw, *CameraLocation.ToString());
 
 	// Capture scene
 	SceneCapture->CaptureScene();

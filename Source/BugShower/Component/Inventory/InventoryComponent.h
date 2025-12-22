@@ -56,6 +56,24 @@ public:
 
 	// Find item index in inventory
 	int32 FindItemIndex(UBSItemInstance* ItemInstance) const;
+
+	/**
+	 * 특정 아이템 ID의 총 개수 조회 (탄약용)
+	 * @param ItemID 아이템 ID (201=9mm, 202=5.56mm, 203=7.62mm 등)
+	 * @return 인벤토리에 있는 해당 아이템의 총 개수
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	int32 GetItemCountByID(uint8 ItemID) const;
+
+	/**
+	 * 인벤토리에서 아이템 소비 (탄약용)
+	 * @param ItemID 아이템 ID
+	 * @param Amount 소비할 개수
+	 * @return 실제로 소비된 개수 (인벤토리에 부족하면 가능한 만큼만)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	int32 ConsumeItemByID(uint8 ItemID, int32 Amount);
+
 public:
 	TArray<UBSItemInstance*> GetItemInventory() { return ItemInventory; };
 

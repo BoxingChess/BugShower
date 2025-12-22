@@ -12,6 +12,8 @@
 #include "Projectile/ProjectileBase.h"
 #include "Manager/UIManager/BSUIManager.h"
 #include "Animation/BSAnimInstance.h"
+#include "Component/Inventory/InventoryComponent.h"
+#include "Item/ItemEnum.h"
 
 UWeaponComponent::UWeaponComponent()
 {
@@ -90,20 +92,36 @@ void UWeaponComponent::EquipWeapon(UWeaponDataAsset* WeaponData, int32 AmmoCount
 	// 새 무기 설정
 	CurrentWeaponData = WeaponData;
 	CurrentAmmo = WeaponData->MagSize;  // 탄창 가득 채움
-	ReserveAmmo = AmmoCount;
+	// ReserveAmmo는 이제 GetReserveAmmo()로 인벤토리에서 실시간 조회
 	bIsReloading = false;
 	bIsFiring = false;
 	CurrentSpreadAngle = 0.0f;
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::EquipWeapon - Equipped %s (Ammo: %d/%d)"),
-		*WeaponData->WeaponName.ToString(), CurrentAmmo, ReserveAmmo);
+		*WeaponData->WeaponName.ToString(), CurrentAmmo, GetReserveAmmo());
 
 	// UI 업데이트
 	if (UGameInstance* GI = GetWorld()->GetGameInstance())
 	{
 		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
 		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
+		}
+	}
+
+	// 인벤토리 변경 델리게이트 바인딩 (탄약 아이템 픽업/드롭 시 UI 업데이트)
+	if (AActor* WeaponActor = GetOwner())
+	{
+		if (AActor* Character = WeaponActor->GetOwner())
+		{
+			if (UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>())
+			{
+				// 이미 바인딩되어 있으면 제거 후 재바인딩 (중복 방지)
+				InventoryComp->OnInventoryChanged.RemoveDynamic(this, &UWeaponComponent::HandleInventoryChanged);
+				InventoryComp->OnInventoryChanged.AddDynamic(this, &UWeaponComponent::HandleInventoryChanged);
+
+				UE_LOG(LogTemp, Log, TEXT("WeaponComponent::EquipWeapon - Bound to OnInventoryChanged delegate"));
+			}
 		}
 	}
 }
@@ -118,6 +136,19 @@ void UWeaponComponent::UnequipWeapon()
 	// 발사 중지
 	StopFire();
 
+	// 인벤토리 변경 델리게이트 언바인딩
+	if (AActor* WeaponActor = GetOwner())
+	{
+		if (AActor* Character = WeaponActor->GetOwner())
+		{
+			if (UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>())
+			{
+				InventoryComp->OnInventoryChanged.RemoveDynamic(this, &UWeaponComponent::HandleInventoryChanged);
+				UE_LOG(LogTemp, Log, TEXT("WeaponComponent::UnequipWeapon - Unbound from OnInventoryChanged delegate"));
+			}
+		}
+	}
+
 	// 재장전 타이머 정리
 	if (GetWorld())
 	{
@@ -127,7 +158,7 @@ void UWeaponComponent::UnequipWeapon()
 	// 데이터 초기화
 	CurrentWeaponData = nullptr;
 	CurrentAmmo = 0;
-	ReserveAmmo = 0;
+	// ReserveAmmo는 이제 인벤토리에서 조회하므로 초기화 불필요
 	bIsReloading = false;
 	bIsFiring = false;
 	CurrentSpreadAngle = 0.0f;
@@ -269,14 +300,14 @@ void UWeaponComponent::Fire()
 	// 발사 애니메이션 재생
 	PlayFireAnimation();
 
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Fire - Fired! (Ammo: %d/%d)"), CurrentAmmo, ReserveAmmo);
+	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Fire - Fired! (Ammo: %d/%d)"), CurrentAmmo, GetReserveAmmo());
 
 	// UI 업데이트
 	if (UGameInstance* GI = GetWorld()->GetGameInstance())
 	{
 		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
 		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
 		}
 	}
 }
@@ -756,7 +787,7 @@ void UWeaponComponent::Reload()
 	}
 
 	// 예비 탄약이 없으면 무시
-	if (ReserveAmmo <= 0)
+	if (GetReserveAmmo() <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::Reload - No reserve ammo!"));
 		return;
@@ -803,48 +834,102 @@ void UWeaponComponent::OnReloadComplete()
 	// 필요한 탄약 수 계산
 	int32 AmmoNeeded = CurrentWeaponData->MagSize - CurrentAmmo;
 
-	// 예비 탄약에서 가져올 수 있는 만큼 가져옴
-	int32 AmmoToReload = FMath::Min(AmmoNeeded, ReserveAmmo);
+	// 예비 탄약(인벤토리)에서 가져올 수 있는 만큼 가져옴
+	int32 AmmoToReload = FMath::Min(AmmoNeeded, GetReserveAmmo());
 
-	// 탄약 이동
+	// 탄약 이동 (탄창에 추가)
 	CurrentAmmo += AmmoToReload;
-	ReserveAmmo -= AmmoToReload;
+
+	// 인벤토리에서 탄약 소비 (서버에서만 실행)
+	// WeaponActor의 Owner가 Character임
+	if (AActor* WeaponActor = GetOwner())
+	{
+		// 데디서버 환경: 서버에서만 인벤토리 소비 (Replicated ItemInventory가 클라이언트로 전파됨)
+		if (WeaponActor->HasAuthority())
+		{
+			if (AActor* Character = WeaponActor->GetOwner())
+			{
+				if (UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>())
+				{
+					// AmmoType을 ItemID로 변환
+					uint8 AmmoItemID = AmmoTypeToItemID(CurrentWeaponData->AmmoType);
+
+					if (AmmoItemID != 0)
+					{
+						// 인벤토리에서 실제로 탄약 소비
+						int32 ConsumedAmount = InventoryComp->ConsumeItemByID(AmmoItemID, AmmoToReload);
+
+						if (ConsumedAmount != AmmoToReload)
+						{
+							UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::OnReloadComplete - Consumed %d ammo from inventory, expected %d"),
+								ConsumedAmount, AmmoToReload);
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// 재장전 완료
 	bIsReloading = false;
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::OnReloadComplete - Reload complete! (Ammo: %d/%d)"),
-		CurrentAmmo, ReserveAmmo);
+		CurrentAmmo, GetReserveAmmo());
 
 	// UI 업데이트
 	if (UGameInstance* GI = GetWorld()->GetGameInstance())
 	{
 		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
 		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
 		}
 	}
 
 	// TODO: 재장전 완료 사운드 재생
 }
 
+void UWeaponComponent::HandleInventoryChanged()
+{
+	// 인벤토리가 변경되었을 때 UI만 업데이트
+	// (탄약 아이템을 먹거나 버렸을 때)
+	if (!CurrentWeaponData)
+	{
+		return;  // 무기가 장착되지 않았으면 무시
+	}
+
+	// UI 업데이트 (GetReserveAmmo()로 최신 인벤토리 값 조회)
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::HandleInventoryChanged - Ammo UI updated (Ammo: %d/%d)"),
+		CurrentAmmo, GetReserveAmmo());
+}
+
 void UWeaponComponent::AddAmmo(int32 Amount)
 {
+	// [DEPRECATED] 이 함수는 더 이상 사용되지 않습니다.
+	// 탄약은 이제 InventoryComponent에서 관리되므로,
+	// 인벤토리에 직접 아이템을 추가해야 합니다.
+	// UI 업데이트만 수행합니다.
+
+	UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::AddAmmo - [DEPRECATED] This function is deprecated. Please add ammo items directly to InventoryComponent instead."));
+
 	if (Amount <= 0)
 	{
 		return;
 	}
 
-	ReserveAmmo += Amount;
-
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::AddAmmo - Added %d ammo (Total: %d)"), Amount, ReserveAmmo);
-
-	// UI 업데이트
+	// UI 업데이트 (인벤토리에서 실시간 조회)
 	if (UGameInstance* GI = GetWorld()->GetGameInstance())
 	{
 		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
 		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmo);
+			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
 		}
 	}
 }
@@ -935,4 +1020,69 @@ void UWeaponComponent::PlayReloadAnimation()
 	{
 		BSAnim->PlayReloadMontage();
 	}
+}
+
+// ========================================
+// Helper Functions
+// ========================================
+
+/**
+ * AmmoType을 ItemID로 변환 (InventoryComponent와 통신용)
+ */
+uint8 UWeaponComponent::AmmoTypeToItemID(EAmmoType AmmoType)
+{
+	switch (AmmoType)
+	{
+		case EAmmoType::Ammo_9mm:
+			return static_cast<uint8>(EConsumableID::Ammunition_9mm);  // 201
+		case EAmmoType::Ammo_556mm:
+			return static_cast<uint8>(EConsumableID::Ammunition_5_56mm);  // 202
+		case EAmmoType::Ammo_762mm:
+			return static_cast<uint8>(EConsumableID::Ammunition_7_62mm);  // 203
+		// 12Gauge, 45ACP는 나중에 추가 가능
+		default:
+			UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::AmmoTypeToItemID - Unknown AmmoType: %d"), static_cast<int32>(AmmoType));
+			return 0;  // 매핑 없음
+	}
+}
+
+/**
+ * 예비 탄약 조회 (인벤토리에서 실시간 조회)
+ * 이제 ReserveAmmo 멤버 변수를 사용하지 않고, 항상 인벤토리에서 조회
+ */
+int32 UWeaponComponent::GetReserveAmmo() const
+{
+	if (!CurrentWeaponData)
+	{
+		return 0;
+	}
+
+	// Owner (WeaponActor)의 Owner (Character)에서 InventoryComponent 찾기
+	AActor* WeaponActor = GetOwner();
+	if (!WeaponActor)
+	{
+		return 0;
+	}
+
+	AActor* Character = WeaponActor->GetOwner();
+	if (!Character)
+	{
+		return 0;
+	}
+
+	UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>();
+	if (!InventoryComp)
+	{
+		return 0;
+	}
+
+	// AmmoType을 ItemID로 변환
+	uint8 AmmoItemID = AmmoTypeToItemID(CurrentWeaponData->AmmoType);
+	if (AmmoItemID == 0)
+	{
+		return 0;
+	}
+
+	// 인벤토리에서 탄약 개수 조회
+	return InventoryComp->GetItemCountByID(AmmoItemID);
 }

@@ -19,6 +19,7 @@
 #include "Weapon/Data/WeaponDataAsset.h"
 #include "Game/BSGameModeBase.h"
 #include "Animation/BSAnimInstance.h"									// 애니메이션 인스턴스
+#include "Item/ItemEnum.h"												// 아이템 ID enum
 
 
 ABSCharacterPlayer::ABSCharacterPlayer()
@@ -146,7 +147,7 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCameraArm"));
 	}
 
-	// Inventory SceneCapture2D
+	// Inventory SceneCapture2D (설정은 InventoryWidget에서 처리)
 	InventoryCamera = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("InventoryCamera"));
 	if (InventoryCamera)
 	{
@@ -156,24 +157,12 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 		InventoryCamera->FOVAngle = 50.0f;
 		InventoryCamera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
-		// ShowFlags
-		InventoryCamera->ShowFlags.SetAtmosphere(false);
-		InventoryCamera->ShowFlags.SetFog(false);
-		InventoryCamera->ShowFlags.SetVolumetricFog(false);
-		InventoryCamera->ShowFlags.SetSkeletalMeshes(true);
-
-		// Render only player mesh (add to ShowOnlyList in BeginPlay)
-		InventoryCamera->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera created successfully"));
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] FOV: %f"), InventoryCamera->FOVAngle);
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] CaptureSource: %d"), (int32)InventoryCamera->CaptureSource);
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] PrimitiveRenderMode: %d"), (int32)InventoryCamera->PrimitiveRenderMode);
+		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera created - FOV: %f"), InventoryCamera->FOVAngle);
 	}
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCamera"));
-	} // ȸ�� �ӵ� ������
+	}
 
 
 	// bUseControllerRotationPitch:
@@ -243,20 +232,7 @@ void ABSCharacterPlayer::BeginPlay()
 		}
 	}
 
-	if (InventoryCamera && GetMesh())
-	{
-		InventoryCamera->ShowOnlyComponents.Add(GetMesh());
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Added Mesh to ShowOnlyList - Count: %d"), InventoryCamera->ShowOnlyComponents.Num());
-
-		// ShowFlags 확인
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] ShowFlags.SkeletalMeshes: %d"), InventoryCamera->ShowFlags.SkeletalMeshes);
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] bCaptureEveryFrame: %d"), InventoryCamera->bCaptureEveryFrame);
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] TextureTarget: %s"), InventoryCamera->TextureTarget ? TEXT("SET") : TEXT("NULL"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to add Mesh - InventoryCamera or Mesh is NULL"));
-	}
+	// InventoryCamera 설정은 InventoryWidget에서 처리
 
 	// ========================================
 	// 스탯 컴포넌트 초기화
@@ -614,11 +590,40 @@ void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 	// 이미 InitializeWeapon이 호출된 경우 (BeginPlay에서 스폰한 무기) 중복 호출되지만 문제없음
 	if (UWeaponDataAsset* WeaponData = CurrentWeapon->GetWeaponData())
 	{
-		// 현재 탄약 정보 가져오기
-		int32 CurrentAmmo, ReserveAmmo;
-		CurrentWeapon->GetAmmoInfo(CurrentAmmo, ReserveAmmo);
+		// 인벤토리에서 탄약 개수 조회
+		int32 CurrentAmmo = 0;  // 탄창은 비어있는 상태로 시작
+		int32 ReserveAmmo = 0;
 
-		// 탄약 정보가 없으면 (0, 0) 만탄으로 시작
+		if (InventoryComponent && WeaponData)
+		{
+			// AmmoType을 ItemID로 변환
+			uint8 AmmoItemID = 0;
+			switch (WeaponData->AmmoType)
+			{
+				case EAmmoType::Ammo_9mm:
+					AmmoItemID = static_cast<uint8>(EConsumableID::Ammunition_9mm);  // 201
+					break;
+				case EAmmoType::Ammo_556mm:
+					AmmoItemID = static_cast<uint8>(EConsumableID::Ammunition_5_56mm);  // 202
+					break;
+				case EAmmoType::Ammo_762mm:
+					AmmoItemID = static_cast<uint8>(EConsumableID::Ammunition_7_62mm);  // 203
+					break;
+				default:
+					UE_LOG(LogTemp, Warning, TEXT("ABSCharacterPlayer::EquipWeapon - Unknown AmmoType: %d"), static_cast<int32>(WeaponData->AmmoType));
+					break;
+			}
+
+			// 인벤토리에서 해당 ItemID의 총 개수 가져오기
+			if (AmmoItemID != 0)
+			{
+				ReserveAmmo = InventoryComponent->GetItemCountByID(AmmoItemID);
+				UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Inventory ammo: %d for AmmoType: %d (ItemID: %d)"),
+					ReserveAmmo, static_cast<int32>(WeaponData->AmmoType), AmmoItemID);
+			}
+		}
+
+		// 무기 초기화 (CurrentAmmo=0, ReserveAmmo=인벤토리 탄약 개수)
 		CurrentWeapon->InitializeWeapon(WeaponData, CurrentAmmo, ReserveAmmo);
 		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Initialized weapon with %s"), *WeaponData->WeaponName.ToString());
 	}
