@@ -80,6 +80,8 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	class UHorizontalBox* DescriptRegion;
+	UPROPERTY(meta = (BindWidget))
+	class UTextBlock* ItemDescript;
 	
 	UPROPERTY(meta = (BindWidget))
 	class UHorizontalBox* QuantityRegion;
