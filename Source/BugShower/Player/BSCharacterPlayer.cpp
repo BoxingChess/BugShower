@@ -100,6 +100,12 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 	SpringArm->bUsePawnControlRotation = true; // ���콺 ȸ���� ���� ȸ��
 	SpringArm->SocketOffset = FVector(0.f, 0.f, 100.f); //�ڿ������� ī�޶� ��ġ ����
 
+	// 카메라 암이 Camera 채널로 충돌 검사
+	SpringArm->bDoCollisionTest = true;
+	SpringArm->ProbeSize = 12.0f;
+	SpringArm->ProbeChannel = ECollisionChannel::ECC_Camera;
+
+
 	//�Ʒ��� �ε巴�� ������� ī�޶� ���� ������ ���.
 	//SpringArm->bEnableCameraRotationLag = true;
 	//SpringArm->CameraRotationLagSpeed = 50.0f;
