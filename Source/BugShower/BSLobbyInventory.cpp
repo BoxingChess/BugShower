@@ -71,6 +71,7 @@ void UBSClickPopUp::UpdateDisplay(UBSItemInstance* InData)
 
 	//아이템 설명 설정
 	FText Descript = InData->GetItemStaticData()->Description;
+	ItemDescript->SetText(Descript);
 
 	//최대 수량 설정
 	int MaxQuantity = InData->GetItemData().Quantity;
