@@ -11,8 +11,14 @@
 #include "Components/TileView.h"
 #include "Components/EditableText.h"
 #include "Components/Slider.h"
+#include "Components/ListViewBase.h"
+#include "Components/Border.h"
 #include "Manager/UIManager/BSUIManager.h"
 
+// 드래그 앤 드롭
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Blueprint/DragDropOperation.h"
+#include "Widget/DragVisual.h"
 
 //debug
 #include "Logging/BugShowerLog.h"
@@ -243,15 +249,14 @@ void UBSTileItem::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	// 버튼 이벤트 바인딩
+	// Border 설정 (클릭 가능하도록)
 	if (ItemSelect)
 	{
-		ItemSelect->OnClicked.AddDynamic(this, &UBSTileItem::OnItemClicked);
-		ItemSelect->OnHovered.AddDynamic(this, &UBSTileItem::OnItemHovered);
-		ItemSelect->OnUnhovered.AddDynamic(this, &UBSTileItem::OnItemUnHovered);
+		ItemSelect->SetVisibility(ESlateVisibility::Visible);
 	}
 
-	
+	// 위젯 자체도 Visible로 설정하여 마우스 이벤트 받기
+	SetVisibility(ESlateVisibility::Visible);
 }
 
 void UBSTileItem::NativeOnListItemObjectSet(UObject* ListItemObject)
@@ -281,8 +286,19 @@ void UBSTileItem::UpdateDisplay()
 	TObjectPtr<const UBSStaticItemDataAsset> StaticData = ItemData->GetItemStaticData();
 	FBS_Item DynmicData = ItemData->GetItemData();
 
-	ItemIcon->SetBrushFromTexture(StaticData->Icon);
-	ItemName->SetText(StaticData->DisplayName);
+	// StaticData가 nullptr인 경우 (테스트용 더미 데이터)
+	if (StaticData == nullptr)
+	{
+		// 기본 텍스트 표시
+		ItemName->SetText(FText::FromString(FString::Printf(TEXT("Test Item #%d"), DynmicData.ItemID)));
+		// 아이콘은 비워둠
+		ItemIcon->SetBrushFromTexture(nullptr);
+	}
+	else
+	{
+		ItemIcon->SetBrushFromTexture(StaticData->Icon);
+		ItemName->SetText(StaticData->DisplayName);
+	}
 }
 
 void UBSTileItem::OnItemClicked()
@@ -325,7 +341,7 @@ void UBSTileItem::OnItemClicked()
 
 void UBSTileItem::OnItemHovered()
 {
-	if (ItemData == nullptr)
+	if (ItemData == nullptr || ItemData->StaticData == nullptr)
 	{
 		LOG_LOGIC_INFO(TEXT("OnItemHovered: ItemData is NULL"));
 		return;
@@ -399,12 +415,267 @@ void UBSTileItem::OnItemUnHovered()
 
 }
 
+// ========================================
+// 마우스 이벤트 - 클릭과 드래그 구분
+// ========================================
+
+FReply UBSTileItem::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		// 마우스 누름 시작 - 위치 저장
+		bIsPressed = true;
+		bIsDragging = false;
+		PressedMousePosition = InMouseEvent.GetScreenSpacePosition();
+
+		LOG_LOGIC_INFO(TEXT("TileItem: Mouse pressed at (%.1f, %.1f)"),
+			PressedMousePosition.X, PressedMousePosition.Y);
+
+		// 마우스 캡처 (Move 이벤트를 받기 위해)
+		return FReply::Handled().CaptureMouse(TakeWidget());
+	}
+
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+FReply UBSTileItem::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && bIsPressed)
+	{
+		bIsPressed = false;
+
+		// 드래그가 시작되지 않았으면 → 클릭으로 판정
+		if (!bIsDragging)
+		{
+			LOG_LOGIC_INFO(TEXT("TileItem: Clicked (no drag detected)"));
+			OnItemClicked();  // 기존 클릭 이벤트 호출
+		}
+		else
+		{
+			LOG_LOGIC_INFO(TEXT("TileItem: Drag completed"));
+		}
+
+		bIsDragging = false;
+
+		// 마우스 캡처 해제
+		return FReply::Handled().ReleaseMouseCapture();
+	}
+
+	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+}
+
+FReply UBSTileItem::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	if (bIsPressed && !bIsDragging)
+	{
+		// 마우스가 눌린 상태에서 이동 거리 계산
+		FVector2D CurrentMousePosition = InMouseEvent.GetScreenSpacePosition();
+		float Distance = FVector2D::Distance(PressedMousePosition, CurrentMousePosition);
+
+		// 임계값 이상 움직이면 드래그 시작
+		if (Distance >= DragThreshold)
+		{
+			bIsDragging = true;
+			LOG_LOGIC_INFO(TEXT("TileItem: Drag started (moved %.1f pixels)"), Distance);
+
+			// 드래그 시작 신호
+			return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
+		}
+	}
+
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+}
+
+void UBSTileItem::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+
+	// 호버 시작 - 기존 호버 이벤트 호출
+	OnItemHovered();
+}
+
+void UBSTileItem::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+	Super::NativeOnMouseLeave(InMouseEvent);
+
+	// 호버 끝 - 기존 언호버 이벤트 호출
+	OnItemUnHovered();
+
+	// 마우스가 위젯을 벗어나면 상태 초기화
+	if (bIsPressed && !bIsDragging)
+	{
+		bIsPressed = false;
+	}
+}
+
+// ========================================
+// 드래그 앤 드롭
+// ========================================
+
+void UBSTileItem::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
+{
+	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	if (!ItemData)
+	{
+		LOG_LOGIC_INFO(TEXT("TileItem: NativeOnDragDetected - ItemData is NULL"));
+		return;
+	}
+
+	LOG_LOGIC_INFO(TEXT("TileItem: Drag detected for item"));
+
+	// DragDropOperation 생성
+	UDragDropOperation* DragOp = UWidgetBlueprintLibrary::CreateDragDropOperation(UDragDropOperation::StaticClass());
+	if (!DragOp)
+	{
+		LOG_LOGIC_INFO(TEXT("TileItem: Failed to create DragDropOperation"));
+		return;
+	}
+
+	// Payload에 아이템 데이터 저장
+	DragOp->Payload = ItemData;
+	DragOp->Pivot = EDragPivot::CenterCenter;
+
+	// 드래그 전용 위젯 생성
+	UDragVisual* Visual = nullptr;
+	if (DragVisualClass)
+	{
+		Visual = CreateWidget<UDragVisual>(GetWorld(), DragVisualClass);
+		UE_LOG(LogTemp, Warning, TEXT("ItemEntryWidget: CreateWidget returned %s"),
+			Visual ? TEXT("Success") : TEXT("NULL"));
+	}
+
+	if (Visual)
+	{
+		Visual->SetData(ItemData->StaticData->Icon, FText::AsNumber(ItemData->Dynamic.Quantity)); // 데이터 세팅 함수
+		DragOp->DefaultDragVisual = Visual; // 마우스에 붙는 UI (DragVisual만 표시)
+
+		UE_LOG(LogTemp, Log, TEXT("ItemEntryWidget: DragVisual created successfully"));
+	}
+	else
+	{
+		// DragVisual 생성 실패
+		UE_LOG(LogTemp, Error, TEXT("ItemEntryWidget: Failed to create DragVisual! DragVisualClass is %s"),
+			DragVisualClass ? TEXT("valid") : TEXT("NULL"));
+
+		// Fallback 없음 - nullptr로 두면 아무것도 안 보임
+		DragOp->DefaultDragVisual = nullptr;
+	}
+
+	OutOperation = DragOp;
+}
+
+bool UBSTileItem::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
+
+	// 드롭된 아이템 가져오기
+	UBSItemInstance* DroppedItem = Cast<UBSItemInstance>(InOperation->Payload);
+	if (!DroppedItem || !ItemData)
+	{
+		LOG_LOGIC_INFO(TEXT("TileItem: NativeOnDrop - Invalid item data"));
+		return false;
+	}
+
+	// 같은 아이템이면 무시
+	if (DroppedItem == ItemData)
+	{
+		LOG_LOGIC_INFO(TEXT("TileItem: Dropped on same item, ignoring"));
+		bIsDraggedOver = false;
+		return false;
+	}
+
+	// 부모 인벤토리 찾기 (GetTypedOuter로 부모 위젯 찾기)
+	UBSLobbyInventory* ParentInventory = nullptr;
+	UWidget* Current = GetParent();
+	while (Current)
+	{
+		ParentInventory = Cast<UBSLobbyInventory>(Current);
+		if (ParentInventory)
+		{
+			break;
+		}
+		Current = Current->GetParent();
+	}
+
+	if (!ParentInventory)
+	{
+		LOG_LOGIC_INFO(TEXT("TileItem: Could not find parent inventory"));
+		bIsDraggedOver = false;
+		return false;
+	}
+
+	// 인덱스 찾기
+	int32 DroppedIndex = ParentInventory->GetItemIndex(DroppedItem);
+	int32 CurrentIndex = ParentInventory->GetItemIndex(ItemData);
+
+	if (DroppedIndex == -1 || CurrentIndex == -1)
+	{
+		LOG_LOGIC_INFO(TEXT("TileItem: Could not find item indices"));
+		bIsDraggedOver = false;
+		return false;
+	}
+
+	// Swap 실행
+	ParentInventory->SwapItems(DroppedIndex, CurrentIndex);
+	LOG_LOGIC_INFO(TEXT("TileItem: Swapped items at index %d and %d"), DroppedIndex, CurrentIndex);
+
+	bIsDraggedOver = false;
+	return true;
+}
+
+void UBSTileItem::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragEnter(InGeometry, InDragDropEvent, InOperation);
+
+	bIsDraggedOver = true;
+
+	// 시각적 피드백 (배경색 변경 등)
+	if (BackGround)
+	{
+		BackGround->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 0.5f, 1.0f)); // 노란색 틴트
+	}
+
+	LOG_LOGIC_INFO(TEXT("TileItem: Drag entered"));
+}
+
+void UBSTileItem::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation)
+{
+	Super::NativeOnDragLeave(InDragDropEvent, InOperation);
+
+	bIsDraggedOver = false;
+
+	// 시각적 피드백 원복
+	if (BackGround)
+	{
+		BackGround->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)); // 원래 색상
+	}
+
+	LOG_LOGIC_INFO(TEXT("TileItem: Drag left"));
+}
+
 ///// Inventory UI
 
 
 
 void UBSLobbyInventory::NativeConstruct()
 {
+	Super::NativeConstruct();
+
+	// TileView 스크롤 설정
+	if (Inventory)
+	{
+		// 스크롤바가 필요할 때 자동으로 표시되도록 설정
+		Inventory->SetScrollbarVisibility(ESlateVisibility::Visible);
+
+		// 마우스 휠 스크롤 속도 설정
+		Inventory->SetWheelScrollMultiplier(WheelScrollMultiplier);
+
+		// 타일 크기 설정
+		Inventory->SetEntryWidth(EntryWidth);
+		Inventory->SetEntryHeight(EntryHeight);
+	}
+
 	// GameInstance의 인벤토리 변경 델리게이트 구독
 	UGameInstance* GameInstance = GetGameInstance();
 	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GameInstance);
@@ -521,4 +792,112 @@ void UBSLobbyInventory::RefreshInventory(const TArray<UBSItemInstance*>& InItems
 
 	UE_LOG(LogTemp, Log, TEXT("========================================"));
 
+}
+
+void UBSLobbyInventory::AddTestItems(int32 ItemCount)
+{
+	if (!Inventory)
+	{
+		LOG_LOGIC_INFO(TEXT("AddTestItems: Inventory TileView is NULL"));
+		return;
+	}
+
+	// 기존 아이템 클리어
+	Inventory->ClearListItems();
+	SavedItems.Empty();
+
+	// 더미 아이템 생성
+	for (int32 i = 0; i < ItemCount; ++i)
+	{
+		UBSItemInstance* TestItem = NewObject<UBSItemInstance>(this);
+		if (TestItem)
+		{
+			// 더미 데이터 설정
+			TestItem->Dynamic.ItemID = i;
+			TestItem->Dynamic.ItemType = EItemType::Consumable; // 기본 타입
+			TestItem->Dynamic.Quantity = FMath::RandRange(1, 99);
+
+			// StaticData는 nullptr로 두거나, 존재하는 데이터를 사용
+			// (실제 테스트에서는 Blueprint에서 StaticData를 설정하거나 기본 데이터를 사용해야 함)
+			TestItem->StaticData = nullptr;
+
+			Inventory->AddItem(TestItem);
+			SavedItems.Add(TestItem);
+		}
+	}
+
+	LOG_LOGIC_INFO(TEXT("Added %d test items to inventory"), ItemCount);
+}
+
+void UBSLobbyInventory::SwapItems(int32 IndexA, int32 IndexB)
+{
+	if (!Inventory)
+	{
+		LOG_LOGIC_INFO(TEXT("SwapItems: Inventory TileView is NULL"));
+		return;
+	}
+
+	// 인덱스 유효성 검사
+	if (IndexA < 0 || IndexA >= SavedItems.Num() || IndexB < 0 || IndexB >= SavedItems.Num())
+	{
+		LOG_LOGIC_INFO(TEXT("SwapItems: Invalid index (A:%d, B:%d, Max:%d)"), IndexA, IndexB, SavedItems.Num() - 1);
+		return;
+	}
+
+	// 같은 인덱스면 무시
+	if (IndexA == IndexB)
+	{
+		return;
+	}
+
+	// SavedItems 배열에서 swap
+	SavedItems.Swap(IndexA, IndexB);
+
+	// TileView 새로고침
+	RefreshInventory(SavedItems);
+
+	LOG_LOGIC_INFO(TEXT("Swapped items at index %d and %d"), IndexA, IndexB);
+}
+
+void UBSLobbyInventory::MoveItem(int32 FromIndex, int32 ToIndex)
+{
+	if (!Inventory)
+	{
+		LOG_LOGIC_INFO(TEXT("MoveItem: Inventory TileView is NULL"));
+		return;
+	}
+
+	// 인덱스 유효성 검사
+	if (FromIndex < 0 || FromIndex >= SavedItems.Num() || ToIndex < 0 || ToIndex >= SavedItems.Num())
+	{
+		LOG_LOGIC_INFO(TEXT("MoveItem: Invalid index (From:%d, To:%d, Max:%d)"), FromIndex, ToIndex, SavedItems.Num() - 1);
+		return;
+	}
+
+	// 같은 인덱스면 무시
+	if (FromIndex == ToIndex)
+	{
+		return;
+	}
+
+	// 아이템을 배열에서 제거하고 새 위치에 삽입
+	UBSItemInstance* ItemToMove = SavedItems[FromIndex];
+	SavedItems.RemoveAt(FromIndex);
+	SavedItems.Insert(ItemToMove, ToIndex);
+
+	// TileView 새로고침
+	RefreshInventory(SavedItems);
+
+	LOG_LOGIC_INFO(TEXT("Moved item from index %d to %d"), FromIndex, ToIndex);
+}
+
+int32 UBSLobbyInventory::GetItemIndex(UBSItemInstance* Item) const
+{
+	if (!Item)
+	{
+		return -1;
+	}
+
+	// SavedItems 배열에서 아이템의 인덱스 찾기
+	return SavedItems.Find(Item);
 }

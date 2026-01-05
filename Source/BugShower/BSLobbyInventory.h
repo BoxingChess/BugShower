@@ -168,7 +168,7 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	class USizeBox* MainUISize;
 	UPROPERTY(meta = (BindWidget))
-	class UButton* ItemSelect;
+	class UBorder* ItemSelect;
 	UPROPERTY(meta = (BindWidget))
 	class UOverlay* DisplayRegion;
 	UPROPERTY(meta = (BindWidget))
@@ -189,13 +189,44 @@ protected:
 
 	UFUNCTION()
 	void OnItemUnHovered();
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	FName ClickPopUpUIName;
+
+	// 드래그 앤 드롭 관련
+	UPROPERTY(EditDefaultsOnly, Category="DragDrop")
+	TSubclassOf<UUserWidget> DragVisualClass;
+
+protected:
+	// 마우스 이벤트 (클릭과 드래그 구분)
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+
+	// 호버 이벤트
+	virtual void NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
+
+	// 드래그 시작
+	virtual void NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation) override;
+
+	// 드롭 받기
+	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragEnter(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
+	virtual void NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;
 
 private:
 	UPROPERTY()
 	class UBSItemInstance* ItemData;
+
+	// 드래그 중인지 표시 (시각적 피드백용)
+	bool bIsDraggedOver = false;
+
+	// 클릭과 드래그 구분용 변수
+	bool bIsPressed = false;              // 마우스가 눌린 상태인지
+	bool bIsDragging = false;             // 드래그가 시작되었는지
+	FVector2D PressedMousePosition;       // 마우스를 누른 위치
+	float DragThreshold = 5.0f;           // 드래그로 인식할 최소 이동 거리 (픽셀)
 };
 
 
@@ -228,6 +259,22 @@ public:
       UFUNCTION(BlueprintCallable, Category = "Inventory")
       void RefreshInventory(const TArray<UBSItemInstance*>& InItems);
 
+	// 테스트용: 더미 아이템을 생성하여 인벤토리를 채움
+	UFUNCTION(BlueprintCallable, Category = "Inventory|Test")
+	void AddTestItems(int32 ItemCount = 50);
+
+	// 두 아이템의 위치를 교환
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void SwapItems(int32 IndexA, int32 IndexB);
+
+	// 아이템을 특정 위치로 이동
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void MoveItem(int32 FromIndex, int32 ToIndex);
+
+	// 아이템의 인덱스 찾기
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	int32 GetItemIndex(UBSItemInstance* Item) const;
+
 protected:
 	UPROPERTY(meta = (BindWidget))
 	class UCanvasPanel* MainUI;
@@ -244,11 +291,23 @@ protected:
 
 protected:
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory")
 	InventoryType InventoryMode;
 
 	UPROPERTY(BlueprintReadWrite)
 	TArray<UBSItemInstance*> SavedItems;
+
+	// TileView 스크롤 설정
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory|Scroll")
+	float WheelScrollMultiplier = 2.0f;
+
+	// TileView 타일 설정
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory|Layout")
+	float EntryWidth = 128.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory|Layout")
+	float EntryHeight = 128.0f;
+
 private:
 
 };
