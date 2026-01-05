@@ -95,7 +95,7 @@ void AItemActor::DeSpawn()
 	}
 }
 
-
+ 
 
 // Sets default values
 AItemActor::AItemActor()
@@ -117,7 +117,7 @@ AItemActor::AItemActor()
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
 
 	// Set collision responses
-	MeshComponent->SetCollisionObjectType(ECC_PhysicsBody);
+	MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
 	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
 	MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
@@ -132,13 +132,14 @@ AItemActor::AItemActor()
 
 	MeshComponent->SetIsReplicated(true);
 
+	///이제 아래것을 Use Complex Collision As Simple설정 처럼 바꿀거라 주석처리를 하겠음.
 	// Create collision component (sphere for pickup detection)
-	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
-	CollisionComponent->SetupAttachment(RootComponent);
-	CollisionComponent->InitSphereRadius(50.f);
-	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+// 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
+// 	CollisionComponent->SetupAttachment(RootComponent);
+// 	CollisionComponent->InitSphereRadius(50.f);
+// 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+// 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+// 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
 }
 
@@ -149,7 +150,9 @@ void AItemActor::BeginPlay()
 
 	if (HasAuthority())
 	{
-		CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AItemActor::OnOverlapBegin);
+		//CollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &AItemActor::OnOverlapBegin);
+		MeshComponent->OnComponentBeginOverlap.AddDynamic(this, &AItemActor::OnOverlapBegin);
+
 
 		// StaticItemInfo가 설정되어 있는데 ItemInformation이 초기화 안된 경우
 		// (에디터에서 배치된 아이템 등, Spawn() 함수가 호출되지 않은 경우)
@@ -181,11 +184,14 @@ void AItemActor::OnConstruction(const FTransform& Transform)
 	if (StaticItemInfo && StaticItemInfo->WorldMesh)
 	{
 		MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
-		UE_LOG(LogTemp, Log, TEXT("🏗️ OnConstruction: StaticItemInfo 로드 완료 (ItemID=%d)"), StaticItemInfo->ItemID);
+
+		MeshComponent->SetWorldScale3D(StaticItemInfo->WorldMeshScale);
+
+		UE_LOG(LogTemp, Log, TEXT("OnConstruction: StaticItemInfo 로드 완료 (ItemID=%d)"), StaticItemInfo->ItemID);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("⚠️ OnConstruction: StaticItemInfo 또는 WorldMesh가 null!"));
+		UE_LOG(LogTemp, Warning, TEXT("OnConstruction: StaticItemInfo 또는 WorldMesh가 null!"));
 	}
 }
 

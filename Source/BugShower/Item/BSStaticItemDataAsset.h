@@ -62,6 +62,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
     UStaticMesh* WorldMesh = nullptr;
 
+    // 월드에 스폰될 때 적용할 스케일 (기본값 1,1,1)
+    // Scale to apply when spawned in world (default 1,1,1)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
+    FVector WorldMeshScale = FVector(1.0f, 1.0f, 1.0f);
+
     // 아이템을 월드에 드랍할 때 스폰할 액터 클래스
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
     TSubclassOf<class AItemActor> ItemActorClass;

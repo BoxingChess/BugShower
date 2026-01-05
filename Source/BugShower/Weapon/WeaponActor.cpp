@@ -45,54 +45,54 @@ void AWeaponActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// 에디터에서 장착 중일 때 Muzzle 위치 실시간 시각화
-#if WITH_EDITOR
-	if (bIsEquipped && WeaponData && WeaponMesh && GetWorld())
-	{
-		FVector MuzzleLoc;
-		FRotator MuzzleRot;
-
-		// 소켓이 있으면 소켓의 Transform (위치 + 회전) 사용
-		if (WeaponMesh->DoesSocketExist(WeaponData->MuzzleSocketName))
-		{
-			FTransform SocketTransform = WeaponMesh->GetSocketTransform(WeaponData->MuzzleSocketName);
-			MuzzleLoc = SocketTransform.GetLocation();
-			MuzzleRot = SocketTransform.Rotator();
-
-			// 소켓의 3축 방향 시각화 (좌표계 확인용)
-			FVector Forward = SocketTransform.GetRotation().GetForwardVector();   // X축 (빨강)
-			FVector Right = SocketTransform.GetRotation().GetRightVector();       // Y축 (초록)
-			FVector Up = SocketTransform.GetRotation().GetUpVector();             // Z축 (파랑)
-
-			// X축 (Forward) - 빨강 - 총알이 나가는 방향
-			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (Forward * 30.0f), FColor::Red, false, 0.1f, 0, 3.0f);
-			// Y축 (Right) - 초록
-			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (Right * 15.0f), FColor::Green, false, 0.1f, 0, 2.0f);
-			// Z축 (Up) - 파랑
-			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (Up * 15.0f), FColor::Blue, false, 0.1f, 0, 2.0f);
-
-			// 소켓 위치 표시 (노란색 구체)
-			DrawDebugSphere(GetWorld(), MuzzleLoc, 5.0f, 12, FColor::Yellow, false, 0.1f, 0, 2.0f);
-		}
-		else
-		{
-			// 소켓 없으면 MuzzleOffset 사용 (메쉬 Scale 적용!)
-			FVector WeaponLoc = WeaponMesh->GetComponentLocation();
-			FRotator WeaponRot = WeaponMesh->GetComponentRotation();
-			FVector WeaponScale = WeaponMesh->GetComponentScale();
-
-			// MuzzleOffset에 Scale 적용
-			FVector ScaledOffset = WeaponData->MuzzleOffset * WeaponScale;
-			MuzzleLoc = WeaponLoc + WeaponRot.RotateVector(ScaledOffset);
-			MuzzleRot = WeaponRot;
-
-			// Offset 방식: 빨간 구체 + 무기 방향으로 화살표
-			DrawDebugSphere(GetWorld(), MuzzleLoc, 5.0f, 12, FColor::Red, false, 0.1f, 0, 2.0f);
-			FVector ForwardDir = WeaponRot.RotateVector(FVector::ForwardVector);
-			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (ForwardDir * 30.0f), FColor::Blue, false, 0.1f, 0, 2.0f);
-		}
-	}
-#endif
+///// 에디터에서 장착 중일 때 Muzzle 위치 실시간 시각화
+//#if WITH_EDITOR
+//	if (bIsEquipped && WeaponData && WeaponMesh && GetWorld())
+//	{
+//		FVector MuzzleLoc;
+//		FRotator MuzzleRot;
+//
+//		// 소켓이 있으면 소켓의 Transform (위치 + 회전) 사용
+//		if (WeaponMesh->DoesSocketExist(WeaponData->MuzzleSocketName))
+//		{
+//			FTransform SocketTransform = WeaponMesh->GetSocketTransform(WeaponData->MuzzleSocketName);
+//			MuzzleLoc = SocketTransform.GetLocation();
+//			MuzzleRot = SocketTransform.Rotator();
+//
+//			// 소켓의 3축 방향 시각화 (좌표계 확인용)
+//			FVector Forward = SocketTransform.GetRotation().GetForwardVector();   // X축 (빨강)
+//			FVector Right = SocketTransform.GetRotation().GetRightVector();       // Y축 (초록)
+//			FVector Up = SocketTransform.GetRotation().GetUpVector();             // Z축 (파랑)
+//
+//			// X축 (Forward) - 빨강 - 총알이 나가는 방향
+//			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (Forward * 30.0f), FColor::Red, false, 0.1f, 0, 3.0f);
+//			// Y축 (Right) - 초록
+//			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (Right * 15.0f), FColor::Green, false, 0.1f, 0, 2.0f);
+//			// Z축 (Up) - 파랑
+//			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (Up * 15.0f), FColor::Blue, false, 0.1f, 0, 2.0f);
+//
+//			// 소켓 위치 표시 (노란색 구체)
+//			DrawDebugSphere(GetWorld(), MuzzleLoc, 5.0f, 12, FColor::Yellow, false, 0.1f, 0, 2.0f);
+//		}
+//		else
+//		{
+//			// 소켓 없으면 MuzzleOffset 사용 (메쉬 Scale 적용!)
+//			FVector WeaponLoc = WeaponMesh->GetComponentLocation();
+//			FRotator WeaponRot = WeaponMesh->GetComponentRotation();
+//			FVector WeaponScale = WeaponMesh->GetComponentScale();
+//
+//			// MuzzleOffset에 Scale 적용
+//			FVector ScaledOffset = WeaponData->MuzzleOffset * WeaponScale;
+//			MuzzleLoc = WeaponLoc + WeaponRot.RotateVector(ScaledOffset);
+//			MuzzleRot = WeaponRot;
+//
+//			// Offset 방식: 빨간 구체 + 무기 방향으로 화살표
+//			DrawDebugSphere(GetWorld(), MuzzleLoc, 5.0f, 12, FColor::Red, false, 0.1f, 0, 2.0f);
+//			FVector ForwardDir = WeaponRot.RotateVector(FVector::ForwardVector);
+//			DrawDebugLine(GetWorld(), MuzzleLoc, MuzzleLoc + (ForwardDir * 30.0f), FColor::Blue, false, 0.1f, 0, 2.0f);
+//		}
+//	}
+//#endif
 }
 
 void AWeaponActor::OnConstruction(const FTransform& Transform)
