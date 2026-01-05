@@ -3,10 +3,10 @@ Ranged_Normal,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_RangedTestMonsterNor
 Ranged_Elite,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_RangedTestMonsterElite.BP_RangedTestMonsterElite_C'""",20
 Dash_Normal,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_DashTestMonsterNormal.BP_DashTestMonsterNormal_C'""",20
 Dash_Elite,"""BlueprintGeneratedClass'/Game/MonsterBP/BP_DashTestMonsterElite.BP_DashTestMonsterElite_C'""",20
-etc,"""BlueprintGeneratedClass'/Game/ItemBP/etc.etc_C'""",20
-quest,"""BlueprintGeneratedClass'/Game/ItemBP/quest.quest_C'""",20
-consume,"""BlueprintGeneratedClass'/Game/ItemBP/consume.consume_C'""",20
-Equipment,"""BlueprintGeneratedClass'/Game/ItemBP/Equipment.Equipment_C'""",20
 bullet,"""BlueprintGeneratedClass'/Game/ItemBP/bullet.bullet_C'""",20
 TestDrink,"""BlueprintGeneratedClass'/Game/ItemBP/TestDrink.TestDrink_C'""",20
-TestOscar,"""BlueprintGeneratedClass'/Game/ItemBP/TestOscar.TestOscar_C'""",
+TestOscar,"""BlueprintGeneratedClass'/Game/ItemBP/TestOscar.TestOscar_C'""",20
+HighBoost,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_HighBoost.BP_HighBoost_C'""",20
+MiddleBoost,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_MiddleBoost.BP_MiddleBoost_C'""",20
+LowBoost,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_LowBoost.BP_LowBoost_C'""",20
+GraphicCard,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_GraphicCard.BP_GraphicCard_C'""",20
