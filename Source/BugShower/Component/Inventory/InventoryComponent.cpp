@@ -5,6 +5,7 @@
 #include "Item/ItemActor.h"
 #include "Subsystems/PoolingSubsystem.h"
 #include "Net/UnrealNetwork.h"
+#include "Item/ItemEnum.h"
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
@@ -46,6 +47,13 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 
 	// Validate input
 	if (!DroppedActor) return;
+
+	// 데디서버 환경: 서버에서만 인벤토리 수정 가능
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UInventoryComponent::AddItem - Called on client! Ignoring. Use server authority."));
+		return;
+	}
 
 	// Get item data (dynamic) and static data asset
 	FBS_Item& DropItem = DroppedActor->GetItemData();
@@ -426,8 +434,15 @@ int32 UInventoryComponent::FindItemIndex(UBSItemInstance* ItemInstance) const
 // ========================================
 void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*/)
 {
+	// 데디서버 환경: 서버에서만 인벤토리 수정 가능
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UInventoryComponent::DiscardItemByIndex - Called on client! Ignoring. Use ServerDiscardItem RPC."));
+		return;
+	}
+
 	// Validate index
-	if (!ItemInventory.IsValidIndex(ItemIndex) || !GetOwner())
+	if (!ItemInventory.IsValidIndex(ItemIndex))
 	{
 		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Invalid index: %d (Inventory size: %d)"), ItemIndex, ItemInventory.Num());
 		return;
@@ -587,4 +602,103 @@ void UInventoryComponent::ServerDiscardItem_Implementation(int32 ItemIndex, int3
 	// Item spawned on server is automatically replicated to all clients
 	// Inventory change is replicated via OnRep_ItemInventory
 	DiscardItemByIndex(ItemIndex, Count);
+}
+
+// ========================================
+// 아이템 관리 함수 (탄약용)
+// ========================================
+
+/**
+ * 특정 아이템 ID의 총 개수 조회
+ */
+int32 UInventoryComponent::GetItemCountByID(uint8 ItemID) const
+{
+	if (ItemID == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UInventoryComponent::GetItemCountByID - Invalid ItemID: 0"));
+		return 0;
+	}
+
+	int32 TotalCount = 0;
+
+	// 인벤토리에서 해당 ItemID의 총 개수 합산
+	for (const UBSItemInstance* Item : ItemInventory)
+	{
+		if (Item && Item->StaticData && Item->StaticData->ItemID == ItemID)
+		{
+			TotalCount += Item->Dynamic.Quantity;
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("UInventoryComponent::GetItemCountByID - ItemID: %d, TotalCount: %d"),
+		ItemID, TotalCount);
+
+	return TotalCount;
+}
+
+/**
+ * 인벤토리에서 아이템 소비 (탄약용)
+ */
+int32 UInventoryComponent::ConsumeItemByID(uint8 ItemID, int32 Amount)
+{
+	// 데디서버 환경: 서버에서만 인벤토리 수정 가능 (Replicated ItemInventory가 클라이언트로 전파됨)
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UInventoryComponent::ConsumeItemByID - Called on client! Ignoring. Use server authority."));
+		return 0;
+	}
+
+	if (Amount <= 0)
+	{
+		return 0;
+	}
+
+	if (ItemID == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UInventoryComponent::ConsumeItemByID - Invalid ItemID: 0"));
+		return 0;
+	}
+
+	int32 RemainingToConsume = Amount;
+
+	// 인벤토리에서 해당 아이템을 찾아서 소비 (역순으로 순회 - 삭제를 위해)
+	for (int32 i = ItemInventory.Num() - 1; i >= 0; i--)
+	{
+		UBSItemInstance* Item = ItemInventory[i];
+
+		if (!Item || !Item->StaticData || Item->StaticData->ItemID != ItemID)
+		{
+			continue;  // 다른 아이템은 건너뜀
+		}
+
+		int32 ConsumedFromThisStack = FMath::Min(RemainingToConsume, Item->Dynamic.Quantity);
+		Item->Dynamic.Quantity -= ConsumedFromThisStack;
+		RemainingToConsume -= ConsumedFromThisStack;
+
+		UE_LOG(LogTemp, Log, TEXT("UInventoryComponent::ConsumeItemByID - Consumed %d from stack (remaining in stack: %d)"),
+			ConsumedFromThisStack, Item->Dynamic.Quantity);
+
+		// 수량이 0이 되면 아이템 삭제
+		if (Item->Dynamic.Quantity <= 0)
+		{
+			ItemInventory.RemoveAt(i);
+			UE_LOG(LogTemp, Log, TEXT("UInventoryComponent::ConsumeItemByID - Removed empty item stack at index %d"), i);
+		}
+
+		// 필요한 만큼 소비했으면 종료
+		if (RemainingToConsume <= 0)
+		{
+			break;
+		}
+	}
+
+	// 인벤토리 변경 알림
+	OnInventoryChanged.Broadcast();
+
+	// 실제로 소비된 개수 반환
+	int32 ConsumedAmount = Amount - RemainingToConsume;
+	UE_LOG(LogTemp, Log, TEXT("UInventoryComponent::ConsumeItemByID - ItemID: %d, Requested: %d, Consumed: %d"),
+		ItemID, Amount, ConsumedAmount);
+
+	return ConsumedAmount;
 }

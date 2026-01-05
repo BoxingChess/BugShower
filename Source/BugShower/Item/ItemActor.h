@@ -79,6 +79,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* MeshComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class USphereComponent* CollisionComponent;
+	//이제 아래것을 Use Complex Collision As Simple설정 처럼 바꿀거라 주석처리를 하겠다.
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	//class USphereComponent* CollisionComponent;
 };

@@ -145,12 +145,18 @@ void UMovementInputComponent::FL_SetupPlayerInputComponent(class UInputComponent
 
 void UMovementInputComponent::Move(const struct FInputActionValue& Value)
 {
-	if (!OwnerPlayer.IsValid()) return;
-
-	// WASD movement is always allowed (even when UI is open)
-	// 인벤토리 열려도 이동은 가능하게 함
+	// 인벤토리 열려도 이동은 가능하게 할것임.
 
 	//UE_LOG(LogTemp, Warning, TEXT("Move called!"));
+	
+	if (!OwnerPlayer.IsValid()) return;
+
+	// 점프 중일 때는 WASD 입력으로 힘을 받지 못하게 함
+	// Disable WASD movement input while jumping (in air)
+	if (!OwnerPlayer->GetCharacterMovement()->IsMovingOnGround())
+	{
+		return;
+	}
 
 	// Get input movement vector from keyboard (usually WASD keys)
 	FVector2D MovementVector = Value.Get<FVector2D>();

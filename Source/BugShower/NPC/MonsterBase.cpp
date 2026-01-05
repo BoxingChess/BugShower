@@ -9,6 +9,7 @@
 #include "Logging/BugShowerLog.h"
 #include "Subsystems/PoolingSubsystem.h"
 #include "CVar/DebugDrawUtils.h"
+#include "Components/CapsuleComponent.h"  // 카메라 충돌을 방지하고자 추가함.
 
 
 
@@ -108,6 +109,9 @@ AMonsterBase::AMonsterBase()
 	MonsterDropID = FName(*GetClass()->GetName());
 
 	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
+
+	// Capsule이 Camera 채널을 무시하도록 설정 (Spring Arm과 충돌 방지)
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
 }
 
