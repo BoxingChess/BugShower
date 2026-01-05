@@ -184,11 +184,14 @@ void AItemActor::OnConstruction(const FTransform& Transform)
 	if (StaticItemInfo && StaticItemInfo->WorldMesh)
 	{
 		MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
-		UE_LOG(LogTemp, Log, TEXT("🏗️ OnConstruction: StaticItemInfo 로드 완료 (ItemID=%d)"), StaticItemInfo->ItemID);
+
+		MeshComponent->SetWorldScale3D(StaticItemInfo->WorldMeshScale);
+
+		UE_LOG(LogTemp, Log, TEXT("OnConstruction: StaticItemInfo 로드 완료 (ItemID=%d)"), StaticItemInfo->ItemID);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("⚠️ OnConstruction: StaticItemInfo 또는 WorldMesh가 null!"));
+		UE_LOG(LogTemp, Warning, TEXT("OnConstruction: StaticItemInfo 또는 WorldMesh가 null!"));
 	}
 }
 

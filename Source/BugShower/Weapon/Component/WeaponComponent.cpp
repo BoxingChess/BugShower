@@ -348,19 +348,19 @@ bool UWeaponComponent::FireSingleTrace()
 		QueryParams
 	);
 
-	// 디버그 라인 그리기 (개발 빌드에서만)
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	DrawDebugLine(
-		GetWorld(),
-		Start,
-		bHit ? HitResult.ImpactPoint : End,
-		bHit ? FColor::Red : FColor::Green,
-		false,
-		0.5f,
-		0,
-		1.0f
-	);
-#endif
+	/// 디버그 라인 그리기 (개발 빌드에서만)
+//#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+//	DrawDebugLine(
+//		GetWorld(),
+//		Start,
+//		bHit ? HitResult.ImpactPoint : End,
+//		bHit ? FColor::Red : FColor::Green,
+//		false,
+//		0.5f,
+//		0,
+//		1.0f
+//	);
+//#endif
 
 	// 명중 처리
 	if (bHit)

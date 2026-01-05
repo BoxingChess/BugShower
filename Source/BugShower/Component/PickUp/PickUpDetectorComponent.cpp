@@ -239,28 +239,28 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 		return true;
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	// ����� �ð�ȭ
-	const bool bHasValidTarget = (NewFocusItem != nullptr) || (NewFocusWeapon != nullptr);
-	const FColor LineColor = bHasValidTarget ? FColor::Red : (bHit ? FColor::Yellow : FColor::Cyan);
-	DrawDebugLine(GetWorld(), ViewLoc, End, LineColor, /*bPersistent*/false, /*LifeTime*/0.05f, 0, /*Thickness*/0.1f);
-
-	if (bHit)
-	{
-		DrawDebugPoint(GetWorld(), Hit.ImpactPoint, /*Size*/10.f, LineColor, false, 0.05f);
-
-		FString NameStr = TEXT("<invalid>");
-		if (NewFocusItem && NewFocusItem->GetItemStaticData())
-		{
-			NameStr = NewFocusItem->GetItemStaticData()->DisplayName.ToString();
-		}
-		else if (NewFocusWeapon && NewFocusWeapon->GetWeaponData())
-		{
-			NameStr = NewFocusWeapon->GetWeaponData()->WeaponName.ToString();
-		}
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *NameStr);
-	}
-#endif
+/// 라이트레이스 시각화
+//#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+//	const bool bHasValidTarget = (NewFocusItem != nullptr) || (NewFocusWeapon != nullptr);
+//	const FColor LineColor = bHasValidTarget ? FColor::Red : (bHit ? FColor::Yellow : FColor::Cyan);
+//	DrawDebugLine(GetWorld(), ViewLoc, End, LineColor, /*bPersistent*/false, /*LifeTime*/0.05f, 0, /*Thickness*/0.1f);
+//
+//	if (bHit)
+//	{
+//		DrawDebugPoint(GetWorld(), Hit.ImpactPoint, /*Size*/10.f, LineColor, false, 0.05f);
+//
+//		FString NameStr = TEXT("<invalid>");
+//		if (NewFocusItem && NewFocusItem->GetItemStaticData())
+//		{
+//			NameStr = NewFocusItem->GetItemStaticData()->DisplayName.ToString();
+//		}
+//		else if (NewFocusWeapon && NewFocusWeapon->GetWeaponData())
+//		{
+//			NameStr = NewFocusWeapon->GetWeaponData()->WeaponName.ToString();
+//		}
+//		UE_LOG(LogTemp, Warning, TEXT("%s"), *NameStr);
+//	}
+//#endif
 
 	return false;
 }
@@ -323,16 +323,17 @@ void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 		QueryParams			 //���� �Ķ����
 	);
 
-	DrawDebugSphere(
-		GetWorld(),
-		Center,
-		NearbyRadius,
-		16,
-		FColor::Cyan,
-		/*bPersistentLines*/false,
-		/*LifeTime*/0.1f,
-		0,
-		/*Thickness*/1.0f);
+	///아이템 줍는 영역 시각화
+	//DrawDebugSphere(
+	//	GetWorld(),
+	//	Center,
+	//	NearbyRadius,
+	//	16,
+	//	FColor::Cyan,
+	//	/*bPersistentLines*/false,
+	//	/*LifeTime*/0.1f,
+	//	0,
+	//	/*Thickness*/1.0f);
 
 
 	// ���� �ڷᱸ�� �ʱ�ȭ
