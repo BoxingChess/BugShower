@@ -249,9 +249,6 @@ public:
 	void InitializeInventory(const TArray<UBSItemInstance*>& InItems);
 
 	UFUNCTION(BlueprintCallable)
-	void SetItemList(TArray<UBSItemInstance*>& InItems);
-
-	UFUNCTION(BlueprintCallable)
 	void UpdateDisplay();
 
 public:

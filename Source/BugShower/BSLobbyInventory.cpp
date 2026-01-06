@@ -55,7 +55,6 @@ void UBSClickPopUp::NativeConstruct()
 	}
 }
 
-
 void UBSClickPopUp::UpdateDisplay(UBSItemInstance* InData)
 {
 	if (InData == nullptr)
@@ -585,18 +584,9 @@ bool UBSTileItem::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 		return false;
 	}
 
-	// 부모 인벤토리 찾기 (GetTypedOuter로 부모 위젯 찾기)
-	UBSLobbyInventory* ParentInventory = nullptr;
-	UWidget* Current = GetParent();
-	while (Current)
-	{
-		ParentInventory = Cast<UBSLobbyInventory>(Current);
-		if (ParentInventory)
-		{
-			break;
-		}
-		Current = Current->GetParent();
-	}
+	// 부모 인벤토리 찾기
+	// TileView Entry는 여러 중간 컨테이너를 거치므로 GetTypedOuter 사용
+	UBSLobbyInventory* ParentInventory = GetTypedOuter<UBSLobbyInventory>();
 
 	if (!ParentInventory)
 	{
@@ -656,8 +646,6 @@ void UBSTileItem::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDrag
 
 ///// Inventory UI
 
-
-
 void UBSLobbyInventory::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -712,19 +700,10 @@ void UBSLobbyInventory::InitializeInventory(const TArray<UBSItemInstance*>& InIt
 	LOG_LOGIC_INFO(TEXT("Loaded %d items to inventory"), SavedItems.Num());
 }
 
-void UBSLobbyInventory::SetItemList(TArray<UBSItemInstance*>& InItems)
-{
-	if (Inventory == nullptr)
-	{
-		LOG_LOGIC_INFO(TEXT("Inventory TileView is NULL"));
-		return;
-	}
-
-}
 
 void UBSLobbyInventory::UpdateDisplay()
 {
-
+	Inventory->SetListItems(SavedItems);
 }
 
 void UBSLobbyInventory::RefreshInventory(const TArray<UBSItemInstance*>& InItems)
@@ -736,12 +715,14 @@ void UBSLobbyInventory::RefreshInventory(const TArray<UBSItemInstance*>& InItems
 
 	// TileView 전체 새로고침
 	Inventory->ClearListItems();
+	SavedItems.Empty();
 
 	for (UBSItemInstance* Item : InItems)
 	{
 		if (Item && Item->Dynamic.Quantity > 0)  // 수량이 0보다 큰 것만
 		{
 			Inventory->AddItem(Item);
+			SavedItems.Add(Item);
 		}
 	}
 
@@ -763,32 +744,8 @@ void UBSLobbyInventory::RefreshInventory(const TArray<UBSItemInstance*>& InItems
 	UE_LOG(LogTemp, Log, TEXT("Total Items: %d"), SavedItems.Num());
 	UE_LOG(LogTemp, Log, TEXT("----------------------------------------"));
 
-	if (SavedItems.Num() > 0)
-	{
-		for (int32 i = 0; i < SavedItems.Num(); ++i)
-		{
-			const UBSItemInstance* Item = SavedItems[i];
-			if (Item && Item->StaticData)
-			{
-				UE_LOG(LogTemp, Log, TEXT("[%d] %s (ID: %d) - Quantity: %d"),
-					i + 1,
-					*Item->StaticData->DisplayName.ToString(),
-					Item->Dynamic.ItemID,
-					Item->Dynamic.Quantity);
-			}
-			else if (Item)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[%d] Unknown Item (ID: %d) - Quantity: %d (StaticData missing)"),
-					i + 1,
-					Item->Dynamic.ItemID,
-					Item->Dynamic.Quantity);
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("No items found in save data."));
-	}
+	UpdateDisplay();
+
 
 	UE_LOG(LogTemp, Log, TEXT("========================================"));
 
@@ -854,7 +811,8 @@ void UBSLobbyInventory::SwapItems(int32 IndexA, int32 IndexB)
 	SavedItems.Swap(IndexA, IndexB);
 
 	// TileView 새로고침
-	RefreshInventory(SavedItems);
+	UpdateDisplay();
+
 
 	LOG_LOGIC_INFO(TEXT("Swapped items at index %d and %d"), IndexA, IndexB);
 }
@@ -886,7 +844,8 @@ void UBSLobbyInventory::MoveItem(int32 FromIndex, int32 ToIndex)
 	SavedItems.Insert(ItemToMove, ToIndex);
 
 	// TileView 새로고침
-	RefreshInventory(SavedItems);
+	UpdateDisplay();
+
 
 	LOG_LOGIC_INFO(TEXT("Moved item from index %d to %d"), FromIndex, ToIndex);
 }
