@@ -25,9 +25,9 @@ enum class EWidgetBehavior : uint8
 UENUM(BlueprintType)
 enum class EUIInputMode : uint8
 {
-	GameOnly,			// 게임만 (일반 플레이) - 마우스 숨김, 캐릭터 조작 가능
-	GameAndUI,			// 게임 + UI (인벤토리 등) - 마우스 표시, 캐릭터 조작 + UI 클릭 가능
-	UIOnly				// UI만 (메인 메뉴 등) - 마우스 표시, 캐릭터 조작 불가, UI만 조작
+	GameOnly UMETA(DisplayName = "Game Only", ToolTip = "게임만 (일반 플레이) - 마우스 숨김, 캐릭터 조작 가능"),
+	GameAndUI UMETA(DisplayName = "Game and UI", ToolTip = "게임 + UI (인벤토리 등) - 마우스 표시, 캐릭터 조작 + UI 클릭 가능"),
+	UIOnly UMETA(DisplayName = "UI Only", ToolTip = "UI만 (메인 메뉴 등) - 마우스 표시, 캐릭터 조작 불가, UI만 조작")
 };
 
 /**

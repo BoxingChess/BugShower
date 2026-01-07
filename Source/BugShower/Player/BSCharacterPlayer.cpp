@@ -249,11 +249,14 @@ void ABSCharacterPlayer::BeginPlay()
 	if (StatComponent)
 	{
 		// 플레이어 초기 스탯 설정
-		// HP: 100, 스태미나: 100, 걷기 속도: 600, 달리기 속도: 900, 더블 점프, 점프력: 600
+		// HP: 100, 에블라 입자: 100, 걷기 속도: 600, 달리기 속도: 900, 더블 점프, 점프력: 600
 		StatComponent->InitializeStats(100.f, 100.f, 600.f, 900.f, 2, 600.f);
 
 		// HP 변경 이벤트 바인딩 (UI 업데이트용)
 		StatComponent->OnHPChanged.AddDynamic(this, &ABSCharacterPlayer::OnPlayerHPChanged);
+
+		// 에블라 입자 변경 이벤트 바인딩 (UI 업데이트용)
+		StatComponent->OnAblaParticleChanged.AddDynamic(this, &ABSCharacterPlayer::OnPlayerAblaParticleChanged);
 
 		// 사망 이벤트 바인딩
 		StatComponent->OnPlayerDeath.AddDynamic(this, &ABSCharacterPlayer::OnPlayerDied);
@@ -914,6 +917,28 @@ void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
 		if (UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>())
 		{
 			UIManager->UpdateHealthUI(CurrentHP, MaxHP);
+		}
+	}
+}
+
+/**
+ * 에블라 입자 변경 시 호출되는 콜백 함수
+ * StatComponent의 OnAblaParticleChanged 델리게이트에 바인딩됨
+ *
+ * @param CurrentAblaParticle - 현재 에블라 입자
+ * @param MaxAblaParticle - 최대 에블라 입자
+ */
+void ABSCharacterPlayer::OnPlayerAblaParticleChanged(float CurrentAblaParticle, float MaxAblaParticle)
+{
+	UE_LOG(LogTemp, Log, TEXT("Player Abla Particle Changed: %.2f / %.2f (%.1f%%)"),
+	       CurrentAblaParticle, MaxAblaParticle, (CurrentAblaParticle / MaxAblaParticle) * 100.0f);
+
+	// UI 업데이트 (BSUIManager를 통해)
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAblaParticleUI(CurrentAblaParticle, MaxAblaParticle);
 		}
 	}
 }

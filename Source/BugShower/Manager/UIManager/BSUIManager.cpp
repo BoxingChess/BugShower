@@ -448,6 +448,34 @@ void UBSUIManager::UpdateHealthUI(float Health, float MaxHealth)
 	}
 }
 
+void UBSUIManager::UpdateAblaParticleUI(float CurrentAblaParticle, float MaxAblaParticle)
+{
+	if (!LocalPlayerController)
+	{
+		return;
+	}
+
+	// HealthBar Widget 가져오기 (에블라 입자 바도 HealthBar에 포함)
+	UUserWidget* Widget = GetWidget(BSUINames::HealthBar);
+	if (!Widget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateAblaParticleUI - HealthBar widget not found"));
+		return;
+	}
+
+	// HealthBarWidget으로 캐스팅
+	if (UHealthBarWidget* HealthWidget = Cast<UHealthBarWidget>(Widget))
+	{
+		// Blueprint에서 구현한 UpdateAblaParticle 이벤트 호출
+		HealthWidget->UpdateAblaParticle(CurrentAblaParticle, MaxAblaParticle);
+		UE_LOG(LogTemp, Log, TEXT("BSUIManager::UpdateAblaParticleUI - Updated Abla Particle: %.1f / %.1f"), CurrentAblaParticle, MaxAblaParticle);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSUIManager::UpdateAblaParticleUI - Widget is not UHealthBarWidget type!"));
+	}
+}
+
 /**
  * 아이템 픽업 프롬프트 UI 업데이트
  *

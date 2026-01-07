@@ -181,6 +181,14 @@ public:
 	void UpdateHealthUI(float Health, float MaxHealth);
 
 	/**
+	 * 에블라 입자 UI 업데이트
+	 * @param CurrentAblaParticle 현재 에블라 입자
+	 * @param MaxAblaParticle 최대 에블라 입자
+	 */
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void UpdateAblaParticleUI(float CurrentAblaParticle, float MaxAblaParticle);
+
+	/**
 	 * 아이템 획득 프롬프트 UI 업데이트
 	 * @param Item 포커스된 아이템 (nullptr이면 숨김)
 	 */

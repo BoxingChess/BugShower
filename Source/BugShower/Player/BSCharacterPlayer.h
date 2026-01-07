@@ -264,6 +264,13 @@ private:
 	void OnPlayerHPChanged(float CurrentHP, float MaxHP);
 
 	/**
+	 * 에블라 입자 변경 시 호출되는 콜백 함수
+	 * UI 업데이트 등에 사용
+	 */
+	UFUNCTION()
+	void OnPlayerAblaParticleChanged(float CurrentAblaParticle, float MaxAblaParticle);
+
+	/**
 	 * 플레이어 사망 시 호출되는 콜백 함수
 	 */
 	UFUNCTION()
