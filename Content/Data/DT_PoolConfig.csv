@@ -10,3 +10,4 @@ HighBoost,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_HighBoost.BP_High
 MiddleBoost,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_MiddleBoost.BP_MiddleBoost_C'""",20
 LowBoost,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_LowBoost.BP_LowBoost_C'""",20
 GraphicCard,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_GraphicCard.BP_GraphicCard_C'""",20
+CustomModule,"""BlueprintGeneratedClass'/Game/ItemBP/DropGoods/BP_CustomModule.BP_CustomModule_C'""",20
