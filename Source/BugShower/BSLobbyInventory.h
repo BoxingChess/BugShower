@@ -200,6 +200,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="BSTile")
 	TSubclassOf<UUserWidget> DragVisualClass;
 
+	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category = "BSTile", meta = (AllowPrivateAccess = "true"))
+	uint8 bUseDragDrop : 1;
+
+
 protected:
 	// 마우스 이벤트 (클릭과 드래그 구분)
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;

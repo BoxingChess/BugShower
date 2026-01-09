@@ -270,6 +270,16 @@ void UBSTileItem::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	if (DragVisualClass)
+	{
+		bUseDragDrop = true;
+	}
+	else
+	{
+		bUseDragDrop = false;
+	}
+		
+
 	// Border 설정 (클릭 가능하도록)
 	if (ItemSelect)
 	{
@@ -561,6 +571,11 @@ void UBSTileItem::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 void UBSTileItem::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
 	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
+
+	if (!bUseDragDrop)
+	{
+		return;
+	}
 
 	if (!ItemData)
 	{
