@@ -74,6 +74,10 @@ public:
     UPROPERTY(EditAnywhere, Category = "Item")
 	float ItemLifeSpan;
 
+    //Item 판매 가치
+    UPROPERTY(EditAnywhere, Category = "Item")
+    int32 SellPrice;
+
 public:
     TSubclassOf<AItemActor> GetItemActorClass() const { return ItemActorClass; }
 	

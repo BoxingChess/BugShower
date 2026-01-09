@@ -47,6 +47,12 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
 	TArray<FBS_Item> SavedItems;
 
+	/**
+	 * 보유 골드/재화 (예시)
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "Player")
+	int32 PlayerGold;
+
 	// ========================================
 	// 추가 플레이어 데이터 (향후 확장)
 	// ========================================
@@ -63,9 +69,4 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Player")
 	int32 PlayerExperience;
 
-	/**
-	 * 보유 골드/재화 (예시)
-	 */
-	UPROPERTY(VisibleAnywhere, Category = "Player")
-	int32 PlayerGold;
 };
