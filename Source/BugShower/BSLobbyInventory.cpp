@@ -201,6 +201,45 @@ void UBSClickPopUp::OnRetrunStorage()
 	BSUIManager->HideWidget(WidgetName);
 }
 
+void UBSClickPopUp::OnSellItems()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	if (GameInstance == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: GameInstance is NULL"));
+		return;
+	}
+
+	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GameInstance);
+	if (BSGameInstance == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: BSGameInstance is NULL"));
+		return;
+	}
+
+
+	if (ItemData == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: ItemData is NULL"));
+		return;
+	}
+
+	//여기에 선택한 아이템을 게임 인스턴스에 전달하는 로직 추가 필요
+	int SelectAmount = FCString::Atoi(*EditingSelectCounting->GetText().ToString());
+	BSGameInstance->SellItems(ItemData, SelectAmount);
+
+	UpdateDisplay(ItemData);
+
+	UBSUIManager* BSUIManager = GameInstance->GetSubsystem<UBSUIManager>();
+	if (BSUIManager == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: BSUIManager is NULL"));
+		return;
+	}
+
+	BSUIManager->HideWidget(WidgetName);
+}
+
 ////// Tootip UI
 
 void UBSTooltip::NativeConstruct()

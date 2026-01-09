@@ -172,7 +172,7 @@ public:
 
 	//창고로 반환
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void AddItemsToStarage(UBSItemInstance* AddData, int32 Amount);
+	void AddItemsToStorage(UBSItemInstance* AddData, int32 Amount);
 
 	/**
 	 * 선택한 아이템 목록 가져오기 (창고에서 선택된 아이템)
@@ -189,4 +189,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void ClearSelectedItems();
+
+
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddItems(const UBSItemInstance* AddData,int32 Amount , TArray<UBSItemInstance*>& Start, TArray<UBSItemInstance*>& Goal);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void SellItems(const UBSItemInstance* AddData,int32 Amount);
+
 };

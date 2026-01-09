@@ -9,7 +9,12 @@
 
 #include "BSLobbyInventory.generated.h"
 
-
+UENUM(BlueprintType)
+enum class InventoryType : uint8
+{
+    Storage,
+    SelectedItems
+};
 
 //버튼 클릭시 나타나는 팝업창 ui class
 UCLASS()
@@ -36,16 +41,21 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnSliderValueChanged(float InValue);
 
-	//버튼 이벤트 핸들러
+	//게임플레이에 사용할 아이템 추가
 	UFUNCTION(BlueprintCallable)
-
 	void OnSelectClicked();
+	
+	//ui 닫기 버튼
 	UFUNCTION(BlueprintCallable)
 	void OnCancelClicked();
 
-	//버튼 이벤트 핸들러
+	//창고로 아이템 반환
 	UFUNCTION(BlueprintCallable)
 	void OnRetrunStorage();
+
+	//아이템 팔기
+	UFUNCTION(BlueprintCallable)
+	void OnSellItems();
 
 protected:
 	UPROPERTY(meta = (BindWidget))
@@ -280,7 +290,6 @@ protected:
 	class UButton* Close;
 
 protected:
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory")
 	InventoryType InventoryMode;
 
