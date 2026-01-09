@@ -33,7 +33,7 @@ public:
 	void SetWidgetName(FName InName) { WidgetName = InName; }
 
 	UFUNCTION(BlueprintCallable)
-	void GetWidgetName() const { WidgetName; };
+	FName GetWidgetName() const { return WidgetName; };
 
 	//수량을 직접 입력하고 엔터 누르면 적용
 	UFUNCTION(BlueprintCallable)
@@ -143,7 +143,7 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	class UTextBlock* ItemDescript;
 
-private:
+	UPROPERTY(EditDefaultsOnly, Category="BSTile")
 	FName WidgetName;
 	
 };
@@ -190,11 +190,14 @@ protected:
 	UFUNCTION()
 	void OnItemUnHovered();
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	FName ClickPopUpUIName;
+	UPROPERTY(EditDefaultsOnly, Category="BSTile")
+	TSubclassOf<UBSTooltip> TooltipUIClass;
+
+	UPROPERTY(EditDefaultsOnly, Category="BSTile")
+	TSubclassOf<UBSClickPopUp> ClickPopUpUIClass;
 
 	// 드래그 앤 드롭 관련
-	UPROPERTY(EditDefaultsOnly, Category="DragDrop")
+	UPROPERTY(EditDefaultsOnly, Category="BSTile")
 	TSubclassOf<UUserWidget> DragVisualClass;
 
 protected:

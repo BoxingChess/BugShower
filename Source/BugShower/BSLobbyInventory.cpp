@@ -205,7 +205,7 @@ void UBSClickPopUp::OnRetrunStorage()
 
 	//여기에 선택한 아이템을 게임 인스턴스에 전달하는 로직 추가 필요
 	int SelectAmount = FCString::Atoi(*EditingSelectCounting->GetText().ToString());
-	BSGameInstance->AddItemsToStarage(ItemData, SelectAmount);
+	BSGameInstance->AddItemsToStorage(ItemData, SelectAmount);
 	UpdateDisplay(ItemData);
 
 	UBSUIManager* BSUIManager = GameInstance->GetSubsystem<UBSUIManager>();
@@ -327,7 +327,18 @@ void UBSTileItem::OnItemClicked()
 	}
 
 	//해당 아이템으로 팝업 UI 업데이트
-	UUserWidget* Widget = BSUIManager->GetWidget(ClickPopUpUIName);
+	UObject* Default = ClickPopUpUIClass->GetDefaultObject();
+	UBSClickPopUp* DefaultClickPopUpClass = Cast<UBSClickPopUp>(Default);
+
+	if (DefaultClickPopUpClass == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("ClickPopUp CDO is nullptr"));
+		return;
+	}
+
+	FName UIName = DefaultClickPopUpClass->GetWidgetName();
+
+	UUserWidget* Widget = BSUIManager->GetWidget(UIName);
 	UBSClickPopUp* ClickPopUp = Cast<UBSClickPopUp>(Widget);
 	if (ClickPopUp == nullptr)
 	{
@@ -335,7 +346,7 @@ void UBSTileItem::OnItemClicked()
 	}
 
 	ClickPopUp->UpdateDisplay(ItemData);
-	BSUIManager->ShowWidget(ClickPopUpUIName);
+	BSUIManager->ShowWidget(UIName);
 }
 
 void UBSTileItem::OnItemHovered()
@@ -366,7 +377,22 @@ void UBSTileItem::OnItemHovered()
 
 	if (ItemSelect->GetToolTip() == nullptr)
 	{
-		UUserWidget* Widget = BSUIManager->GetWidget("Tooltip");
+		if (TooltipUIClass == nullptr)
+		{
+			LOG_LOGIC_INFO(TEXT("OnItemHovered: TooltipUIClass is NULL"));
+			return;
+		}
+
+		UObject* Default = TooltipUIClass->GetDefaultObject();
+		UBSTooltip* DefaultTooltipUIClass = Cast<UBSTooltip>(Default);
+
+		if (DefaultTooltipUIClass == nullptr)
+		{
+			LOG_LOGIC_INFO(TEXT("OnItemHovered: DefaultTooltipUIClass is NULL"));
+			return;
+		}
+
+		UUserWidget* Widget = BSUIManager->GetWidget(DefaultTooltipUIClass->GetWidgetName());
 		UBSTooltip* SharedTooltip = Cast<UBSTooltip>(Widget);
 
 		if (SharedTooltip == nullptr)
@@ -414,9 +440,8 @@ void UBSTileItem::OnItemUnHovered()
 
 }
 
-// ========================================
-// 마우스 이벤트 - 클릭과 드래그 구분
-// ========================================
+
+// 마우스 이벤트 - 클릭과 드래그
 
 FReply UBSTileItem::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
