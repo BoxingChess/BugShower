@@ -369,6 +369,7 @@ void UBSTileItem::OnItemClicked()
 	}
 
 	FName UIName = DefaultClickPopUpClass->GetWidgetName();
+	LOG_LOGIC_INFO(TEXT("PopUpUI Name is %s"), *UIName.ToString());
 
 	UUserWidget* Widget = BSUIManager->GetWidget(UIName);
 	UBSClickPopUp* ClickPopUp = Cast<UBSClickPopUp>(Widget);
