@@ -9,13 +9,6 @@
 
 #include "BSLobbyInventory.generated.h"
 
-//임시로 분기나누는 용도
-UENUM(BlueprintType)
-enum class InventoryType : uint8
-{
-	Storage,
-	SelectedItems
-};
 
 
 //버튼 클릭시 나타나는 팝업창 ui class
@@ -43,19 +36,16 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void OnSliderValueChanged(float InValue);
 
-protected:
 	//버튼 이벤트 핸들러
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
+
 	void OnSelectClicked();
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void OnCancelClicked();
 
 	//버튼 이벤트 핸들러
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 	void OnRetrunStorage();
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	InventoryType InventoryMode;
 
 protected:
 	UPROPERTY(meta = (BindWidget))

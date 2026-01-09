@@ -26,24 +26,7 @@
 //// Click PopUp UI
 void UBSClickPopUp::NativeConstruct()
 {
-	// 버튼 이벤트 바인딩
-	if (Select)
-	{
-		if (InventoryMode == InventoryType::Storage)
-		{
-			Select->OnClicked.AddDynamic(this, &UBSClickPopUp::OnSelectClicked);
-		}
-		else if (InventoryMode == InventoryType::SelectedItems)
-		{
-			Select->OnClicked.AddDynamic(this, &UBSClickPopUp::OnRetrunStorage);
-		}
-	}
-
-	if (Cancel)
-	{
-		Cancel->OnClicked.AddDynamic(this, &UBSClickPopUp::OnCancelClicked);
-	}
-
+	
 	if (CountingSlider)
 	{
 		CountingSlider->OnValueChanged.AddDynamic(this, &UBSClickPopUp::OnSliderValueChanged);
