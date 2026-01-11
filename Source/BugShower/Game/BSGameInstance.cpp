@@ -87,6 +87,7 @@ bool UBSGameInstance::LoadPlayerSaveData()
 		{
 			UE_LOG(LogTemp, Log, TEXT("BSGameInstance::LoadPlayerSaveData - Save data loaded successfully!"));
 			UE_LOG(LogTemp, Log, TEXT("  - Saved Items Count: %d"), CurrentSaveGame->SavedItems.Num());
+			UE_LOG(LogTemp, Log, TEXT("  - Credit: %d"), CurrentSaveGame->Credit);
 
 			// 저장된 아이템을 RuntimeItemInventory로 변환
 			// FBS_Item -> UBSItemInstance 변환이 필요
@@ -116,8 +117,9 @@ bool UBSGameInstance::LoadPlayerSaveData()
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::LoadPlayerSaveData - Failed to find StaticData for ItemType=%d, ItemID=%d"),
-						static_cast<int32>(SavedItem.ItemType), SavedItem.ItemID);
+					UE_LOG(LogTemp, Error, TEXT("⚠️ LoadPlayerSaveData - Item LOST! Cannot find StaticData for ItemType=%d, ItemID=%d (Quantity=%d)"),
+						static_cast<int32>(SavedItem.ItemType), SavedItem.ItemID, SavedItem.Quantity);
+					UE_LOG(LogTemp, Error, TEXT("   ❌ This item will be permanently deleted because ItemType is not supported!"));
 				}
 			}
 
@@ -173,14 +175,15 @@ bool UBSGameInstance::SavePlayerData()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Saving to slot: %s"), *SaveSlotName);
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Credit before save: %d"), CurrentSaveGame->Credit);
 
 	// 디스크에 저장
 	bool bSuccess = UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, UserIndex);
 
 	if (bSuccess)
 	{
-		UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Save successful! Saved %d items."),
-			CurrentSaveGame->SavedItems.Num());
+		UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Save successful! Saved %d items, Credit: %d"),
+			CurrentSaveGame->SavedItems.Num(), CurrentSaveGame->Credit);
 	}
 	else
 	{
@@ -257,7 +260,7 @@ void UBSGameInstance::ResetSaveData()
 		CurrentSaveGame->SavedItems.Empty();
 		CurrentSaveGame->PlayerLevel = 1;
 		CurrentSaveGame->PlayerExperience = 0;
-		CurrentSaveGame->PlayerGold = 0;
+		CurrentSaveGame->Credit = 0;
 
 		// 디스크에 빈 데이터 저장
 		UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, UserIndex);
@@ -445,9 +448,9 @@ void UBSGameInstance::ClearSelectedItems()
 	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::ClearSelectedItems - Selected items cleared"));
 }
 
-void UBSGameInstance::AddItems(const UBSItemInstance* AddData,int32 Amount, TArray<UBSItemInstance*>& Start, TArray<UBSItemInstance*>& Goal)
+void UBSGameInstance::AddItems(const UBSItemInstance* AddData, int32 Amount, TArray<UBSItemInstance*>& Start, TArray<UBSItemInstance*>& Goal)
 {
-	if (AddData == nullptr || Amount <= 0 )
+	if (AddData == nullptr || Amount <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::AddItemsToStarage - Invalid AddData or Amount"));
 		return;
@@ -534,6 +537,12 @@ void UBSGameInstance::SellItems(const UBSItemInstance* AddData, int32 Amount)
 		return;
 	}
 
+	if (!CurrentSaveGame)
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::SellItems - CurrentSaveGame is NULL!"));
+		return;
+	}
+
 	int32 ItemID = AddData->Dynamic.ItemID;
 
 	// 1. RuntimeItemInventory에서 차감 가능한지 확인
@@ -563,18 +572,100 @@ void UBSGameInstance::SellItems(const UBSItemInstance* AddData, int32 Amount)
 
 	// 2. RuntimeItemInventory에서 차감
 	SourceItem->Dynamic.Quantity -= Amount;
-	UE_LOG(LogTemp, Log, TEXT("📉 Deducted from RuntimeInventory (ID=%d, Remaining=%d)"),
-		ItemID, SourceItem->Dynamic.Quantity);
 
 	// 3. 수량이 0이 되면 배열에서 제거
 	if (SourceItem->Dynamic.Quantity <= 0)
 	{
 		RuntimeItemInventory.Remove(SourceItem);
-		UE_LOG(LogTemp, Log, TEXT("🗑️ Removed depleted item from RuntimeInventory (ID=%d)"), ItemID);
 	}
 
-	CurrentSaveGame->PlayerGold += AddData->StaticData->SellPrice * Amount;
+	int32 SellValue = AddData->StaticData->SellPrice * Amount;
+	CurrentSaveGame->Credit += SellValue;
+
+	UE_LOG(LogTemp, Log, TEXT("💰 SellItems - Sold %d items (Type=%d, ID=%d) for %d. New Credit: %d"),
+		Amount, (int32)AddData->Dynamic.ItemType, ItemID, SellValue, CurrentSaveGame->Credit);
 
 	// 인벤토리 변경 알림
 	OnStorageChanged.Broadcast(RuntimeItemInventory);
+	OnCreditChanged.Broadcast(CurrentSaveGame->Credit);
+}
+
+void UBSGameInstance::BuyItems(const UBSItemInstance* AddData, int32 Amount)
+{
+	if (!AddData || Amount <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::BuyItems - Invalid AddData or Amount"));
+		return;
+	}
+
+	if (!CurrentSaveGame)
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::BuyItems - CurrentSaveGame is NULL!"));
+		return;
+	}
+
+	int32 ItemPrice = AddData->StaticData->SellPrice * Amount;
+
+
+	//돈 부족
+	if (CurrentSaveGame->Credit < ItemPrice)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSGameInstance::BuyItems - Not enough credit (Have=%d, Need=%d)"),
+			CurrentSaveGame->Credit, AddData->StaticData->SellPrice * Amount);
+		return;
+	}
+
+	int32 ItemID = AddData->Dynamic.ItemID;
+
+	// 1. RuntimeItemInventory에 이미 존재하는지 확인
+	UBSItemInstance* SourceItem = nullptr;
+	for (UBSItemInstance* Item : RuntimeItemInventory)
+	{
+		if (Item && Item->Dynamic.ItemID == ItemID)
+		{
+			SourceItem = Item;
+			break;
+		}
+	}
+
+	// 2. 이미 있으면 아이템에 추가
+	if (SourceItem)
+	{
+		SourceItem->Dynamic.Quantity += Amount;
+	}
+	else // 3-2. 새로운 아이템이면 복사본 생성 후 추가
+	{
+		UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+		NewInstance->StaticData = AddData->StaticData;
+		NewInstance->Dynamic = AddData->Dynamic;
+		NewInstance->Dynamic.Quantity = Amount;
+		RuntimeItemInventory.Add(NewInstance);
+	}
+
+	// 4. 크레딧 차감
+	CurrentSaveGame->Credit -= ItemPrice;
+
+	UE_LOG(LogTemp, Log, TEXT("💰 BuyItems - Bought %d items (Type=%d, ID=%d) for %d. New Credit: %d"),
+		Amount, (int32)AddData->Dynamic.ItemType, ItemID, ItemPrice, CurrentSaveGame->Credit);
+
+	// 인벤토리 변경 알림
+	OnStorageChanged.Broadcast(RuntimeItemInventory);
+	OnCreditChanged.Broadcast(CurrentSaveGame->Credit);
+}
+
+const int32 UBSGameInstance::GetCredit() const
+{
+	{
+		return CurrentSaveGame ? CurrentSaveGame->Credit : 0;
+	}
+}
+
+void UBSGameInstance::SetCredit(const int32 NewCredit)
+{
+	{
+		if (CurrentSaveGame) {
+			CurrentSaveGame->Credit = NewCredit;
+			OnCreditChanged.Broadcast(NewCredit);
+		}
+	}
 }

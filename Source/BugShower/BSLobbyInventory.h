@@ -6,14 +6,29 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "Item/BSItemInstance.h"
+#include "Engine/DataTable.h"
 
 #include "BSLobbyInventory.generated.h"
+
+
+
+USTRUCT(BlueprintType)
+struct FShopGoodsTableRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<const UBSStaticItemDataAsset> ItemData;
+};
+
+
 
 UENUM(BlueprintType)
 enum class InventoryType : uint8
 {
-    Storage,
-    SelectedItems
+	Storage,
+	SelectedItems,
+	Shop
 };
 
 //버튼 클릭시 나타나는 팝업창 ui class
@@ -44,7 +59,7 @@ public:
 	//게임플레이에 사용할 아이템 추가
 	UFUNCTION(BlueprintCallable)
 	void OnSelectClicked();
-	
+
 	//ui 닫기 버튼
 	UFUNCTION(BlueprintCallable)
 	void OnCancelClicked();
@@ -56,6 +71,10 @@ public:
 	//아이템 팔기
 	UFUNCTION(BlueprintCallable)
 	void OnSellItems();
+
+	//아이템 사기
+	UFUNCTION(BlueprintCallable)
+	void OnBuyItems();
 
 protected:
 	UPROPERTY(meta = (BindWidget))
@@ -82,7 +101,7 @@ protected:
 	class UHorizontalBox* DescriptRegion;
 	UPROPERTY(meta = (BindWidget))
 	class UTextBlock* ItemDescript;
-	
+
 	UPROPERTY(meta = (BindWidget))
 	class UHorizontalBox* QuantityRegion;
 	UPROPERTY(meta = (BindWidget))
@@ -92,7 +111,7 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	class UHorizontalBox* SliderRegion;
-	UPROPERTY(BlueprintReadWrite,meta = (BindWidget))
+	UPROPERTY(BlueprintReadWrite, meta = (BindWidget))
 	class USlider* CountingSlider;
 
 	UPROPERTY(meta = (BindWidget))
@@ -138,14 +157,14 @@ protected:
 	class UImage* ItemIcon;
 
 	UPROPERTY(meta = (BindWidget))
-	class UTextBlock* ItemName;	
+	class UTextBlock* ItemName;
 
 	UPROPERTY(meta = (BindWidget))
 	class UTextBlock* ItemDescript;
 
-	UPROPERTY(EditDefaultsOnly, Category="BSTile")
+	UPROPERTY(EditDefaultsOnly, Category = "BSTile")
 	FName WidgetName;
-	
+
 };
 
 
@@ -190,14 +209,14 @@ protected:
 	UFUNCTION()
 	void OnItemUnHovered();
 
-	UPROPERTY(EditDefaultsOnly, Category="BSTile")
+	UPROPERTY(EditDefaultsOnly, Category = "BSTile")
 	TSubclassOf<UBSTooltip> TooltipUIClass;
 
-	UPROPERTY(EditDefaultsOnly, Category="BSTile")
+	UPROPERTY(EditDefaultsOnly, Category = "BSTile")
 	TSubclassOf<UBSClickPopUp> ClickPopUpUIClass;
 
 	// 드래그 앤 드롭 관련
-	UPROPERTY(EditDefaultsOnly, Category="BSTile")
+	UPROPERTY(EditDefaultsOnly, Category = "BSTile")
 	TSubclassOf<UUserWidget> DragVisualClass;
 
 	UPROPERTY(VisibleAnyWhere, BlueprintReadOnly, Category = "BSTile", meta = (AllowPrivateAccess = "true"))
@@ -252,16 +271,24 @@ public:
 	virtual void NativeConstruct() override;
 
 	//블루프린트 그래프에서 게임 인스턴스를 통해 원하는 아이템 목록 가져와야함
-	UFUNCTION(BlueprintCallable,Category = "Inventory")
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void InitializeInventory(const TArray<UBSItemInstance*>& InItems);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void InitializeInventoryToDataTable(const UDataTable* InDataTable);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateDisplay();
 
 public:
-      // 인벤토리 새로고침
-      UFUNCTION(BlueprintCallable, Category = "Inventory")
-      void RefreshInventory(const TArray<UBSItemInstance*>& InItems);
+	// 인벤토리 새로고침
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void RefreshInventory(const TArray<UBSItemInstance*>& InItems);
+
+	// 인벤토리 새로고침
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void RefreshShop(const int32 NewCredit);
+
 
 	// 테스트용: 더미 아이템을 생성하여 인벤토리를 채움
 	UFUNCTION(BlueprintCallable, Category = "Inventory|Test")

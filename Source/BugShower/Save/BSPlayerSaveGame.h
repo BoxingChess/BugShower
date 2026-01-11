@@ -7,6 +7,9 @@
 #include "Item/BSItem.h"
 #include "BSPlayerSaveGame.generated.h"
 
+
+
+
 /**
  * 플레이어의 영구 데이터를 저장하는 SaveGame 클래스
  * 게임을 껐다 켜도 유지되는 데이터를 관리
@@ -48,10 +51,10 @@ public:
 	TArray<FBS_Item> SavedItems;
 
 	/**
-	 * 보유 골드/재화 (예시)
+	 * 보유 재화
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "Player")
-	int32 PlayerGold;
+	int32 Credit;
 
 	// ========================================
 	// 추가 플레이어 데이터 (향후 확장)

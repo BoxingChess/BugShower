@@ -26,7 +26,7 @@
 //// Click PopUp UI
 void UBSClickPopUp::NativeConstruct()
 {
-	
+
 	if (CountingSlider)
 	{
 		CountingSlider->OnValueChanged.AddDynamic(this, &UBSClickPopUp::OnSliderValueChanged);
@@ -240,6 +240,45 @@ void UBSClickPopUp::OnSellItems()
 	BSUIManager->HideWidget(WidgetName);
 }
 
+void UBSClickPopUp::OnBuyItems()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	if (GameInstance == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: GameInstance is NULL"));
+		return;
+	}
+
+	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GameInstance);
+	if (BSGameInstance == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: BSGameInstance is NULL"));
+		return;
+	}
+
+
+	if (ItemData == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: ItemData is NULL"));
+		return;
+	}
+
+	//여기에 선택한 아이템을 게임 인스턴스에 전달하는 로직 추가 필요
+	int SelectAmount = FCString::Atoi(*EditingSelectCounting->GetText().ToString());
+	BSGameInstance->BuyItems(ItemData, SelectAmount);
+
+	UpdateDisplay(ItemData);
+
+	UBSUIManager* BSUIManager = GameInstance->GetSubsystem<UBSUIManager>();
+	if (BSUIManager == nullptr)
+	{
+		LOG_LOGIC_INFO(TEXT("OnSelectClicked: BSUIManager is NULL"));
+		return;
+	}
+
+	BSUIManager->HideWidget(WidgetName);
+}
+
 ////// Tootip UI
 
 void UBSTooltip::NativeConstruct()
@@ -278,7 +317,7 @@ void UBSTileItem::NativeConstruct()
 	{
 		bUseDragDrop = false;
 	}
-		
+
 
 	// Border 설정 (클릭 가능하도록)
 	if (ItemSelect)
@@ -740,6 +779,10 @@ void UBSLobbyInventory::NativeConstruct()
 		{
 			BSGameInstance->OnSelectedItemsChanged.AddDynamic(this, &UBSLobbyInventory::RefreshInventory);
 		}
+		else if (InventoryMode == InventoryType::Shop)
+		{
+			BSGameInstance->OnCreditChanged.AddDynamic(this, &UBSLobbyInventory::RefreshShop);
+		}
 	}
 }
 
@@ -763,6 +806,43 @@ void UBSLobbyInventory::InitializeInventory(const TArray<UBSItemInstance*>& InIt
 	LOG_LOGIC_INFO(TEXT("Loaded %d items to inventory"), SavedItems.Num());
 }
 
+
+void UBSLobbyInventory::InitializeInventoryToDataTable(const UDataTable* InDataTable)
+{
+	// TileView 초기화 및 아이템 설정
+	Inventory->ClearListItems();
+	SavedItems.Empty();
+
+	TArray<FShopGoodsTableRow*> AllRows;
+	static const FString ContextString(TEXT("InventoryInitialization"));
+	InDataTable->GetAllRows(ContextString, AllRows);
+
+	// GameInstance의 인벤토리 변경 델리게이트 구독
+	UGameInstance* GameInstance = GetGameInstance();
+	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GameInstance);
+
+
+	for (const FShopGoodsTableRow* Row : AllRows)
+	{
+		if (Row)
+		{
+			if (Row->ItemData)
+			{
+
+				// UBSItemInstance 생성
+				UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+				NewInstance->StaticData = Row->ItemData;
+
+				NewInstance->Dynamic.ItemID = Row->ItemData->ItemID;
+				NewInstance->Dynamic.ItemType = Row->ItemData->ItemType;
+				NewInstance->Dynamic.Quantity = BSGameInstance->GetCredit() / Row->ItemData->SellPrice;
+
+				Inventory->AddItem(NewInstance);
+				SavedItems.Add(NewInstance);
+			}
+		}
+	}
+}
 
 void UBSLobbyInventory::UpdateDisplay()
 {
@@ -812,6 +892,19 @@ void UBSLobbyInventory::RefreshInventory(const TArray<UBSItemInstance*>& InItems
 
 	UE_LOG(LogTemp, Log, TEXT("========================================"));
 
+}
+
+void UBSLobbyInventory::RefreshShop(const int32 NewCredit)
+{
+	for (UBSItemInstance* Item : SavedItems)
+	{
+		{
+			Item->Dynamic.Quantity = NewCredit / Item->GetItemStaticData()->SellPrice;
+
+		}
+	}
+
+	UpdateDisplay();
 }
 
 void UBSLobbyInventory::AddTestItems(int32 ItemCount)
