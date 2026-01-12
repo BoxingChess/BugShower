@@ -264,6 +264,17 @@ void ABSCharacterPlayer::BeginPlay()
 		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - StatComponent initialized"));
 	}
 
+	// ========================================
+	// 인벤토리 컴포넌트 이벤트 바인딩
+	// ========================================
+	if (InventoryComponent)
+	{
+		// 아이템 사용 이벤트 바인딩 (아이템 효과 적용용)
+		InventoryComponent->OnItemUsed.AddDynamic(this, &ABSCharacterPlayer::OnItemUsed);
+
+		UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - InventoryComponent event binding complete"));
+	}
+
 	// 기본 무기 자동 장착 (bAutoEquipDefaultWeapon이 true이고 DefaultWeaponData가 설정되어 있을 때만)
 	if (bAutoEquipDefaultWeapon && DefaultWeaponData)
 	{
@@ -976,6 +987,90 @@ void ABSCharacterPlayer::OnPlayerDied()
 	}
 
 }
+
+/**
+ * 아이템 사용 시 호출되는 콜백 함수
+ * InventoryComponent의 OnItemUsed 델리게이트로부터 호출됨
+ * DataAsset 기반으로 효과 적용
+ */
+void ABSCharacterPlayer::OnItemUsed(const UBSStaticItemDataAsset* ItemData)
+{
+	if (!StatComponent)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnItemUsed] StatComponent is null!"));
+		return;
+	}
+
+	if (!ItemData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnItemUsed] ItemData is null!"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[OnItemUsed] Item used: %s (ID: %d)"),
+		*ItemData->DisplayName.ToString(), ItemData->ItemID);
+
+	// ========================================
+	// 힐 효과
+	// ========================================
+	if (ItemData->HealAmount > 0.f)
+	{
+		StatComponent->Heal(ItemData->HealAmount);
+		UE_LOG(LogTemp, Log, TEXT("[OnItemUsed] Healed %.1f HP"), ItemData->HealAmount);
+	}
+
+	// ========================================
+	// 에블라 정화제 효과 (에블라 감소)
+	// ========================================
+	if (ItemData->AblaReductionAmount > 0.f)
+	{
+		float CurrentAbla = StatComponent->GetCurrentAblaParticle();
+		float ActualReduction = FMath::Min(CurrentAbla, ItemData->AblaReductionAmount);
+
+		if (ActualReduction > 0.f)
+		{
+			StatComponent->ConsumeAblaParticle(ActualReduction);
+			UE_LOG(LogTemp, Log, TEXT("[OnItemUsed] Reduced Abla Particle by %.1f (%.1f -> %.1f)"),
+				ActualReduction, CurrentAbla, CurrentAbla - ActualReduction);
+		}
+	}
+
+	// ========================================
+	// 에블라 억제제 효과 (증가 속도 감소)
+	// ========================================
+	if (ItemData->AblaGainRateMultiplier < 1.0f)
+	{
+		const float BaseRate = 0.1f; // 기본 증가율
+		float NewRate = BaseRate * ItemData->AblaGainRateMultiplier;
+		StatComponent->SetAblaParticleGainRate(NewRate);
+
+		UE_LOG(LogTemp, Log, TEXT("[OnItemUsed] Abla gain rate changed: %.3f (Multiplier: %.2f)"),
+			NewRate, ItemData->AblaGainRateMultiplier);
+
+		// 지속 시간이 설정되어 있으면 타이머로 원래대로 복구
+		if (ItemData->AblaEffectDuration > 0.f)
+		{
+			FTimerHandle TimerHandle;
+			GetWorld()->GetTimerManager().SetTimer(
+				TimerHandle,
+				[this, BaseRate]()
+				{
+					if (StatComponent)
+					{
+						StatComponent->SetAblaParticleGainRate(BaseRate);
+						UE_LOG(LogTemp, Log, TEXT("[OnItemUsed] Abla gain rate restored to %.3f"), BaseRate);
+					}
+				},
+				ItemData->AblaEffectDuration,
+				false
+			);
+
+			UE_LOG(LogTemp, Log, TEXT("[OnItemUsed] Effect will last for %.1f seconds"), ItemData->AblaEffectDuration);
+		}
+	}
+}
+
+
 
 // ========================================
 // 스탯 Getter 함수 구현 (Coupling 방지)

@@ -12,6 +12,9 @@
 // 인벤토리 변경 델리게이트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryChanged);
 
+// 아이템 사용 델리게이트 (ItemData를 전달하여 Character가 효과 적용)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, const UBSStaticItemDataAsset*, ItemData);
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class BUGSHOWER_API UInventoryComponent : public UActorComponent
 {
@@ -82,10 +85,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 ConsumeItemByID(uint8 ItemID, int32 Amount);
 
+	/**
+	 * 소비 아이템 사용 (힐, 에블라 아이템 등)
+	 * @param ItemIndex 인벤토리에서의 아이템 인덱스
+	 * @return 사용 성공 여부
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool UseItem(int32 ItemIndex);
+
+	/**
+	 * [Server RPC] 소비 아이템 사용
+	 * @param ItemIndex 인벤토리에서의 아이템 인덱스
+	 */
+	UFUNCTION(Server, Reliable)
+	void ServerUseItem(int32 ItemIndex);
+
 public:
 	TArray<UBSItemInstance*> GetItemInventory() { return ItemInventory; };
 
 	// Delegate broadcast when inventory changes
 	UPROPERTY(BlueprintAssignable)
 	FOnInventoryChanged OnInventoryChanged;
+
+	// Delegate broadcast when item is used (Character will handle the actual effect)
+	UPROPERTY(BlueprintAssignable)
+	FOnItemUsed OnItemUsed;
 };

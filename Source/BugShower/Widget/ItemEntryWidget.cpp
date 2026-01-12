@@ -8,6 +8,7 @@
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
 #include "Widget/DragVisual.h"                  // UDragVisual (드래그 비주얼 위젯)
+#include "Widget/InventoryWidget.h"             // InventoryWidget (우클릭 사용용)
 
 void UItemEntryWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
@@ -24,7 +25,7 @@ void UItemEntryWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 }
 
 // ========================================
-// 드래그 감지 활성화
+// 드래그 감지 활성화 & 우클릭 사용
 // ========================================
 FReply UItemEntryWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
@@ -34,6 +35,55 @@ FReply UItemEntryWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, co
     {
         UE_LOG(LogTemp, Log, TEXT("ItemEntryWidget: Mouse button down - Starting drag detection"));
         return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
+    }
+
+    // 우클릭으로 아이템 사용
+    if (InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
+    {
+        UE_LOG(LogTemp, Log, TEXT("ItemEntryWidget: Right mouse button - Using item"));
+
+        if (!CachedData)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ItemEntryWidget: CachedData is invalid!"));
+            return FReply::Handled();
+        }
+
+        // SourceInstance 가져오기 (인벤토리 아이템만 사용 가능)
+        UBSItemInstance* ItemInstance = CachedData->SourceInstance;
+        if (!ItemInstance)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ItemEntryWidget: Not an inventory item (SourceInstance is null)"));
+            return FReply::Handled();
+        }
+
+        // StaticData 확인 및 사용 가능 여부 체크
+        if (!ItemInstance->StaticData)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ItemEntryWidget: StaticData is null!"));
+            return FReply::Handled();
+        }
+
+        // 사용 가능한 아이템인지 체크 (힐/에블라 아이템만)
+        if (!ItemInstance->StaticData->IsUsableItem())
+        {
+            UE_LOG(LogTemp, Log, TEXT("ItemEntryWidget: Item cannot be used directly (Name: %s, ID: %d)"),
+                *ItemInstance->StaticData->DisplayName.ToString(),
+                ItemInstance->StaticData->ItemID);
+            return FReply::Handled();
+        }
+
+        // 부모 InventoryWidget 찾기
+        UInventoryWidget* InventoryWidget = GetTypedOuter<UInventoryWidget>();
+        if (!InventoryWidget)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("ItemEntryWidget: InventoryWidget not found!"));
+            return FReply::Handled();
+        }
+
+        // 아이템 사용
+        InventoryWidget->UseInventoryItem(ItemInstance);
+
+        return FReply::Handled();
     }
 
     return FReply::Unhandled();

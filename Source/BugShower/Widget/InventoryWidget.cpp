@@ -705,11 +705,14 @@ void UInventoryWidget::UpdateCameraPosition(float Yaw)
 	SceneCapture->SetWorldLocation(CameraLocation);
 	SceneCapture->SetWorldRotation(LookAtRotation);
 
+
 	// 디버그 로그 (필요시)
 	// UE_LOG(LogTemp, Log, TEXT("[INVENTORY CAMERA] Yaw: %.1f, CameraLoc: %s"), Yaw, *CameraLocation.ToString());
 
 	// Capture scene
 	SceneCapture->CaptureScene();
+
+
 }
 
 // ========================================
@@ -827,4 +830,39 @@ int32 UInventoryWidget::GetDropTargetWidget(const FGeometry& InGeometry, const F
 
 	UE_LOG(LogTemp, Warning, TEXT("드롭 위치: 알 수 없음 (두 리스트 밖)"));
 	return 0; // 둘 다 아님
+}
+
+// ========================================
+// 아이템 사용 (우클릭 메뉴에서 호출)
+// ========================================
+void UInventoryWidget::UseInventoryItem(UBSItemInstance* ItemInstance)
+{
+	if (!ItemInstance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UseInventoryItem] ItemInstance is null!"));
+		return;
+	}
+
+	// InventoryComponent 가져오기
+	if (!CachedInventory.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UseInventoryItem] CachedInventory is invalid!"));
+		return;
+	}
+
+	UInventoryComponent* InventoryComp = CachedInventory.Get();
+
+	// 인벤토리에서 아이템 인덱스 찾기
+	int32 ItemIndex = InventoryComp->FindItemIndex(ItemInstance);
+
+	if (ItemIndex == INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UseInventoryItem] Item not found in inventory!"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[UseInventoryItem] Using item at index %d"), ItemIndex);
+
+	// InventoryComponent의 UseItem 호출
+	InventoryComp->UseItem(ItemIndex);
 }

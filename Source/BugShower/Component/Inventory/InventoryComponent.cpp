@@ -702,3 +702,76 @@ int32 UInventoryComponent::ConsumeItemByID(uint8 ItemID, int32 Amount)
 
 	return ConsumedAmount;
 }
+
+// ========================================
+// 소비 아이템 사용 (힐, 에블라 아이템 등)
+// ========================================
+
+bool UInventoryComponent::UseItem(int32 ItemIndex)
+{
+	// 클라이언트에서 호출 시 서버 RPC로 전달
+	if (GetOwner() && !GetOwner()->HasAuthority())
+	{
+		ServerUseItem(ItemIndex);
+		return true;
+	}
+
+	// 서버에서 실행되는 로직
+	if (!ItemInventory.IsValidIndex(ItemIndex))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UseItem] Invalid item index: %d"), ItemIndex);
+		return false;
+	}
+
+	UBSItemInstance* ItemInstance = ItemInventory[ItemIndex];
+	if (!ItemInstance || !ItemInstance->StaticData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UseItem] Item or StaticData is null at index: %d"), ItemIndex);
+		return false;
+	}
+
+	// 아이템 수량 체크
+	if (ItemInstance->Dynamic.Quantity <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[UseItem] Item quantity is 0 at index: %d"), ItemIndex);
+		return false;
+	}
+
+	const UBSStaticItemDataAsset* ItemData = ItemInstance->StaticData;
+	const FText& ItemName = ItemData->DisplayName;
+	const uint8 ItemID = ItemData->ItemID;
+
+	UE_LOG(LogTemp, Log, TEXT("[UseItem] Using item: %s (ID: %d)"), *ItemName.ToString(), ItemID);
+
+	// 델리게이트 발행 - Character가 구독해서 효과 적용
+	OnItemUsed.Broadcast(ItemData);
+
+	// 아이템 수량 감소
+	ItemInstance->Dynamic.Quantity -= 1;
+	CurrentWeight -= ItemInstance->StaticData->Weight;
+
+	UE_LOG(LogTemp, Log, TEXT("[UseItem] Item consumed. Remaining: %d, Weight: %d/%d"),
+		ItemInstance->Dynamic.Quantity, CurrentWeight, MaxWeight);
+
+	// 수량이 0이 되면 인벤토리에서 제거
+	if (ItemInstance->Dynamic.Quantity <= 0)
+	{
+		ItemInventory.RemoveAt(ItemIndex);
+		ItemInstance->MarkAsGarbage();
+		UE_LOG(LogTemp, Log, TEXT("[UseItem] Item removed from inventory (quantity reached 0)"));
+	}
+
+	// 인벤토리 변경 브로드캐스트
+	OnInventoryChanged.Broadcast();
+
+	return true;
+}
+
+// ========================================
+// [Server RPC] UseItem
+// ========================================
+void UInventoryComponent::ServerUseItem_Implementation(int32 ItemIndex)
+{
+	UE_LOG(LogTemp, Log, TEXT("[Server] ServerUseItem_Implementation called - ItemIndex: %d"), ItemIndex);
+	UseItem(ItemIndex);
+}

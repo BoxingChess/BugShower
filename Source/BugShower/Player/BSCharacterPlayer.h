@@ -276,6 +276,13 @@ private:
 	UFUNCTION()
 	void OnPlayerDied();
 
+	/**
+	 * 아이템 사용 시 호출되는 콜백 함수
+	 * 실제 아이템 효과를 적용 (힐, 에블라 감소 등)
+	 */
+	UFUNCTION()
+	void OnItemUsed(const UBSStaticItemDataAsset* ItemData);
+
 	// ========================================
 	// 스탯 Getter 함수 (Coupling 방지)
 	// ========================================

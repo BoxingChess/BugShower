@@ -48,8 +48,12 @@ public:
 	void SetVicinity(const TArray<AActor*>& Rows);
 
 	//�κ��丮 �������� �����Ѵ�.
-    UFUNCTION(BlueprintCallable) 
+    UFUNCTION(BlueprintCallable)
 	void SetInventory(const TArray<UBSItemInstance*>& InventoryItems);
+
+	// 아이템 사용 (인벤토리 우클릭 메뉴에서 호출)
+	UFUNCTION(BlueprintCallable)
+	void UseInventoryItem(UBSItemInstance* ItemInstance);
 
 private:
 	UItemListEntryObject* MakeRow(UObject* Outer, UTexture2D* Icon, const FText& Name, int32 Qty, AItemActor* Source, UBSItemInstance* SourceInstance);
