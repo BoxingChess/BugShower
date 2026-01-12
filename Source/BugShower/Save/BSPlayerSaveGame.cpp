@@ -11,5 +11,5 @@ UBSPlayerSaveGame::UBSPlayerSaveGame()
 	// 초기값 설정
 	PlayerLevel = 1;
 	PlayerExperience = 0;
-	PlayerGold = 0;
+	Credit = 0;
 }
