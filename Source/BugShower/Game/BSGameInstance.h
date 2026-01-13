@@ -15,6 +15,10 @@ class UBSItemInstance;
 // UI들은 이 델리게이트를 구독하여 자동으로 갱신
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLobbyInventoryChanged, const TArray<UBSItemInstance*>&, UpdateItems);
 
+//플레이어 돈 변경 델리게이트
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCreditChanged, const int32, NewCredit);
+
+
 /**
  * BugShower Game Instance
  * BugShower 게임 인스턴스
@@ -51,6 +55,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FOnLobbyInventoryChanged OnSelectedItemsChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FOnCreditChanged OnCreditChanged;;
 
 private:
 	// ========================================
@@ -172,7 +179,7 @@ public:
 
 	//창고로 반환
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
-	void AddItemsToStarage(UBSItemInstance* AddData, int32 Amount);
+	void AddItemsToStorage(UBSItemInstance* AddData, int32 Amount);
 
 	/**
 	 * 선택한 아이템 목록 가져오기 (창고에서 선택된 아이템)
@@ -189,4 +196,21 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	void ClearSelectedItems();
+
+
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void AddItems(const UBSItemInstance* AddData,int32 Amount , TArray<UBSItemInstance*>& Start, TArray<UBSItemInstance*>& Goal);
+
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void SellItems(const UBSItemInstance* AddData,int32 Amount);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	void BuyItems(const UBSItemInstance* AddData,int32 Amount);
+
+
+	const int32 GetCredit() const;
+
+	void SetCredit(const int32 NewCredit);
 };

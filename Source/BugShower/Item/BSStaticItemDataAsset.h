@@ -110,6 +110,10 @@ public:
         meta = (ClampMin = "0.0",
                 ToolTip = "에블라 증가율 변경 효과가 지속되는 시간(초)\n0 = 영구 지속 (복구 안 됨)\n60 = 60초 후 원래대로 복구\n예) 에블라 억제제: 60 (1분간 증가율 감소)"))
     float AblaEffectDuration = 0.f;
+    //Item 판매 가치
+    UPROPERTY(EditAnywhere, Category = "Item")
+    int32 SellPrice;
+
 
 public:
     TSubclassOf<AItemActor> GetItemActorClass() const { return ItemActorClass; }
