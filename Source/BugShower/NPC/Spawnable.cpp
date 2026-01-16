@@ -9,19 +9,44 @@
 
 void ISpawnable::Activate(AActor* Actor, const FVector& Position)
 {
+	FVector SafePos = Position;
 
-    
-    FVector SafePos = Position;
+	UWorld* World = Actor->GetWorld();
+	World->FindTeleportSpot(Actor, SafePos, FRotator::ZeroRotator);
+	Actor->SetActorLocation(SafePos, false, nullptr, ETeleportType::TeleportPhysics);
 
-    UWorld* World = Actor->GetWorld();
-    World->FindTeleportSpot(Actor, SafePos, FRotator::ZeroRotator);
+	Actor->SetActorHiddenInGame(false);
+	Actor->SetActorEnableCollision(true);
+	Actor->SetActorTickEnabled(true);
 
-    // 3. Sweep 없이(false) 강제 이동 (텔레포트)
-    Actor->SetActorLocation(SafePos, false, nullptr, ETeleportType::TeleportPhysics);
+	TArray<UActorComponent*> Components;
+	Actor->GetComponents(Components);
+	
+	//RenderProxy reactivation
+	{
+		for (UActorComponent* Comp : Components)
+		{
+			if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Comp))
+			{
+				Prim->SetHiddenInGame(false);
+				Prim->SetVisibility(true, true);
 
-    Actor->SetActorHiddenInGame(false);
-    Actor->SetActorEnableCollision(true);
-    Actor->SetActorTickEnabled(true);
+				if (!Prim->IsRegistered())
+				{
+					Prim->RegisterComponent();
+				}
+
+				if (!Prim->IsRenderStateCreated())
+				{
+					Prim->RecreateRenderState_Concurrent();
+				}
+				else
+				{
+					Prim->MarkRenderStateDirty();
+				}
+			}
+		}
+	}
 }
 
 void ISpawnable::Deactivate(AActor* Actor)

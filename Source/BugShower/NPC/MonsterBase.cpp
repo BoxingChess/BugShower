@@ -22,18 +22,29 @@ void AMonsterBase::Spawn(const FVector pos)
 	AAIController* AI = Cast<AAIController>(GetController());
 	if (AI)
 	{
-		AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
-		if (MonsterAI)
-		{
-			MonsterAI->RunAI();
-			return;
-		}
+		
+	}
+	else
+	{
+		SpawnDefaultController();
+	}
+
+	AI = Cast<AAIController>(GetController());
+	AMonsterAIController* MonsterAI = Cast<AMonsterAIController>(AI);
+	if (MonsterAI)
+	{
+		MonsterAI->RunAI();
+	}
+	else
+	{
+		LOG_LOGIC_WARNING(TEXT("Spawn: No AI Controller found"));
 	}
 }
 
 void AMonsterBase::DeSpawn()
 {
 	Deactivate(this);
+	
 
 	// Stop AI
 	AAIController* AI = Cast<AAIController>(GetController());
