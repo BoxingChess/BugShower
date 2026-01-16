@@ -87,24 +87,19 @@ AMonsterProjectile::AMonsterProjectile()
 
 	// Create collision component
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
+	RootComponent = CollisionComp;
+
 	CollisionComp->InitSphereRadius(15.0f);
-
 	CollisionComp->SetGenerateOverlapEvents(true);
+
 	CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &AMonsterProjectile::OnProjectileOverlap);
-
-
 	CollisionComp->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	CollisionComp->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	// pawn channel overlap for hitting characters
 	CollisionComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 
+	CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &AMonsterProjectile::OnProjectileOverlap);
 
-	//CollisionComp->SetCollisionProfileName(TEXT("Projectile"));
-	//CollisionComp->SetNotifyRigidBodyCollision(true); // Enable hit events
-	//CollisionComp->OnComponentHit.AddDynamic(this, &AMonsterProjectile::OnProjectileHit);
-
-	RootComponent = CollisionComp;
 
 	// Create mesh component (visual)
 	ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
@@ -125,7 +120,6 @@ AMonsterProjectile::AMonsterProjectile()
 	ProjectileOwner = nullptr;
 
 	Life = 5.0f;
-	// Auto-destroy after 5 seconds
 	InitialLifeSpan = Life;
 }
 

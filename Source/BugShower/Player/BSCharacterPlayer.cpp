@@ -27,18 +27,10 @@
 
 ABSCharacterPlayer::ABSCharacterPlayer()
 {
-	//�޽��� ��ġ�� ȸ���� �����Ѵ�. - ���� ��ǥ�� �ƴ� ĸ�� ������Ʈ ������ ��� ��ġ -> �׳� �� ��� ���߿� �߱� ����
-//�𸮾��� �⺻ �޽����� �������� ������ ���⶧���� -90���� �����־���
 	GetMesh()->SetRelativeLocationAndRotation(FVector(0.0f, 0.0f, -90.0f), FRotator(0.0f, -90.0f, 0.0f));
-
-	//�޽��� � ������� �ִϸ��̼��� ����� ������ ����, AnimationBlueprint - �޽ð� �ִϸ��̼� ��������Ʈ(UAnimInstance)�� ���
 	GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-
-	//ĳ������ SkeletalMeshComponent�� �浹 ������ "CharacterMesh"��� �̸��� �浹 �������Ϸ� �����Ѵٴ� ��. -> ������ ��ǿ� ����
-	//��, ĳ������ ���̷�Ż �޽ÿ� �浹 ������ CharacterMesh�� �����Ѵٴ� �� �� ���ο� �ִ� ECC_Visibility ä�ο� ���� Block, Ignore, Overlap �� ���� ó���� �������� �Ǵ�
 	GetMesh()->SetCollisionProfileName(TEXT("CharacterMesh"));
 
-	//Playerĳ������ �޽����̷��� ������Ʈ�� ������Ʈ ���ش�.
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> CharacterMeshRef(TEXT("/Script/Engine.SkeletalMesh'/Game/SciFiSoldier03/Meshes/SK_SciFiSoldier03.SK_SciFiSoldier03'"));
 	if (CharacterMeshRef.Object)
 	{
@@ -52,48 +44,14 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 		GetMesh()->SetAnimInstanceClass(AnimBPClass.Class);
 	}
 
-	///������Ʈ ����--------------------------------------------------------------------------------------------------------------------------------------------------
-	
-	//�̵� ���� ������Ʈ ����
 	MovementComponentOnGround = CreateDefaultSubobject<UMovementInputComponent>(TEXT("MovementComponentOnGround"));
 
-	//UI ���� ������Ʈ ���� -> �̰� �÷��̾� ������ �����Ѵ�.
-	//UIComponent = CreateDefaultSubobject<UUI_InGameComponent>(TEXT("UIComponent"));
-
-	//�ݱ� ���� ������Ʈ
 	PickUpDetectorComponent = CreateDefaultSubobject<UPickUpDetectorComponent>(TEXT("PickUpDetectorComponent"));
 
-	//�κ��丮 ������Ʈ
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 
-	// 스탯 컴포넌트 (HP, 스태미나, 이동 속도, 점프 등)
 	StatComponent = CreateDefaultSubobject<UPlayerStatComponent>(TEXT("StatComponent"));
-	
 
-
-
-	// ========================================
-	// 수류탄 시스템 (주석처리)
-	// ========================================
-
-	/*
-	//�߻� ����
-	static ConstructorHelpers::FObjectFinder<UInputAction> FireActionRef(TEXT("/Game/Input/IA_Fire.IA_Fire"));
-	if (FireActionRef.Succeeded())
-	{
-		FireAction = FireActionRef.Object;
-	}
-
-	// Set default projectile class to Grenade
-	static ConstructorHelpers::FClassFinder<AGrenade> GrenadeClassRef(TEXT("/Script/BugShower.Grenade"));
-	if (GrenadeClassRef.Succeeded())
-	{
-		ProjectileClass = GrenadeClassRef.Class;
-	}
-	*/
-
-
-	// �������� ����
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	SpringArm->SetupAttachment(RootComponent); // ĸ���� ����
 	SpringArm->TargetArmLength = 400.0f; // ī�޶� �Ÿ�
@@ -105,21 +63,13 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 	SpringArm->ProbeSize = 12.0f;
 	SpringArm->ProbeChannel = ECollisionChannel::ECC_Camera;
 
-
-	//�Ʒ��� �ε巴�� ������� ī�޶� ���� ������ ���.
-	//SpringArm->bEnableCameraRotationLag = true;
-	//SpringArm->CameraRotationLagSpeed = 50.0f;
-
-	//3��Ī ī�޶� ����
 	ThirdPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("ThirdPerson_FollowCamera"));
-	ThirdPersonCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName); // �������� ���� ����
-	ThirdPersonCamera->bUsePawnControlRotation = false; // ī�޶�� ���� ȸ������ �ʰ�
+	ThirdPersonCamera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
+	ThirdPersonCamera->bUsePawnControlRotation = false;
 
-	// 1��Ī ī�޶� ����
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPerson_EyeCamera"));
-	FirstPersonCamera->SetupAttachment(GetMesh(), TEXT("head")); // 'head' ���� ���� (Skeleton�� ���� �̸� �ٸ� �� ����)
-	FirstPersonCamera->bUsePawnControlRotation = true; // ���콺 ȸ���� ���� ȸ��
-	FirstPersonCamera->SetActive(false); // �ʱ⿣ ��Ȱ��ȭ
+	FirstPersonCamera->SetupAttachment(GetMesh(), TEXT("head"));
+	FirstPersonCamera->bUsePawnControlRotation = true;
 
 	// bUseControllerRotationYaw:
 	// true일 때, 캐릭터의 Yaw 회전(좌우 회전)이 PlayerController의 Rotation을 따라 회전시킨다.
@@ -131,7 +81,6 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 	// ========================================
 	// Inventory 3D Preview Camera Setup
 	// ========================================
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Constructor START"));
 
 	// Inventory camera arm (for rotation)
 	InventoryCameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("InventoryCameraArm"));
@@ -148,13 +97,8 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 
 		// CRITICAL: Disable collision test so camera doesn't get blocked by character mesh
 		InventoryCameraArm->bDoCollisionTest = false;
+	}
 
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCameraArm: Distance=400cm, Height=90cm, Pitch=10, Yaw=90"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCameraArm"));
-	}
 
 	// Inventory SceneCapture2D (설정은 InventoryWidget에서 처리)
 	InventoryCamera = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("InventoryCamera"));
@@ -165,29 +109,14 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 		InventoryCamera->bCaptureOnMovement = false;
 		InventoryCamera->FOVAngle = 50.0f;
 		InventoryCamera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera created - FOV: %f"), InventoryCamera->FOVAngle);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("[INVENTORY CAMERA] Failed to create InventoryCamera"));
 	}
 
 
-	// bUseControllerRotationPitch:
-	// ĳ���Ͱ� Pitch ȸ��(���� ȸ��)�� ��Ʈ�ѷ��� ���� ���� ����.
-	// true�� ĳ���� ��ü�� ��/�Ʒ��� �ٶ󺸰� �ǹǷ�, (�� �״�� ĳ���� �޽���ü�� ��/�Ʒ��� ���Եȴ�.)
-	// 3��Ī���� false�� �ΰ�, ī�޶� Pitch�� �ݿ��ϴ� ���� �Ϲ����̴�
 	bUseControllerRotationPitch = false;
 
-	// ���� ������ ThirdPerson���� �����Ѵ�. (�ʱⰪ)
 	CurrentViewMode = ECameraViewMode::ThirdPerson;
-	ThirdPersonCamera->SetActive(true);
-	FirstPersonCamera->SetActive(false);
 
 
-
-	//ĳ���� ������Ʈ ����
 	CharacterState = ECharacterState::Normal;
 
 	// 무기 시스템 초기화
@@ -207,6 +136,21 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 void ABSCharacterPlayer::BeginPlay()
 {
 	Super::BeginPlay();
+
+
+	if (ThirdPersonCamera && FirstPersonCamera)
+	{
+		if (CurrentViewMode == ECameraViewMode::ThirdPerson)
+		{
+			ThirdPersonCamera->SetActive(true);
+			FirstPersonCamera->SetActive(false);
+		}
+		else
+		{
+			ThirdPersonCamera->SetActive(false);
+			FirstPersonCamera->SetActive(true);
+		}
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::BeginPlay - Character spawned"));
 
@@ -501,13 +445,13 @@ void ABSCharacterPlayer::EndThirdPersonZoom()
 // �̷��� �ϸ� ��Ʈ�ѷ��� ��ü�Ǿ��� ��(��: UI ���� ��Ʈ�ѷ��� ����) �Է� ó�� ������ ��� �ݿ��� �� �ִ�.
 void ABSCharacterPlayer::PossessedBy(AController* NewController)
 {
-	
+
 	Super::PossessedBy(NewController);
 	if (MovementComponentOnGround)
 	{
 		MovementComponentOnGround->RefreshControllerCache();
 	}
-	
+
 }
 
 
@@ -518,13 +462,13 @@ void ABSCharacterPlayer::PossessedBy(AController* NewController)
 // UI ���� ��Ʈ�ѷ��� �پ��� �� �Է��� ���ų�, ���ο� ��Ʈ�ѷ��� �´� ������ ������ �� �ִ�.
 void ABSCharacterPlayer::OnRep_Controller()
 {
-	
+
 	Super::OnRep_Controller();
 	if (MovementComponentOnGround)
 	{
 		MovementComponentOnGround->RefreshControllerCache();
 	}
-	
+
 }
 
 /*
@@ -878,7 +822,7 @@ void ABSCharacterPlayer::ReloadWeapon()
  * @return 실제 적용된 데미지 양
  */
 float ABSCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
-                                      AController* EventInstigator, AActor* DamageCauser)
+	AController* EventInstigator, AActor* DamageCauser)
 {
 	// 부모 클래스의 TakeDamage 호출
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
@@ -889,8 +833,8 @@ float ABSCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 		StatComponent->ApplyDamage(DamageAmount);
 
 		UE_LOG(LogTemp, Log, TEXT("Player TakeDamage: %.1f from %s"),
-		       DamageAmount,
-		       DamageCauser ? *DamageCauser->GetName() : TEXT("Unknown"));
+			DamageAmount,
+			DamageCauser ? *DamageCauser->GetName() : TEXT("Unknown"));
 	}
 
 	return ActualDamage;
@@ -906,7 +850,7 @@ float ABSCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
 {
 	UE_LOG(LogTemp, Log, TEXT("Player HP Changed: %.1f / %.1f (%.1f%%)"),
-	       CurrentHP, MaxHP, (CurrentHP / MaxHP) * 100.0f);
+		CurrentHP, MaxHP, (CurrentHP / MaxHP) * 100.0f);
 
 	// UI 업데이트 (BSUIManager를 통해)
 	if (UGameInstance* GameInstance = GetGameInstance())

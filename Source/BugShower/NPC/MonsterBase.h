@@ -71,7 +71,7 @@ public:
 	TSubclassOf<AActor> BulletClass;
 
 	// Drop configuration ID (references DataTable row)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DropStat")
 	FName MonsterDropID;
 
 	// Active gameplay tags for conditional drops (quest, event, etc.)
@@ -86,6 +86,8 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	virtual void PostInitializeComponents() override;
 
 public:	
 	// Called every frame
