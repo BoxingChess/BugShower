@@ -116,9 +116,6 @@ AMonsterBase::AMonsterBase()
 	AttackRange = 1500.f;
 	ProjectileSpeed = 1000.f;
 
-	// Drop ID defaults to monster class name
-	MonsterDropID = FName(*GetClass()->GetName());
-
 	// Capsule이 Camera 채널을 무시하도록 설정 (Spring Arm과 충돌 방지)
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
@@ -142,6 +139,9 @@ void AMonsterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
+
+	// Drop ID defaults to monster class name
+	MonsterDropID = FName(*GetClass()->GetName());
 }
 
 // Called every frame
