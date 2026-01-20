@@ -540,7 +540,7 @@ FReply UBSTileItem::NativeOnMouseButtonUp(const FGeometry& InGeometry, const FPo
 	{
 		bIsPressed = false;
 
-		// 드래그가 시작되지 않았으면 → 클릭으로 판정
+		// 드래그가 시작되지 않았으면 클릭으로 판정
 		if (!bIsDragging)
 		{
 			LOG_LOGIC_INFO(TEXT("TileItem: Clicked (no drag detected)"));
@@ -564,19 +564,7 @@ FReply UBSTileItem::NativeOnMouseMove(const FGeometry& InGeometry, const FPointe
 {
 	if (bIsPressed && !bIsDragging)
 	{
-		// 마우스가 눌린 상태에서 이동 거리 계산
-		FVector2D CurrentMousePosition = InMouseEvent.GetScreenSpacePosition();
-		float Distance = FVector2D::Distance(PressedMousePosition, CurrentMousePosition);
-
-		// 임계값 이상 움직이면 드래그 시작
-		if (Distance >= DragThreshold)
-		{
-			bIsDragging = true;
-			LOG_LOGIC_INFO(TEXT("TileItem: Drag started (moved %.1f pixels)"), Distance);
-
-			// 드래그 시작 신호
-			return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
-		}
+		return FReply::Handled().DetectDrag(TakeWidget(), EKeys::LeftMouseButton);
 	}
 
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
@@ -604,10 +592,7 @@ void UBSTileItem::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 	}
 }
 
-// ========================================
 // 드래그 앤 드롭
-// ========================================
-
 void UBSTileItem::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent, UDragDropOperation*& OutOperation)
 {
 	Super::NativeOnDragDetected(InGeometry, InMouseEvent, OutOperation);
@@ -659,7 +644,7 @@ void UBSTileItem::NativeOnDragDetected(const FGeometry& InGeometry, const FPoint
 		UE_LOG(LogTemp, Error, TEXT("ItemEntryWidget: Failed to create DragVisual! DragVisualClass is %s"),
 			DragVisualClass ? TEXT("valid") : TEXT("NULL"));
 
-		// Fallback 없음 - nullptr로 두면 아무것도 안 보임
+		//nullptr로 두면 아무것도 안 보임
 		DragOp->DefaultDragVisual = nullptr;
 	}
 
@@ -683,17 +668,25 @@ bool UBSTileItem::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 	{
 		LOG_LOGIC_INFO(TEXT("TileItem: Dropped on same item, ignoring"));
 		bIsDraggedOver = false;
+		if (ItemIcon)
+		{
+			ItemIcon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)); // 원래 색상
+		}
 		return false;
 	}
 
 	// 부모 인벤토리 찾기
-	// TileView Entry는 여러 중간 컨테이너를 거치므로 GetTypedOuter 사용
-	UBSLobbyInventory* ParentInventory = GetTypedOuter<UBSLobbyInventory>();
+	UListViewBase* ItemTileView = GetOwningListView();
+	UBSLobbyInventory* ParentInventory = ItemTileView->GetTypedOuter<UBSLobbyInventory>();
 
 	if (!ParentInventory)
 	{
 		LOG_LOGIC_INFO(TEXT("TileItem: Could not find parent inventory"));
 		bIsDraggedOver = false;
+		if (ItemIcon)
+		{
+			ItemIcon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)); // 원래 색상
+		}
 		return false;
 	}
 
@@ -705,6 +698,10 @@ bool UBSTileItem::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 	{
 		LOG_LOGIC_INFO(TEXT("TileItem: Could not find item indices"));
 		bIsDraggedOver = false;
+		if (ItemIcon)
+		{
+			ItemIcon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)); // 원래 색상
+		}
 		return false;
 	}
 
@@ -712,7 +709,13 @@ bool UBSTileItem::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 	ParentInventory->SwapItems(DroppedIndex, CurrentIndex);
 	LOG_LOGIC_INFO(TEXT("TileItem: Swapped items at index %d and %d"), DroppedIndex, CurrentIndex);
 
+	// 드롭 완료 후 시각적 피드백 원복
 	bIsDraggedOver = false;
+	if (ItemIcon)
+	{
+		ItemIcon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)); // 원래 색상
+	}
+
 	return true;
 }
 
@@ -722,10 +725,10 @@ void UBSTileItem::NativeOnDragEnter(const FGeometry& InGeometry, const FDragDrop
 
 	bIsDraggedOver = true;
 
-	// 시각적 피드백 (배경색 변경 등)
-	if (BackGround)
+	// 시각적 피드백 (아이템 아이콘 색상 변경)
+	if (ItemIcon)
 	{
-		BackGround->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 0.5f, 1.0f)); // 노란색 틴트
+		ItemIcon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 0.5f, 1.0f)); //노란색
 	}
 
 	LOG_LOGIC_INFO(TEXT("TileItem: Drag entered"));
@@ -737,10 +740,10 @@ void UBSTileItem::NativeOnDragLeave(const FDragDropEvent& InDragDropEvent, UDrag
 
 	bIsDraggedOver = false;
 
-	// 시각적 피드백 원복
-	if (BackGround)
+	// 시각적 피드백 되돌리기
+	if (ItemIcon)
 	{
-		BackGround->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f)); // 원래 색상
+		ItemIcon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
 	}
 
 	LOG_LOGIC_INFO(TEXT("TileItem: Drag left"));

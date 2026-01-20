@@ -23,6 +23,7 @@ public:
 	virtual EPoolType GetPoolType() const override { return EPoolType::Item; }
 	virtual void Spawn(const FVector pos) override;
 	virtual void ReturnPool() override;
+	virtual UPrimitiveComponent* GetPrimaryRenderComponent() override { return MeshComponent; }
 
 	//don't use super::LifeSpanExpired() in ISpawnable derived classes
 	virtual void LifeSpanExpired() override;

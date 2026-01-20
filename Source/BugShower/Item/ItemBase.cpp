@@ -60,14 +60,23 @@ AItemBase::AItemBase()
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	RootComponent = CollisionComponent;
 	CollisionComponent->InitSphereRadius(50.f);
-	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+		CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	}
 
 	// Create mesh component
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	MeshComponent->SetupAttachment(RootComponent);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
 	MeshComponent->SetIsReplicated(true);
 
 

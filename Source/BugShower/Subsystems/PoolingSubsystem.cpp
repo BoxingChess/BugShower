@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Logging/BugShowerLog.h"
 #include "Engine/DataTable.h"
+#include "PoolingSetting.h"
 
 void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -17,32 +18,79 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	LOG_POOLING_INFO(TEXT("Start PoolingSubsystem initialized"));
 
+	if (!GetWorld() || GetWorld()->GetNetMode() == NM_Client)
+	{
+		LOG_POOLING_INFO(TEXT("World is Null Or Client don't need to initialize"));
+		return;
+	}
+
 	// Auto-initialize pools if enabled
 	if (bAutoInitializePools)
 	{
-		// Try DataTable first
-		if (PoolConfigTable)
+		const UPoolingSettings* Settings = GetDefault<UPoolingSettings>();
+
+		// Settings에서 테이블 로드 시도
+		bool bLoadedFromSettings = false;
+
+		if (!Settings->PoolConfigTable.IsNull() && !Settings->MonsterDropTable.IsNull())
 		{
-			InitializePoolsFromTable(PoolConfigTable);
+			UDataTable* PoolTable = Settings->PoolConfigTable.LoadSynchronous();
+			if (PoolTable)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded PoolConfigTable from Settings: %s"), *PoolTable->GetName());
+				InitializePoolsFromTable(PoolTable);
+			}
+
+			UDataTable* DropTable = Settings->MonsterDropTable.LoadSynchronous();
+			if (DropTable)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded MonsterDropTable from Settings: %s"), *DropTable->GetName());
+				SetDropConfigTable(DropTable);
+			}
+
+			bLoadedFromSettings = true;
 		}
-		// Otherwise use array config
-		else if (PoolConfigs.Num() > 0)
+
+
+#if WITH_EDITOR
+		// Settings에서 로드 실패 시 기본 경로에서 로드
+		if (!bLoadedFromSettings)
 		{
-			InitializePoolsFromConfig();
+			UDataTable* PoolTable = LoadObject<UDataTable>(
+				nullptr,
+				TEXT("/Game/Data/DT_PoolConfig.DT_PoolConfig")
+			);
+
+			if (PoolTable)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded PoolConfigTable from default path"));
+				InitializePoolsFromTable(PoolTable);
+			}
+
+			UDataTable* DropTable = LoadObject<UDataTable>(
+				nullptr,
+				TEXT("/Game/Data/DT_MonsterDrops.DT_MonsterDrops")
+			);
+
+			if (DropTable)
+			{
+				SetDropConfigTable(DropTable);
+				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded MonsterDropTable from default path"));
+			}
 		}
-		else
-		{
-			LOG_POOLING_WARNING(TEXT("PoolingSubsystem: No pool configuration found. Set PoolConfigs or PoolConfigTable."));
-		}
+#endif
 	}
-	LOG_POOLING_INFO(TEXT("End PoolingSubsystem initialized"));
 }
 
 void UPoolingSubsystem::Deinitialize()
 {
 	// Clean up class-based pools
 	ClassPools.Empty();
-
+	LOG_POOLING_INFO(
+		TEXT("PoolingSubsystem %p | World=%s"),
+		this,
+		*GetWorld()->GetName()
+	);
 	LOG_POOLING_INFO(TEXT("PoolingSubsystem deinitialized"));
 
 	Super::Deinitialize();
@@ -118,11 +166,28 @@ bool UPoolingSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	{
 		return false;
 	}
-	FString MapName = World->GetName();
 
-	if(MapName.Contains(TEXT("Lobby")))
+	// InGame 맵에서만 생성
+	FString MapName = World->GetName();
+	if (!MapName.Contains(TEXT("InGame")))
 	{
-		return false; // �κ񿡼��� �������� ����!
+		return false;
+	}
+
+	// 디버그: World 정보 출력
+	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ShouldCreateSubsystem - MapName: %s, WorldType: %d, NetMode: %d"),
+		*MapName, (int32)World->WorldType, (int32)World->GetNetMode());
+
+	// Game/PIE World에서만 생성 (Editor preview 등 제외)
+	if (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE)
+	{
+		return false;
+	}
+
+	// 클라이언트에서는 생성하지 않음
+	if (World->GetNetMode() == NM_Client)
+	{
+		return false;
 	}
 
 	return true;
@@ -185,12 +250,12 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 
 			Spawnable.SetInterface(InterfacePtr);
 
-			// Deactivate the object using the interface pointer directly
-			InterfacePtr->Deactivate(SpawnedActor);
-
-			// Add to pool
+			// Add to pool first
 			NewPool.All.Add(Spawnable);
 			NewPool.Available.Add(Spawnable);
+
+			InterfacePtr->Deactivate(SpawnedActor);
+			
 
 			// DEBUG: Log actor pointer added (only for first 10 items to avoid spam)
 			if (i < 10)
@@ -286,7 +351,9 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 	}
 
 	// DEBUG: Log actor being returned
+
 	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ReturnToPoolByClass called for Actor: %p"), Actor);
+
 
 	TSubclassOf<AActor> ActorClass = Actor->GetClass();
 	FPoolData* PoolData = ClassPools.Find(ActorClass);
@@ -298,6 +365,7 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 	}
 
 	// DEBUG: Log Available size before Add
+
 	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] Available.Num() BEFORE Add: %d"), PoolData->Available.Num());
 
 	// Deactivate before returning

@@ -100,37 +100,6 @@ void ABSGameModeBase::BeginPlay()
 			UE_LOG(LogTemp, Error, TEXT("Failed to cache GameState! Game logic may not work correctly."));
 		}
 	}
-
-
-	UPoolingSubsystem* PoolSys = GetWorld()->GetSubsystem<UPoolingSubsystem>();
-	if (PoolSys)
-	{
-
-		// Ǯ �ʱ�ȭ
-		UDataTable* PoolTable = LoadObject<UDataTable>(
-			nullptr,
-			TEXT("/Game/Data/DT_PoolConfig.DT_PoolConfig")
-		);
-
-		PoolSys->InitializePoolsFromTable(PoolTable);
-
-		UDataTable* DropTable = LoadObject<UDataTable>(
-			nullptr,
-			TEXT("/Game/Data/DT_MonsterDrops.DT_MonsterDrops")
-		);
-
-		if (DropTable)
-		{
-			PoolSys->SetDropConfigTable(DropTable);
-			UE_LOG(LogTemp, Log, TEXT("Drop table loaded successfully"));
-		}
-
-
-		// Register pool for ground items (inventory drop/pickup)
-		// TODO : YSY 나중에 이부분 CSV에 추가해주세요 일단 제가 이렇게 추가해서 쓰도록 하겠습니다. -SDJ
-		PoolSys->RegisterPoolForClass(AItemActor::StaticClass(), 500);
-		UE_LOG(LogTemp, Log, TEXT("Registered item pool for ground items: 500 AItemActor instances"));
-	}
 }
 
 void ABSGameModeBase::StartPlay()

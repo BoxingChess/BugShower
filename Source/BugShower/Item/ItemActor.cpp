@@ -105,25 +105,23 @@ void AItemActor::DeSpawn()
 	}
 }
 
- 
+
 
 // Sets default values
 AItemActor::AItemActor()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Enable replication(pos,life span, type)
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	// Create mesh component as root (required for physics simulation)
+	//MeshComp Default Setting
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	MeshComponent->SetIsReplicated(true);
 	RootComponent = MeshComponent;
 
-	// Enable physics simulation
-	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetEnableGravity(true);
+	// Collision 설정 (생성자에서 안전함)
+	// NOTE: SetSimulatePhysics()는 BeginPlay()에서 호출 (CDO 오류 방지)
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
 
 	// Set collision responses
@@ -144,6 +142,19 @@ AItemActor::AItemActor()
 // 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 // 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 // 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+/// =======
+// 	//CDO Setting
+// 	{
+// 		// Set collision responses
+// 		MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
+// 		MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
+// 	}
+/// >>>>>>> development
 
 }
 
@@ -152,6 +163,7 @@ void AItemActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+///<<<<<<< HEAD
 // ========================================
 // 물리 설정 및 시뮬레이션 활성화 (생성자에서 이동)
 // ========================================
@@ -169,8 +181,21 @@ void AItemActor::BeginPlay()
 
 		// 물리 시뮬레이션 활성화
 		MeshComponent->SetSimulatePhysics(true);
+		MeshComponent->SetEnableGravity(true);
 	}
 
+/// =======
+// 	// Enable physics simulation
+// 	MeshComponent->SetSimulatePhysics(true);
+// 	MeshComponent->SetEnableGravity(true);
+// 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
+// 
+// 	// Physics properties
+// 	MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
+// 	MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
+// 	// Physics properties
+// 	MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
+/// >>>>>>> development
 
 	if (HasAuthority())
 	{
@@ -356,7 +381,7 @@ void AItemActor::InitializeItemBS_Item(FBS_Item& _item)
 
 FBS_Item& AItemActor::GetItemData()
 {
-	return ItemInformation; 
+	return ItemInformation;
 }
 
 void AItemActor::OnPickup(AActor* PickupActor)
@@ -373,7 +398,7 @@ void AItemActor::OnPickup(AActor* PickupActor)
 
 void AItemActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
- 	if (!HasAuthority())
+	if (!HasAuthority())
 		return;
 
 	// Check if overlapping actor is a player

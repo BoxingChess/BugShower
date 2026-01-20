@@ -36,35 +36,29 @@ void ABSPlayerController::BeginPlay()
 		Subsystem->AddMappingContext(InputMappingContext, 0);
 	}
 
-	// Initialize UI Manager for this player (로컬 플레이어만!)
-	// 멀티플레이어에서 다른 플레이어의 PlayerController가 UI를 생성하지 않도록 체크
-	if (IsLocalController())
+	// Initialize UI Manager for this player
+	// NOTE: InitializePlayerUI 내부에서 IsLocalController() 체크가 있으므로
+	// 여기서는 체크하지 않음 (패키징 빌드 타이밍 이슈 방지)
+	UGameInstance* GameInstance = GetGameInstance();
+	if (!GameInstance)
 	{
-		UGameInstance* GameInstance = GetGameInstance();
-		if (!GameInstance)
-		{
-			UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - GameInstance is NULL!"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - GameInstance found: %s"), *GameInstance->GetClass()->GetName());
-
-			UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>();
-			if (UIManager)
-			{
-				UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - UIManager Subsystem found, initializing UI for LOCAL player..."));
-				UIManager->InitializePlayerUI(this);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - Failed to get UIManager Subsystem from GameInstance: %s"),
-					*GameInstance->GetClass()->GetName());
-			}
-		}
+		UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - GameInstance is NULL!"));
 	}
 	else
 	{
-		UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - Skipping UI init for REMOTE player"));
+		UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - GameInstance found: %s"), *GameInstance->GetClass()->GetName());
+
+		UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>();
+		if (UIManager)
+		{
+			UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - UIManager Subsystem found, initializing UI..."));
+			UIManager->InitializePlayerUI(this);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - Failed to get UIManager Subsystem from GameInstance: %s"),
+				*GameInstance->GetClass()->GetName());
+		}
 	}
 
 	if (APawn* ControlledPawn = GetPawn())
