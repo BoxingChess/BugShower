@@ -95,51 +95,32 @@ void AItemActor::DeSpawn()
 	}
 }
 
- 
+
 
 // Sets default values
 AItemActor::AItemActor()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Enable replication(pos,life span, type)
 	bReplicates = true;
 	SetReplicateMovement(true);
 
-	// Create mesh component as root (required for physics simulation)
+	//MeshComp Default Setting
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	MeshComponent->SetIsReplicated(true);
 	RootComponent = MeshComponent;
 
-	// Enable physics simulation
-	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetEnableGravity(true);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
-
-	// Set collision responses
-	MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
-	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
-	MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
-	MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
-	MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
-	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
-
-	// Physics properties
-	MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
-	MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
-	MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
-
-	MeshComponent->SetIsReplicated(true);
-
-	///이제 아래것을 Use Complex Collision As Simple설정 처럼 바꿀거라 주석처리를 하겠음.
-	// Create collision component (sphere for pickup detection)
-// 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
-// 	CollisionComponent->SetupAttachment(RootComponent);
-// 	CollisionComponent->InitSphereRadius(50.f);
-// 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-// 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-// 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	//CDO Setting
+	{
+		// Set collision responses
+		MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
+		MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+		MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
+		MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
+		MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
+		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
+		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
+	}
 
 }
 
@@ -147,6 +128,17 @@ AItemActor::AItemActor()
 void AItemActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Enable physics simulation
+	MeshComponent->SetSimulatePhysics(true);
+	MeshComponent->SetEnableGravity(true);
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
+
+	// Physics properties
+	MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
+	MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
+	// Physics properties
+	MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
 
 	if (HasAuthority())
 	{
@@ -242,7 +234,7 @@ void AItemActor::InitializeItemBS_Item(FBS_Item& _item)
 
 FBS_Item& AItemActor::GetItemData()
 {
-	return ItemInformation; 
+	return ItemInformation;
 }
 
 void AItemActor::OnPickup(AActor* PickupActor)
@@ -259,7 +251,7 @@ void AItemActor::OnPickup(AActor* PickupActor)
 
 void AItemActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
- 	if (!HasAuthority())
+	if (!HasAuthority())
 		return;
 
 	// Check if overlapping actor is a player

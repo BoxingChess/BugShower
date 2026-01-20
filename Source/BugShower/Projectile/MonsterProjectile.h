@@ -16,6 +16,7 @@ public:
 	virtual void Spawn(const FVector pos) override;
 	virtual void ReturnPool() override;
 	virtual EPoolType GetPoolType() const override { return EPoolType::Bullet; }
+	virtual UPrimitiveComponent* GetPrimaryRenderComponent() override;
 	UFUNCTION()
 	virtual void DeSpawn() override;
 

@@ -21,14 +21,17 @@ AGoalVolume::AGoalVolume()
 	TriggerBox = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerBox"));
 	RootComponent = TriggerBox;
 	TriggerBox->SetBoxExtent(FVector(200.0f, 200.0f, 100.0f));
-	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
+
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	TriggerBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+
 
 	// Create optional goal mesh for visualization
 	GoalMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("GoalMesh"));
 	GoalMesh->SetupAttachment(RootComponent);
 	GoalMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
 
 	// Default settings
 	GoalCondition = EGoalCondition::AnyPlayer;
@@ -40,6 +43,9 @@ AGoalVolume::AGoalVolume()
 void AGoalVolume::BeginPlay()
 {
 	Super::BeginPlay();
+
+	TriggerBox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+
 
 	// Only bind overlap events on server
 	if (HasAuthority())
@@ -132,20 +138,20 @@ bool AGoalVolume::CheckVictoryCondition()
 
 	switch (GoalCondition)
 	{
-	case EGoalCondition::AnyPlayer:
-		// At least one alive player in goal
-		return PlayersInGoalCount > 0;
+		case EGoalCondition::AnyPlayer:
+			// At least one alive player in goal
+			return PlayersInGoalCount > 0;
 
-	case EGoalCondition::AllPlayers:
-		// All alive players must be in goal
-		return PlayersInGoalCount >= AlivePlayers;
+		case EGoalCondition::AllPlayers:
+			// All alive players must be in goal
+			return PlayersInGoalCount >= AlivePlayers;
 
-	case EGoalCondition::MajorityPlayers:
-		// More than half of alive players in goal
-		return PlayersInGoalCount > (AlivePlayers / 2);
+		case EGoalCondition::MajorityPlayers:
+			// More than half of alive players in goal
+			return PlayersInGoalCount > (AlivePlayers / 2);
 
-	default:
-		return false;
+		default:
+			return false;
 	}
 }
 

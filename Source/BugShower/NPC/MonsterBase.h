@@ -38,6 +38,7 @@ class BUGSHOWER_API AMonsterBase : public ACharacter, public ISpawnable
 public:
 	virtual EPoolType GetPoolType() const override { return EPoolType::Monster; }
 	virtual void Spawn(const FVector pos) override;
+	virtual UPrimitiveComponent* GetPrimaryRenderComponent() override { return GetMesh(); }
 
 	UFUNCTION()
 	virtual void DeSpawn() override;
@@ -71,7 +72,7 @@ public:
 	TSubclassOf<AActor> BulletClass;
 
 	// Drop configuration ID (references DataTable row)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DropStat")
 	FName MonsterDropID;
 
 	// Active gameplay tags for conditional drops (quest, event, etc.)
@@ -86,6 +87,8 @@ public:
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	virtual void PostInitializeComponents() override;
 
 public:	
 	// Called every frame

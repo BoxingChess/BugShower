@@ -5,23 +5,23 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 
-// Add default functionality here for any ISpawnable functions that are not pure virtual.
-
 void ISpawnable::Activate(AActor* Actor, const FVector& Position)
 {
+	Actor->SetActorHiddenInGame(false);
+	Actor->SetActorEnableCollision(true);
+	Actor->SetActorTickEnabled(true);
 
-    
-    FVector SafePos = Position;
+	FVector SafePos = Position;
+	UWorld* World = Actor->GetWorld();
+	if (World)
+	{
+		World->FindTeleportSpot(Actor, SafePos, FRotator::ZeroRotator);
+	}
+	Actor->SetActorLocation(SafePos, false, nullptr, ETeleportType::TeleportPhysics);
 
-    UWorld* World = Actor->GetWorld();
-    World->FindTeleportSpot(Actor, SafePos, FRotator::ZeroRotator);
-
-    // 3. Sweep ¾øÀÌ(false) °­Á¦ ÀÌµ¿ (ÅÚ·¹Æ÷Æ®)
-    Actor->SetActorLocation(SafePos, false, nullptr, ETeleportType::TeleportPhysics);
-
-    Actor->SetActorHiddenInGame(false);
-    Actor->SetActorEnableCollision(true);
-    Actor->SetActorTickEnabled(true);
+	// State ë³µêµ¬: RootComponent (ì¶©ëŒ) + PrimaryRenderComponent (ë Œë”ë§)
+	RecreateStateIfNeeded(Cast<UPrimitiveComponent>(Actor->GetRootComponent()));
+	RecreateStateIfNeeded(GetPrimaryRenderComponent());
 }
 
 void ISpawnable::Deactivate(AActor* Actor)
@@ -29,4 +29,18 @@ void ISpawnable::Deactivate(AActor* Actor)
 	Actor->SetActorHiddenInGame(true);
 	Actor->SetActorEnableCollision(false);
 	Actor->SetActorTickEnabled(false);
+}
+
+void ISpawnable::RecreateStateIfNeeded(UPrimitiveComponent* Prim)
+{
+	if (!Prim) return;
+
+	if (!Prim->IsRenderStateCreated())
+	{
+		Prim->RecreateRenderState_Concurrent();
+	}
+	if (!Prim->IsPhysicsStateCreated())
+	{
+		Prim->RecreatePhysicsState();
+	}
 }
