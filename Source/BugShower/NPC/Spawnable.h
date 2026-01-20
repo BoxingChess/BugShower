@@ -37,7 +37,7 @@ public:
 	virtual void DeSpawn() = 0;
 
 	// 각 클래스의 주요 렌더링 컴포넌트 반환 (State 복구용)
-	virtual UPrimitiveComponent* GetPrimaryRenderComponent() { return nullptr; }
+	virtual UPrimitiveComponent* GetPrimaryRenderComponent() = 0;
 
 	// Helper functions for common activation/deactivation
 	virtual void Activate(AActor* Actor, const FVector& Position);
