@@ -128,6 +128,11 @@ void AMonsterProjectile::BeginPlay()
 	Super::BeginPlay();
 }
 
+UPrimitiveComponent* AMonsterProjectile::GetPrimaryRenderComponent()
+{
+	return ProjectileMesh;
+}
+
 void AMonsterProjectile::InitializeProjectile(const FVector& Direction, float InDamage, AActor* InOwner)
 {
 	if (!InOwner)

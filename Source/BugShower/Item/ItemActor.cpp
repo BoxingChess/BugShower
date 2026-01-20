@@ -120,10 +120,6 @@ AItemActor::AItemActor()
 		MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
 		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
 		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
-
-		// Physics properties
-		MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
-		MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
 	}
 
 }
@@ -138,6 +134,9 @@ void AItemActor::BeginPlay()
 	MeshComponent->SetEnableGravity(true);
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
 
+	// Physics properties
+	MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
+	MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
 	// Physics properties
 	MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
 

@@ -91,7 +91,6 @@ void APooling::Tick(float DeltaTime)
 			FNavLocation RandomLocation;
 			if (NavSys->GetRandomPointInNavigableRadius(SpawnLocation, SpawnRadius, RandomLocation))
 			{
-				RandomLocation.Location = {-1200, 450, 110};
 				TScriptInterface<ISpawnable> SpawnActor = PoolSys->SpawnFromClass(MonsterClass, RandomLocation);
 				LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());
 			}
