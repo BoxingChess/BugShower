@@ -1,5 +1,5 @@
 ---,ActorClass,PoolSize
-Ranged_Normal,"BlueprintGeneratedClass'""/Game/MonsterBP/BP_RangedTestMonsterNormal.BP_RangedTestMonsterNormal_C""'",20
+Ranged_Normal,/Game/MonsterBP/BP_RangedTestMonsterNormal.BP_RangedTestMonsterNormal_C,20
 Ranged_Elite,/Game/MonsterBP/BP_RangedTestMonsterElite.BP_RangedTestMonsterElite_C,20
 Dash_Normal,/Game/MonsterBP/BP_DashTestMonsterNormal.BP_DashTestMonsterNormal_C,20
 Dash_Elite,/Game/MonsterBP/BP_DashTestMonsterElite.BP_DashTestMonsterElite_C,20
