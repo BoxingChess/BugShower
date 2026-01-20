@@ -36,27 +36,35 @@ void ABSPlayerController::BeginPlay()
 		Subsystem->AddMappingContext(InputMappingContext, 0);
 	}
 
-	// Initialize UI Manager for this player
-	UGameInstance* GameInstance = GetGameInstance();
-	if (!GameInstance)
+	// Initialize UI Manager for this player (로컬 플레이어만!)
+	// 멀티플레이어에서 다른 플레이어의 PlayerController가 UI를 생성하지 않도록 체크
+	if (IsLocalController())
 	{
-		UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - GameInstance is NULL!"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - GameInstance found: %s"), *GameInstance->GetClass()->GetName());
-
-		UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>();
-		if (UIManager)
+		UGameInstance* GameInstance = GetGameInstance();
+		if (!GameInstance)
 		{
-			UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - UIManager Subsystem found, initializing UI..."));
-			UIManager->InitializePlayerUI(this);
+			UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - GameInstance is NULL!"));
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - Failed to get UIManager Subsystem from GameInstance: %s"),
-				*GameInstance->GetClass()->GetName());
+			UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - GameInstance found: %s"), *GameInstance->GetClass()->GetName());
+
+			UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>();
+			if (UIManager)
+			{
+				UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - UIManager Subsystem found, initializing UI for LOCAL player..."));
+				UIManager->InitializePlayerUI(this);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Error, TEXT("BSPlayerController::BeginPlay - Failed to get UIManager Subsystem from GameInstance: %s"),
+					*GameInstance->GetClass()->GetName());
+			}
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - Skipping UI init for REMOTE player"));
 	}
 
 	if (APawn* ControlledPawn = GetPawn())

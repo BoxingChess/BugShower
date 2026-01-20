@@ -669,3 +669,50 @@ void UBSGameInstance::SetCredit(const int32 NewCredit)
 		}
 	}
 }
+
+void UBSGameInstance::HostListenServer(const FString& MapName)
+{
+	if (MapName.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::HostListenServer - MapName is empty!"));
+		return;
+	}
+
+	// Listen server로 맵을 열기
+	// ?listen 옵션을 추가하면 리슨 서버로 시작됨
+	FString TravelURL = MapName + TEXT("?listen");
+
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+	UE_LOG(LogTemp, Warning, TEXT("🎮 Hosting Listen Server"));
+	UE_LOG(LogTemp, Warning, TEXT("Map: %s"), *MapName);
+	UE_LOG(LogTemp, Warning, TEXT("Other players can join at: <YourIP>:7777"));
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+
+	// 맵 열기 (리슨 서버로)
+	UGameplayStatics::OpenLevel(GetWorld(), FName(*MapName), true, TEXT("listen"));
+}
+
+void UBSGameInstance::JoinServer(const FString& ServerAddress)
+{
+	if (ServerAddress.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::JoinServer - ServerAddress is empty!"));
+		return;
+	}
+
+	// 첫 번째 로컬 플레이어 컨트롤러 가져오기
+	APlayerController* PC = GetFirstLocalPlayerController();
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSGameInstance::JoinServer - No PlayerController found!"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+	UE_LOG(LogTemp, Warning, TEXT("🌐 Joining Server"));
+	UE_LOG(LogTemp, Warning, TEXT("Server Address: %s"), *ServerAddress);
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+
+	// 서버에 접속
+	PC->ClientTravel(ServerAddress, TRAVEL_Absolute);
+}

@@ -11,6 +11,12 @@ AWeaponActor::AWeaponActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	// ========================================
+	// 네트워크 복제 설정 (멀티플레이어 필수!)
+	// ========================================
+	bReplicates = true;  // 이 액터를 모든 클라이언트에 복제
+	SetReplicateMovement(true);  // 위치/회전도 동기화
+
 	// 충돌 컴포넌트 생성 (픽업 감지용)
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	RootComponent = CollisionComponent;

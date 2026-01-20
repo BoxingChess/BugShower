@@ -28,13 +28,26 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
-	// Consumable item inventory (Replicated to all clients)
-	UPROPERTY(ReplicatedUsing = OnRep_ItemInventory)
+	// ========================================
+	// 네트워크 복제 시스템
+	// ========================================
+
+	// 로컬 인벤토리 캐시 (UBSItemInstance 포함, UI/로직 사용)
+	// 서버/클라이언트 모두 사용하지만 직접 복제되지 않음
+	UPROPERTY()
 	TArray<TObjectPtr<UBSItemInstance>> ItemInventory;
 
-	// Called when ItemInventory is replicated to client
+	// 네트워크 복제용 아이템 데이터 (FBS_Item 구조체만 복제)
+	// 서버 → 클라이언트로만 전송됨
+	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedItemData)
+	TArray<FBS_Item> ReplicatedItemData;
+
+	// 클라이언트: ReplicatedItemData 받으면 ItemInventory 재구성
 	UFUNCTION()
-	void OnRep_ItemInventory();
+	void OnRep_ReplicatedItemData();
+
+	// 서버: ItemInventory 변경 시 ReplicatedItemData 업데이트
+	void SyncReplicatedData();
 
 	// Equipment slot - Weapon / Tool
 	// TODO: Implement equipment system with mesh attachment and animations

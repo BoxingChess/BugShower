@@ -122,7 +122,7 @@ bool UPoolingSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 
 	if(MapName.Contains(TEXT("Lobby")))
 	{
-		return false; // ·Îºñ¿¡¼­´Â »ý¼ºÇÏÁö ¾ÊÀ½!
+		return false; // ï¿½Îºñ¿¡¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½!
 	}
 
 	return true;
@@ -152,7 +152,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 	}
 
 	// DEBUG: Log pool registration start
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?Ÿ¢ RegisterPoolForClass: Creating pool for %s with size %d"), *ActorClass->GetName(), Size);
+	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?ï¿½ï¿½ RegisterPoolForClass: Creating pool for %s with size %d"), *ActorClass->GetName(), Size);
 
 	// Create new pool data
 	FPoolData NewPool;
@@ -195,7 +195,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 			// DEBUG: Log actor pointer added (only for first 10 items to avoid spam)
 			if (i < 10)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?Ÿ¢ Added Actor %p to pool (index %d)"), SpawnedActor, i);
+				UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?ï¿½ï¿½ Added Actor %p to pool (index %d)"), SpawnedActor, i);
 			}
 
 			LOG_POOLING_INFO(TEXT("Created %s object %d/%d"), *ActorClass->GetName(), i + 1, Size);
@@ -211,7 +211,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 	}
 
 	// DEBUG: Log final pool state BEFORE MoveTemp
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?Ÿ¢ Pool registered: All.Num()=%d, Available.Num()=%d"), NewPool.All.Num(), NewPool.Available.Num());
+	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?ï¿½ï¿½ Pool registered: All.Num()=%d, Available.Num()=%d"), NewPool.All.Num(), NewPool.Available.Num());
 
 	// Store the pool
 	ClassPools.Add(ActorClass, MoveTemp(NewPool));
@@ -286,7 +286,7 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 	}
 
 	// DEBUG: Log actor being returned
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?Ÿ  ReturnToPoolByClass called for Actor: %p"), Actor);
+	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ReturnToPoolByClass called for Actor: %p"), Actor);
 
 	TSubclassOf<AActor> ActorClass = Actor->GetClass();
 	FPoolData* PoolData = ClassPools.Find(ActorClass);
@@ -298,7 +298,7 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 	}
 
 	// DEBUG: Log Available size before Add
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?Ÿ  Available.Num() BEFORE Add: %d"), PoolData->Available.Num());
+	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] Available.Num() BEFORE Add: %d"), PoolData->Available.Num());
 
 	// Deactivate before returning
 	Object->Deactivate(Actor);
@@ -307,7 +307,7 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 	PoolData->Available.Add(Object);
 
 	// DEBUG: Log Available size after Add
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?Ÿ  Available.Num() AFTER Add: %d"), PoolData->Available.Num());
+	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?ï¿½ï¿½ Available.Num() AFTER Add: %d"), PoolData->Available.Num());
 
 	LOG_POOLING_INFO(TEXT("Returned %s to class pool"), *ActorClass->GetName());
 }

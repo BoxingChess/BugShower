@@ -6,6 +6,8 @@
 #include "Subsystems/PoolingSubsystem.h"
 #include "Net/UnrealNetwork.h"
 #include "Item/ItemEnum.h"
+#include "Game/BSGameInstance.h"
+#include "Manager/ResourceManager/ItemResourceManager/ItemResourceManager.h"
 
 // Sets default values for this component's properties
 UInventoryComponent::UInventoryComponent()
@@ -21,16 +23,113 @@ void UInventoryComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	// Replicate ItemInventory to all clients
-	DOREPLIFETIME(UInventoryComponent, ItemInventory);
+	// Replicate ReplicatedItemData (FBS_Item 구조체 배열) to all clients
+	DOREPLIFETIME(UInventoryComponent, ReplicatedItemData);
 }
 
-// Called automatically when ItemInventory is replicated (on client)
-void UInventoryComponent::OnRep_ItemInventory()
+// ========================================
+// 서버: ItemInventory → ReplicatedItemData 동기화
+// ========================================
+void UInventoryComponent::SyncReplicatedData()
 {
-	UE_LOG(LogTemp, Log, TEXT("[Client] OnRep_ItemInventory called - Inventory changed on server, syncing to client"));
+	// 서버에서만 실행
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
 
-	// Broadcast delegate to update UI
+	// ReplicatedItemData 초기화
+	ReplicatedItemData.Empty();
+	ReplicatedItemData.Reserve(ItemInventory.Num());
+
+	// ItemInventory → ReplicatedItemData 변환
+	for (const TObjectPtr<UBSItemInstance>& ItemInstance : ItemInventory)
+	{
+		if (ItemInstance)
+		{
+			// CRITICAL FIX: Dynamic과 StaticData의 ItemID 불일치 수정
+			if (ItemInstance->StaticData && ItemInstance->Dynamic.ItemID != ItemInstance->StaticData->ItemID)
+			{
+				UE_LOG(LogTemp, Error, TEXT("[Server] SyncReplicatedData - ⚠️ ID MISMATCH in inventory! Dynamic.ID=%d, Static.ID=%d, Name=%s - FIXING!"),
+					ItemInstance->Dynamic.ItemID, ItemInstance->StaticData->ItemID, *ItemInstance->StaticData->DisplayName.ToString());
+
+				// StaticData의 ID로 수정
+				ItemInstance->Dynamic.ItemID = ItemInstance->StaticData->ItemID;
+				ItemInstance->Dynamic.ItemType = ItemInstance->StaticData->ItemType;
+			}
+
+			ReplicatedItemData.Add(ItemInstance->Dynamic);
+
+			// 디버그: 복제되는 데이터 확인
+			UE_LOG(LogTemp, Warning, TEXT("[Server] SyncReplicatedData - Adding Item: Type=%d, ID=%d, Qty=%d, StaticName=%s"),
+				static_cast<int32>(ItemInstance->Dynamic.ItemType),
+				ItemInstance->Dynamic.ItemID,
+				ItemInstance->Dynamic.Quantity,
+				ItemInstance->StaticData ? *ItemInstance->StaticData->DisplayName.ToString() : TEXT("NULL"));
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Server] SyncReplicatedData - Synced %d items to ReplicatedItemData"), ReplicatedItemData.Num());
+}
+
+// ========================================
+// 클라이언트: ReplicatedItemData → ItemInventory 재구성
+// ========================================
+void UInventoryComponent::OnRep_ReplicatedItemData()
+{
+	UE_LOG(LogTemp, Log, TEXT("[Client] OnRep_ReplicatedItemData called - Received %d items from server"), ReplicatedItemData.Num());
+
+	// 기존 ItemInventory 초기화
+	ItemInventory.Empty();
+	ItemInventory.Reserve(ReplicatedItemData.Num());
+
+	// GameInstance에서 ItemResourceManager 가져오기
+	UGameInstance* GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GameInstance);
+	if (!BSGameInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Client] OnRep_ReplicatedItemData - Failed to get BSGameInstance!"));
+		return;
+	}
+
+	UItemResourceManager* ItemResourceManager = BSGameInstance->GetSubsystem<UItemResourceManager>();
+	if (!ItemResourceManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Client] OnRep_ReplicatedItemData - Failed to get ItemResourceManager!"));
+		return;
+	}
+
+	// ReplicatedItemData → ItemInventory 변환
+	for (const FBS_Item& ItemData : ReplicatedItemData)
+	{
+		// 디버그: 수신된 데이터 확인
+		UE_LOG(LogTemp, Warning, TEXT("[Client] OnRep - Received Item: Type=%d, ID=%d, Qty=%d"),
+			static_cast<int32>(ItemData.ItemType), ItemData.ItemID, ItemData.Quantity);
+
+		// StaticData 가져오기 (ItemType과 ItemID 사용)
+		const UBSStaticItemDataAsset* StaticData = ItemResourceManager->GetStaticItem(ItemData.ItemType, ItemData.ItemID);
+		if (!StaticData)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Client] OnRep_ReplicatedItemData - Failed to find StaticData for ItemType: %d, ItemID: %d"),
+				static_cast<int32>(ItemData.ItemType), ItemData.ItemID);
+			continue;
+		}
+
+		// 디버그: 찾은 StaticData 확인
+		UE_LOG(LogTemp, Warning, TEXT("[Client] OnRep - Found StaticData: Name=%s, StaticID=%d"),
+			*StaticData->DisplayName.ToString(), StaticData->ItemID);
+
+		// UBSItemInstance 생성
+		UBSItemInstance* NewInstance = NewObject<UBSItemInstance>(this);
+		NewInstance->StaticData = StaticData;
+		NewInstance->Dynamic = ItemData;
+
+		ItemInventory.Add(NewInstance);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Client] OnRep_ReplicatedItemData - Reconstructed %d ItemInstances"), ItemInventory.Num());
+
+	// UI 업데이트
 	OnInventoryChanged.Broadcast();
 }
 
@@ -64,6 +163,20 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 	{
 		UE_LOG(LogTemp, Error, TEXT("AddItem Failed: DropStatic is null!"));
 		return;
+	}
+
+	// ========================================
+	// CRITICAL FIX: Dynamic.ItemID와 StaticData->ItemID 불일치 수정
+	// ItemActor의 ItemInformation.ItemID가 StaticItemInfo->ItemID와 다를 경우 동기화
+	// ========================================
+	if (DropItem.ItemID != DropStatic->ItemID)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AddItem] ⚠️ ID MISMATCH! Dynamic.ItemID=%d, StaticData->ItemID=%d, StaticName=%s - FIXING!"),
+			DropItem.ItemID, DropStatic->ItemID, *DropStatic->DisplayName.ToString());
+
+		// StaticData의 ItemID가 정확한 값이므로 Dynamic을 수정
+		DropItem.ItemID = DropStatic->ItemID;
+		DropItem.ItemType = DropStatic->ItemType;
 	}
 
 	// Debug: Log item info
@@ -124,9 +237,9 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 	}
 
 	// ========================================
-	// Consumable Item Handling
+	// Consumable & Material Item Handling (스택 가능한 아이템)
 	// ========================================
-	if (DropItem.ItemType == EItemType::Consumable)
+	if (DropItem.ItemType == EItemType::Consumable || DropItem.ItemType == EItemType::Material)
 	{
 		// Find existing slot with same ItemID
 		UBSItemInstance* FoundInst = nullptr;
@@ -288,6 +401,9 @@ void UInventoryComponent::AddItem(AItemActor* DroppedActor)
 	}
 #endif
 
+	// 서버: ItemInventory → ReplicatedItemData 동기화 (클라이언트로 복제)
+	SyncReplicatedData();
+
 	// Broadcast inventory changed event
 	OnInventoryChanged.Broadcast();
 }
@@ -406,6 +522,9 @@ void UInventoryComponent::AddItemInstances(const TArray<UBSItemInstance*>& ItemI
 
 	UE_LOG(LogTemp, Log, TEXT("[AddItemInstances] Finished adding items. Total inventory: %d items, Weight: %d/%d"),
 		ItemInventory.Num(), CurrentWeight, MaxWeight);
+
+	// 서버: ItemInventory → ReplicatedItemData 동기화 (클라이언트로 복제)
+	SyncReplicatedData();
 
 	// Broadcast inventory changed event
 	OnInventoryChanged.Broadcast();
@@ -566,6 +685,7 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 
 		// Do NOT decrease inventory quantity - spawn failed!
 		// Broadcast to update UI (to show item is still there)
+		SyncReplicatedData();  // 서버: 복제 데이터 동기화
 		OnInventoryChanged.Broadcast();
 		return;
 	}
@@ -586,6 +706,9 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 		ItemInventory.Remove(DroppedItem);
 		DroppedItem->MarkAsGarbage(); // Mark for garbage collection
 	}
+
+	// 서버: ItemInventory → ReplicatedItemData 동기화 (클라이언트로 복제)
+	SyncReplicatedData();
 
 	// Broadcast inventory changed event
 	OnInventoryChanged.Broadcast();
@@ -619,7 +742,14 @@ int32 UInventoryComponent::GetItemCountByID(uint8 ItemID) const
 		return 0;
 	}
 
+	// 서버/클라이언트 구분
+	FString NetRole = GetOwner() ? (GetOwner()->HasAuthority() ? TEXT("[Server]") : TEXT("[Client]")) : TEXT("[Unknown]");
+
 	int32 TotalCount = 0;
+	int32 MatchedItems = 0;
+
+	UE_LOG(LogTemp, Log, TEXT("%s GetItemCountByID - Searching for ItemID: %d in %d inventory slots"),
+		*NetRole, ItemID, ItemInventory.Num());
 
 	// 인벤토리에서 해당 ItemID의 총 개수 합산
 	for (const UBSItemInstance* Item : ItemInventory)
@@ -627,11 +757,13 @@ int32 UInventoryComponent::GetItemCountByID(uint8 ItemID) const
 		if (Item && Item->StaticData && Item->StaticData->ItemID == ItemID)
 		{
 			TotalCount += Item->Dynamic.Quantity;
+			MatchedItems++;
+			UE_LOG(LogTemp, Log, TEXT("%s   - Found match: Quantity=%d"), *NetRole, Item->Dynamic.Quantity);
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("UInventoryComponent::GetItemCountByID - ItemID: %d, TotalCount: %d"),
-		ItemID, TotalCount);
+	UE_LOG(LogTemp, Log, TEXT("%s GetItemCountByID - ItemID: %d, Matched %d stacks, TotalCount: %d"),
+		*NetRole, ItemID, MatchedItems, TotalCount);
 
 	return TotalCount;
 }
@@ -691,6 +823,9 @@ int32 UInventoryComponent::ConsumeItemByID(uint8 ItemID, int32 Amount)
 			break;
 		}
 	}
+
+	// 서버: ItemInventory → ReplicatedItemData 동기화 (클라이언트로 복제)
+	SyncReplicatedData();
 
 	// 인벤토리 변경 알림
 	OnInventoryChanged.Broadcast();
@@ -760,6 +895,9 @@ bool UInventoryComponent::UseItem(int32 ItemIndex)
 		ItemInstance->MarkAsGarbage();
 		UE_LOG(LogTemp, Log, TEXT("[UseItem] Item removed from inventory (quantity reached 0)"));
 	}
+
+	// 서버: ItemInventory → ReplicatedItemData 동기화 (클라이언트로 복제)
+	SyncReplicatedData();
 
 	// 인벤토리 변경 브로드캐스트
 	OnInventoryChanged.Broadcast();

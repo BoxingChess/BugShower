@@ -24,6 +24,7 @@ void UItemResourceManager::Deinitialize()
 
 	// Clear all registered items
 	// 등록된 모든 아이템 정리
+	AllItems.Empty();
 	ConsumableItems.Empty();
 	EquipmentItems.Empty();
 
@@ -60,43 +61,67 @@ void UItemResourceManager::LoadAllItemDataAssets()
 			continue;
 		}
 
-		// Register based on item type
-		// 아이템 타입에 따라 등록
+		// ========================================
+		// 통합 레지스트리에 등록 (AllItems)
+		// ========================================
+		if (AllItems.Contains(ItemDataAsset->ItemID))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("  ⚠️ ItemID %d already registered! Overwriting with: %s"),
+				ItemDataAsset->ItemID, *ItemDataAsset->DisplayName.ToString());
+		}
+		AllItems.Add(ItemDataAsset->ItemID, ItemDataAsset);
+
+		// 타입별 로그 출력
+		FString TypeName;
+		switch (ItemDataAsset->ItemType)
+		{
+			case EItemType::Consumable: TypeName = TEXT("Consumable"); break;
+			case EItemType::Equipment:  TypeName = TEXT("Equipment"); break;
+			case EItemType::Material:   TypeName = TEXT("Material"); break;
+			case EItemType::Quest:      TypeName = TEXT("Quest"); break;
+			default:                    TypeName = TEXT("Unknown"); break;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("  Registered %s: %s (ID: %d)"),
+			*TypeName, *ItemDataAsset->DisplayName.ToString(), ItemDataAsset->ItemID);
+
+		// [DEPRECATED] 기존 타입별 레지스트리에도 등록 (호환성 유지)
 		switch (ItemDataAsset->ItemType)
 		{
 			case EItemType::Consumable:
 				RegisterConsumableItem(ItemDataAsset->ItemID, ItemDataAsset);
-				UE_LOG(LogTemp, Log, TEXT("  Registered Consumable: %s (ID: %d)"),
-					*ItemDataAsset->DisplayName.ToString(), ItemDataAsset->ItemID);
 				break;
 
 			case EItemType::Equipment:
 				RegisterEquipmentItem(ItemDataAsset->ItemID, ItemDataAsset);
-				UE_LOG(LogTemp, Log, TEXT("  Registered Equipment: %s (ID: %d)"),
-					*ItemDataAsset->DisplayName.ToString(), ItemDataAsset->ItemID);
 				break;
 
 			default:
-				UE_LOG(LogTemp, Warning, TEXT("  Unknown item type for asset: %s"), *AssetData.AssetName.ToString());
 				break;
 		}
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("ItemResourceManager - Total items registered in AllItems: %d"), AllItems.Num());
 }
 
 const UBSStaticItemDataAsset* UItemResourceManager::GetStaticItem(EItemType ItemType, int32 ItemID)
 {
+	// 통합 레지스트리에서 검색 (ItemType 무관하게 ItemID로 검색)
+	if (TObjectPtr<UBSStaticItemDataAsset>* Found = AllItems.Find(static_cast<uint8>(ItemID)))
+	{
+		return Found->Get();
+	}
+
+	// AllItems에서 못 찾으면 기존 타입별 레지스트리에서 검색 (호환성)
 	switch (ItemType)
 	{
 		case EItemType::Consumable:
 		{
-			// Find() returns a pointer to the value (TObjectPtr)
-			// Find()는 값(TObjectPtr)에 대한 포인터를 반환
 			if (TObjectPtr<UBSStaticItemDataAsset>* Found = ConsumableItems.Find(static_cast<EConsumableID>(ItemID)))
 			{
 				return Found->Get();
 			}
-			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Consumable item with ID %d not found"), ItemID);
-			return nullptr;
+			break;
 		}
 
 		case EItemType::Equipment:
@@ -105,24 +130,16 @@ const UBSStaticItemDataAsset* UItemResourceManager::GetStaticItem(EItemType Item
 			{
 				return Found->Get();
 			}
-			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Equipment item with ID %d not found"), ItemID);
-			return nullptr;
-		}
-
-		case EItemType::Quest:
-		{
-			// TODO: Implement quest item support when needed
-			// TODO: 퀘스트 아이템 지원 추가 필요
-			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Quest items not yet implemented"));
-			return nullptr;
+			break;
 		}
 
 		default:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Invalid ItemType (%d)"), static_cast<uint8>(ItemType));
-			return nullptr;
-		}
+			break;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("GetStaticItem: Item not found - ItemType=%d, ItemID=%d"),
+		static_cast<uint8>(ItemType), ItemID);
+	return nullptr;
 }
 
 void UItemResourceManager::RegisterConsumableItem(uint8 ItemID, UBSStaticItemDataAsset* DataAsset)

@@ -68,7 +68,83 @@ void UWeaponComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 void UWeaponComponent::OnRep_CurrentWeaponData()
 {
 	// 무기 데이터가 변경됨 (WeaponActor에서 메쉬 업데이트 처리)
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::OnRep_CurrentWeaponData - Weapon data replicated"));
+	FString NetRole = GetOwner() ? (GetOwner()->HasAuthority() ? TEXT("[Server]") : TEXT("[Client]")) : TEXT("[Unknown]");
+	UE_LOG(LogTemp, Warning, TEXT("%s OnRep_CurrentWeaponData - Weapon data replicated"), *NetRole);
+
+	// 클라이언트에서 인벤토리 델리게이트 바인딩 (서버는 EquipWeapon에서 이미 처리함)
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s   Setting up client delegate binding..."), *NetRole);
+
+		AActor* WeaponActor = GetOwner();
+		if (WeaponActor)
+		{
+			AActor* Character = WeaponActor->GetOwner();
+			if (Character)
+			{
+				UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>();
+				if (InventoryComp)
+				{
+					// 인벤토리 변경 시 UI 업데이트하도록 델리게이트 바인딩
+					if (!InventoryComp->OnInventoryChanged.IsAlreadyBound(this, &UWeaponComponent::UpdateAmmoUI))
+					{
+						InventoryComp->OnInventoryChanged.AddDynamic(this, &UWeaponComponent::UpdateAmmoUI);
+						UE_LOG(LogTemp, Warning, TEXT("%s   Bound to OnInventoryChanged delegate"), *NetRole);
+					}
+					// UI 업데이트는 OnRep_ReplicatedItemData에서 델리게이트 브로드캐스트로 자동 처리됨
+				}
+			}
+		}
+	}
+}
+
+void UWeaponComponent::UpdateAmmoUI()
+{
+	// WeaponActor → Character 찾기
+	AActor* WeaponActor = GetOwner();
+	if (!WeaponActor)
+	{
+		return;
+	}
+
+	APawn* Character = Cast<APawn>(WeaponActor->GetOwner());
+	if (!Character)
+	{
+		return;
+	}
+
+	int32 ReserveAmmoCount = GetReserveAmmo();
+
+	// 서버: Client RPC로 해당 클라이언트에게만 전송
+	if (Character->HasAuthority())
+	{
+		ClientUpdateAmmoUI(CurrentAmmo, ReserveAmmoCount);
+	}
+	// 클라이언트: 로컬 플레이어라면 직접 UI 업데이트 (델리게이트 콜백용)
+	else if (Character->IsLocallyControlled())
+	{
+		if (UGameInstance* GI = GetWorld()->GetGameInstance())
+		{
+			if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+			{
+				UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmoCount);
+				UE_LOG(LogTemp, Log, TEXT("[Client Local] Ammo UI Updated: %d/%d"), CurrentAmmo, ReserveAmmoCount);
+			}
+		}
+	}
+}
+
+void UWeaponComponent::ClientUpdateAmmoUI_Implementation(int32 InCurrentAmmo, int32 InReserveAmmo)
+{
+	// 클라이언트에서만 실행됨 (서버가 호출)
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(InCurrentAmmo, InReserveAmmo);
+			UE_LOG(LogTemp, Log, TEXT("[Client] Ammo UI Updated: %d/%d"), InCurrentAmmo, InReserveAmmo);
+		}
+	}
 }
 
 // ========================================
@@ -89,6 +165,9 @@ void UWeaponComponent::EquipWeapon(UWeaponDataAsset* WeaponData, int32 AmmoCount
 		UnequipWeapon();
 	}
 
+	// 서버/클라이언트 구분
+	FString NetRole = GetOwner() ? (GetOwner()->HasAuthority() ? TEXT("[Server]") : TEXT("[Client]")) : TEXT("[Unknown]");
+
 	// 새 무기 설정
 	CurrentWeaponData = WeaponData;
 	CurrentAmmo = WeaponData->MagSize;  // 탄창 가득 채움
@@ -97,17 +176,21 @@ void UWeaponComponent::EquipWeapon(UWeaponDataAsset* WeaponData, int32 AmmoCount
 	bIsFiring = false;
 	CurrentSpreadAngle = 0.0f;
 
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::EquipWeapon - Equipped %s (Ammo: %d/%d)"),
-		*WeaponData->WeaponName.ToString(), CurrentAmmo, GetReserveAmmo());
+	UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
+	UE_LOG(LogTemp, Warning, TEXT("%s WeaponComponent::EquipWeapon - START"), *NetRole);
+	UE_LOG(LogTemp, Warning, TEXT("%s   Weapon: %s"), *NetRole, *WeaponData->WeaponName.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("%s   MagSize: %d"), *NetRole, WeaponData->MagSize);
+	UE_LOG(LogTemp, Warning, TEXT("%s   CurrentAmmo (탄창): %d"), *NetRole, CurrentAmmo);
 
-	// UI 업데이트
-	if (UGameInstance* GI = GetWorld()->GetGameInstance())
-	{
-		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
-		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
-		}
-	}
+	// GetReserveAmmo() 호출 전 로그
+	UE_LOG(LogTemp, Warning, TEXT("%s   Calling GetReserveAmmo()..."), *NetRole);
+	int32 ReserveAmmoCount = GetReserveAmmo();
+	UE_LOG(LogTemp, Warning, TEXT("%s   ReserveAmmo (인벤토리): %d"), *NetRole, ReserveAmmoCount);
+	UE_LOG(LogTemp, Warning, TEXT("%s   Final: %d/%d"), *NetRole, CurrentAmmo, ReserveAmmoCount);
+	UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
+
+	// UI 업데이트 (UpdateAmmoUI가 Client RPC 전송)
+	UpdateAmmoUI();
 
 	// 인벤토리 변경 델리게이트 바인딩 (탄약 아이템 픽업/드롭 시 UI 업데이트)
 	if (AActor* WeaponActor = GetOwner())
@@ -302,14 +385,8 @@ void UWeaponComponent::Fire()
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Fire - Fired! (Ammo: %d/%d)"), CurrentAmmo, GetReserveAmmo());
 
-	// UI 업데이트
-	if (UGameInstance* GI = GetWorld()->GetGameInstance())
-	{
-		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
-		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
-		}
-	}
+	// UI 업데이트 (Client RPC로 해당 플레이어에게만 전송)
+	UpdateAmmoUI();
 }
 
 bool UWeaponComponent::FireSingleTrace()
@@ -876,14 +953,8 @@ void UWeaponComponent::OnReloadComplete()
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::OnReloadComplete - Reload complete! (Ammo: %d/%d)"),
 		CurrentAmmo, GetReserveAmmo());
 
-	// UI 업데이트
-	if (UGameInstance* GI = GetWorld()->GetGameInstance())
-	{
-		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
-		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
-		}
-	}
+	// UI 업데이트 (Client RPC로 해당 플레이어에게만 전송)
+	UpdateAmmoUI();
 
 	// TODO: 재장전 완료 사운드 재생
 }
@@ -897,17 +968,8 @@ void UWeaponComponent::HandleInventoryChanged()
 		return;  // 무기가 장착되지 않았으면 무시
 	}
 
-	// UI 업데이트 (GetReserveAmmo()로 최신 인벤토리 값 조회)
-	if (UGameInstance* GI = GetWorld()->GetGameInstance())
-	{
-		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
-		{
-			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::HandleInventoryChanged - Ammo UI updated (Ammo: %d/%d)"),
-		CurrentAmmo, GetReserveAmmo());
+	// UpdateAmmoUI()에서 IsLocallyControlled 체크 및 UI 업데이트 수행
+	UpdateAmmoUI();
 }
 
 void UWeaponComponent::AddAmmo(int32 Amount)
@@ -1052,8 +1114,12 @@ uint8 UWeaponComponent::AmmoTypeToItemID(EAmmoType AmmoType)
  */
 int32 UWeaponComponent::GetReserveAmmo() const
 {
+	// 서버/클라이언트 구분
+	FString NetRole = GetOwner() ? (GetOwner()->HasAuthority() ? TEXT("[Server]") : TEXT("[Client]")) : TEXT("[Unknown]");
+
 	if (!CurrentWeaponData)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - CurrentWeaponData is null!"), *NetRole);
 		return 0;
 	}
 
@@ -1061,18 +1127,21 @@ int32 UWeaponComponent::GetReserveAmmo() const
 	AActor* WeaponActor = GetOwner();
 	if (!WeaponActor)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - WeaponActor is null!"), *NetRole);
 		return 0;
 	}
 
 	AActor* Character = WeaponActor->GetOwner();
 	if (!Character)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - Character is null!"), *NetRole);
 		return 0;
 	}
 
 	UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>();
 	if (!InventoryComp)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - InventoryComponent not found!"), *NetRole);
 		return 0;
 	}
 
@@ -1080,9 +1149,14 @@ int32 UWeaponComponent::GetReserveAmmo() const
 	uint8 AmmoItemID = AmmoTypeToItemID(CurrentWeaponData->AmmoType);
 	if (AmmoItemID == 0)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - AmmoItemID is 0 for AmmoType: %d"), *NetRole, static_cast<int32>(CurrentWeaponData->AmmoType));
 		return 0;
 	}
 
 	// 인벤토리에서 탄약 개수 조회
-	return InventoryComp->GetItemCountByID(AmmoItemID);
+	int32 AmmoCount = InventoryComp->GetItemCountByID(AmmoItemID);
+	UE_LOG(LogTemp, Log, TEXT("%s GetReserveAmmo - AmmoType: %d, ItemID: %d, Count: %d"),
+		*NetRole, static_cast<int32>(CurrentWeaponData->AmmoType), AmmoItemID, AmmoCount);
+
+	return AmmoCount;
 }

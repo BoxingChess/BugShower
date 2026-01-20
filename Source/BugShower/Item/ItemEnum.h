@@ -13,6 +13,7 @@ enum class EItemType : uint8
 };
 
 //소비템 관련 Enum
+///이제는 AllItem으로 관리하기에 모든 아이템이 고유의 ID값을 갖도록하였음.
 UENUM(BlueprintType)
 enum class EConsumableID : uint8
 {

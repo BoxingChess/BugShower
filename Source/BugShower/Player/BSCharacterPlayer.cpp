@@ -4,6 +4,7 @@
 #include "Player/BSCharacterPlayer.h"
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Net/UnrealNetwork.h"
 
 #include "Component/Movement/MovementInputComponent.h"					// 이동관련 컴포넌트
 #include "Component/PickUp/PickUpDetectorComponent.h"					//	픽업 관련 컴포넌트
@@ -193,6 +194,46 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 	// 무기 시스템 초기화
 	CurrentWeapon = nullptr;
 	DefaultWeaponData = nullptr;
+}
+
+// ========================================
+// 네트워크 리플리케이션
+// ========================================
+
+void ABSCharacterPlayer::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// CurrentWeapon 리플리케이션
+	DOREPLIFETIME(ABSCharacterPlayer, CurrentWeapon);
+}
+
+/**
+ * CurrentWeapon 복제 시 호출되는 콜백
+ * 클라이언트에서 무기가 복제되었을 때 무기 장착 상태를 업데이트하고
+ * 무기를 캐릭터 손에 부착 (Transform 적용)
+ */
+void ABSCharacterPlayer::OnRep_CurrentWeapon()
+{
+	// 무기 장착 상태 업데이트
+	SetIsArmed(CurrentWeapon != nullptr);
+
+	// 클라이언트에서 무기 부착 처리 (Transform 적용)
+	if (CurrentWeapon)
+	{
+		// 무기의 Owner 설정
+		CurrentWeapon->SetOwner(this);
+
+		// 무기를 캐릭터 손에 부착 (Transform 적용됨)
+		CurrentWeapon->AttachToCharacter(this, TEXT("hand_r_weapon"));
+
+		UE_LOG(LogTemp, Log, TEXT("[Client] OnRep_CurrentWeapon - Attached weapon: %s"),
+			*CurrentWeapon->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Client] OnRep_CurrentWeapon - Weapon cleared"));
+	}
 }
 
 /**
@@ -660,10 +701,36 @@ void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 	// WeaponActor의 Owner를 캐릭터로 설정 (먼저 설정해야 WeaponComponent가 올바르게 작동)
 	CurrentWeapon->SetOwner(this);
 
+	// 서버/클라이언트 구분
+	FString NetRole = HasAuthority() ? TEXT("[Server]") : TEXT("[Client]");
+
 	// WeaponData가 설정되어 있으면 초기화 (픽업한 무기의 경우)
 	// 이미 InitializeWeapon이 호출된 경우 (BeginPlay에서 스폰한 무기) 중복 호출되지만 문제없음
 	if (UWeaponDataAsset* WeaponData = CurrentWeapon->GetWeaponData())
 	{
+		UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
+		UE_LOG(LogTemp, Warning, TEXT("%s BSCharacterPlayer::EquipWeapon - START"), *NetRole);
+		UE_LOG(LogTemp, Warning, TEXT("%s   Weapon: %s"), *NetRole, *WeaponData->WeaponName.ToString());
+
+		// 인벤토리 상태 확인
+		if (InventoryComponent)
+		{
+			TArray<UBSItemInstance*> Items = InventoryComponent->GetItemInventory();
+			UE_LOG(LogTemp, Warning, TEXT("%s   InventoryComponent found: %d items"), *NetRole, Items.Num());
+			for (int32 i = 0; i < Items.Num(); i++)
+			{
+				if (Items[i] && Items[i]->StaticData)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("%s     [%d] ItemID: %d, Quantity: %d"),
+						*NetRole, i, Items[i]->StaticData->ItemID, Items[i]->Dynamic.Quantity);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("%s   InventoryComponent is NULL!"), *NetRole);
+		}
+
 		// 인벤토리에서 탄약 개수 조회
 		int32 CurrentAmmo = 0;  // 탄창은 비어있는 상태로 시작
 		int32 ReserveAmmo = 0;
@@ -684,18 +751,19 @@ void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 					AmmoItemID = static_cast<uint8>(EConsumableID::Ammunition_7_62mm);  // 203
 					break;
 				default:
-					UE_LOG(LogTemp, Warning, TEXT("ABSCharacterPlayer::EquipWeapon - Unknown AmmoType: %d"), static_cast<int32>(WeaponData->AmmoType));
+					UE_LOG(LogTemp, Warning, TEXT("%s ABSCharacterPlayer::EquipWeapon - Unknown AmmoType: %d"), *NetRole, static_cast<int32>(WeaponData->AmmoType));
 					break;
 			}
 
 			// 인벤토리에서 해당 ItemID의 총 개수 가져오기
 			if (AmmoItemID != 0)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("%s   Looking for AmmoItemID: %d"), *NetRole, AmmoItemID);
 				ReserveAmmo = InventoryComponent->GetItemCountByID(AmmoItemID);
-				UE_LOG(LogTemp, Log, TEXT("ABSCharacterPlayer::EquipWeapon - Inventory ammo: %d for AmmoType: %d (ItemID: %d)"),
-					ReserveAmmo, static_cast<int32>(WeaponData->AmmoType), AmmoItemID);
+				UE_LOG(LogTemp, Warning, TEXT("%s   Found ReserveAmmo: %d"), *NetRole, ReserveAmmo);
 			}
 		}
+		UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
 
 		// 무기 초기화 (CurrentAmmo=0, ReserveAmmo=인벤토리 탄약 개수)
 		CurrentWeapon->InitializeWeapon(WeaponData, CurrentAmmo, ReserveAmmo);
@@ -772,7 +840,8 @@ void ABSCharacterPlayer::UnequipWeapon()
  *
  * 동작:
  * 1. 무기가 장착되어 있는지 확인
- * 2. WeaponComponent->StartFire() 호출
+ * 2. 클라이언트면 Server RPC 호출
+ * 3. 서버면 직접 실행 + Multicast로 애니메이션 전파
  *
  * WeaponComponent에서:
  * - 단발: 1발만 발사
@@ -788,7 +857,19 @@ void ABSCharacterPlayer::StartFireWeapon()
 		return;
 	}
 
-	// WeaponComponent 가져오기
+	// 클라이언트에서는 서버로 전달
+	if (!HasAuthority())
+	{
+		ServerStartFireWeapon();
+
+		// 로컬에서도 카메라/이동 설정 적용 (즉각적인 반응성)
+		bUseControllerRotationYaw = true;
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		GetCharacterMovement()->DisableMovement();
+		return;
+	}
+
+	// 서버에서 실행
 	UWeaponComponent* WeaponComp = CurrentWeapon->GetWeaponComponent();
 	if (!WeaponComp)
 	{
@@ -803,8 +884,19 @@ void ABSCharacterPlayer::StartFireWeapon()
 	// 발사 중에는 이동 불가
 	GetCharacterMovement()->DisableMovement();
 
-	// 발사 시작
+	// 발사 시작 (서버에서 실행)
 	WeaponComp->StartFire();
+
+	// 모든 클라이언트에게 발사 애니메이션 전파
+	MulticastPlayFireAnimation();
+}
+
+/**
+ * 발사 시작 Server RPC 구현
+ */
+void ABSCharacterPlayer::ServerStartFireWeapon_Implementation()
+{
+	StartFireWeapon();
 }
 
 /**
@@ -812,7 +904,8 @@ void ABSCharacterPlayer::StartFireWeapon()
  *
  * 동작:
  * 1. 무기가 장착되어 있는지 확인
- * 2. WeaponComponent->StopFire() 호출
+ * 2. 클라이언트면 Server RPC 호출
+ * 3. 서버면 직접 실행
  *
  * 연발 무기의 경우 발사를 멈춤
  */
@@ -824,7 +917,19 @@ void ABSCharacterPlayer::StopFireWeapon()
 		return;
 	}
 
-	// WeaponComponent 가져오기
+	// 클라이언트에서는 서버로 전달
+	if (!HasAuthority())
+	{
+		ServerStopFireWeapon();
+
+		// 로컬에서도 카메라/이동 설정 복구 (즉각적인 반응성)
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+		bUseControllerRotationYaw = false;
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+		return;
+	}
+
+	// 서버에서 실행
 	UWeaponComponent* WeaponComp = CurrentWeapon->GetWeaponComponent();
 	if (!WeaponComp)
 	{
@@ -843,11 +948,20 @@ void ABSCharacterPlayer::StopFireWeapon()
 }
 
 /**
+ * 발사 중지 Server RPC 구현
+ */
+void ABSCharacterPlayer::ServerStopFireWeapon_Implementation()
+{
+	StopFireWeapon();
+}
+
+/**
  * 재장전 (R키)
  *
  * 동작:
  * 1. 무기가 장착되어 있는지 확인
- * 2. WeaponComponent->Reload() 호출
+ * 2. 클라이언트면 Server RPC 호출
+ * 3. 서버면 직접 실행 + Multicast로 애니메이션 전파
  *
  * WeaponComponent에서:
  * - 예비 탄약이 있는지 확인
@@ -863,7 +977,14 @@ void ABSCharacterPlayer::ReloadWeapon()
 		return;
 	}
 
-	// WeaponComponent 가져오기
+	// 클라이언트에서는 서버로 전달
+	if (!HasAuthority())
+	{
+		ServerReloadWeapon();
+		return;
+	}
+
+	// 서버에서 실행
 	UWeaponComponent* WeaponComp = CurrentWeapon->GetWeaponComponent();
 	if (!WeaponComp)
 	{
@@ -871,8 +992,45 @@ void ABSCharacterPlayer::ReloadWeapon()
 		return;
 	}
 
-	// 재장전 시작
+	// 재장전 시작 (서버에서 실행)
 	WeaponComp->Reload();
+
+	// 모든 클라이언트에게 재장전 애니메이션 전파
+	MulticastPlayReloadAnimation();
+}
+
+/**
+ * 재장전 Server RPC 구현
+ */
+void ABSCharacterPlayer::ServerReloadWeapon_Implementation()
+{
+	ReloadWeapon();
+}
+
+/**
+ * 발사 애니메이션 Multicast RPC 구현
+ * 모든 클라이언트에서 발사 애니메이션 재생
+ */
+void ABSCharacterPlayer::MulticastPlayFireAnimation_Implementation()
+{
+	// AnimInstance에서 발사 몽타주 재생
+	if (UBSAnimInstance* AnimInst = Cast<UBSAnimInstance>(GetMesh()->GetAnimInstance()))
+	{
+		AnimInst->PlayFireMontage();
+	}
+}
+
+/**
+ * 재장전 애니메이션 Multicast RPC 구현
+ * 모든 클라이언트에서 재장전 애니메이션 재생
+ */
+void ABSCharacterPlayer::MulticastPlayReloadAnimation_Implementation()
+{
+	// AnimInstance에서 재장전 몽타주 재생
+	if (UBSAnimInstance* AnimInst = Cast<UBSAnimInstance>(GetMesh()->GetAnimInstance()))
+	{
+		AnimInst->PlayReloadMontage();
+	}
 }
 
 // ========================================
@@ -922,12 +1080,22 @@ void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
 	UE_LOG(LogTemp, Log, TEXT("Player HP Changed: %.1f / %.1f (%.1f%%)"),
 	       CurrentHP, MaxHP, (CurrentHP / MaxHP) * 100.0f);
 
-	// UI 업데이트 (BSUIManager를 통해)
+	// 서버에서만 클라이언트에게 UI 업데이트 명령 전송
+	if (HasAuthority())
+	{
+		ClientUpdateHealthUI(CurrentHP, MaxHP);
+	}
+}
+
+void ABSCharacterPlayer::ClientUpdateHealthUI_Implementation(float CurrentHP, float MaxHP)
+{
+	// 클라이언트에서만 실행됨 (서버가 호출)
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		if (UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>())
 		{
 			UIManager->UpdateHealthUI(CurrentHP, MaxHP);
+			UE_LOG(LogTemp, Log, TEXT("[Client] HP UI Updated: %.1f / %.1f"), CurrentHP, MaxHP);
 		}
 	}
 }
@@ -941,15 +1109,25 @@ void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
  */
 void ABSCharacterPlayer::OnPlayerAblaParticleChanged(float CurrentAblaParticle, float MaxAblaParticle)
 {
-	UE_LOG(LogTemp, Log, TEXT("Player Abla Particle Changed: %.2f / %.2f (%.1f%%)"),
-	       CurrentAblaParticle, MaxAblaParticle, (CurrentAblaParticle / MaxAblaParticle) * 100.0f);
+	// UE_LOG(LogTemp, Log, TEXT("Player Abla Particle Changed: %.2f / %.2f (%.1f%%)"),
+	//        CurrentAblaParticle, MaxAblaParticle, (CurrentAblaParticle / MaxAblaParticle) * 100.0f);
 
-	// UI 업데이트 (BSUIManager를 통해)
+	// 서버에서만 클라이언트에게 UI 업데이트 명령 전송
+	if (HasAuthority())
+	{
+		ClientUpdateAblaParticleUI(CurrentAblaParticle, MaxAblaParticle);
+	}
+}
+
+void ABSCharacterPlayer::ClientUpdateAblaParticleUI_Implementation(float CurrentAblaParticle, float MaxAblaParticle)
+{
+	// 클라이언트에서만 실행됨 (서버가 호출)
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
 		if (UBSUIManager* UIManager = GameInstance->GetSubsystem<UBSUIManager>())
 		{
 			UIManager->UpdateAblaParticleUI(CurrentAblaParticle, MaxAblaParticle);
+			// UE_LOG(LogTemp, Log, TEXT("[Client] Abla UI Updated: %.1f / %.1f"), CurrentAblaParticle, MaxAblaParticle);
 		}
 	}
 }

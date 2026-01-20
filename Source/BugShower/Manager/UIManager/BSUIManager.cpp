@@ -468,7 +468,7 @@ void UBSUIManager::UpdateAblaParticleUI(float CurrentAblaParticle, float MaxAbla
 	{
 		// Blueprint에서 구현한 UpdateAblaParticle 이벤트 호출
 		HealthWidget->UpdateAblaParticle(CurrentAblaParticle, MaxAblaParticle);
-		UE_LOG(LogTemp, Log, TEXT("BSUIManager::UpdateAblaParticleUI - Updated Abla Particle: %.1f / %.1f"), CurrentAblaParticle, MaxAblaParticle);
+		// UE_LOG(LogTemp, Log, TEXT("BSUIManager::UpdateAblaParticleUI - Updated Abla Particle: %.1f / %.1f"), CurrentAblaParticle, MaxAblaParticle);
 	}
 	else
 	{
