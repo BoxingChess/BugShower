@@ -213,4 +213,26 @@ public:
 	const int32 GetCredit() const;
 
 	void SetCredit(const int32 NewCredit);
+
+	// ========================================
+	// Network - Listen Server
+	// ========================================
+
+	/**
+	 * Host a listen server on the specified map
+	 * 지정된 맵에서 리슨 서버를 호스팅
+	 *
+	 * @param MapName - Map to load as listen server (e.g., "InGame", "Map1")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Network")
+	void HostListenServer(const FString& MapName);
+
+	/**
+	 * Join a server at the specified address
+	 * 지정된 주소의 서버에 접속
+	 *
+	 * @param ServerAddress - Server IP:Port (e.g., "192.168.0.10:7777" or "127.0.0.1:7777")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Network")
+	void JoinServer(const FString& ServerAddress);
 };

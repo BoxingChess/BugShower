@@ -10,6 +10,7 @@
 #include "Components/SphereComponent.h"
 #include "Component/Inventory/InventoryComponent.h"
 #include "Logging/BugShowerLog.h"
+#include "Net/UnrealNetwork.h"
 
 
 void AItemActor::Spawn(const FVector pos)
@@ -57,10 +58,16 @@ void AItemActor::Spawn(const FVector pos)
 		// StaticItemInfo will be set later via InitializeItemBS_Item()
 		UE_LOG(LogTemp, Warning, TEXT("Spawn() 호출: StaticItemInfo is null (will be initialized later), Position=%s"), *pos.ToString());
 	}
+
+	// 클라이언트에 활성화 상태 리플리케이트
+	SetPoolActive(true);
 }
 
 void AItemActor::ReturnPool()
 {
+	// 클라이언트에 비활성화 상태 리플리케이트
+	SetPoolActive(false);
+
 	Deactivate(this);
 
 	// Return to pool via subsystem
@@ -82,6 +89,9 @@ void AItemActor::DeSpawn()
 {
 	// DEBUG: Log this actor being despawned
 	UE_LOG(LogTemp, Warning, TEXT("[ItemActor::DeSpawn] 🟠 Actor %p despawning"), this);
+
+	// 클라이언트에 비활성화 상태 리플리케이트
+	SetPoolActive(false);
 
 	Deactivate(this);
 
@@ -110,17 +120,41 @@ AItemActor::AItemActor()
 	MeshComponent->SetIsReplicated(true);
 	RootComponent = MeshComponent;
 
-	//CDO Setting
-	{
-		// Set collision responses
-		MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
-		MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-		MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
-		MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
-		MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
-		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
-		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
-	}
+	// Collision 설정 (생성자에서 안전함)
+	// NOTE: SetSimulatePhysics()는 BeginPlay()에서 호출 (CDO 오류 방지)
+	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
+
+	// Set collision responses
+	MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
+	MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
+	MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
+	MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
+	MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
+	MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
+
+
+	///이제 아래것을 Use Complex Collision As Simple설정 처럼 바꿀거라 주석처리를 하겠음.
+	// Create collision component (sphere for pickup detection)
+// 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
+// 	CollisionComponent->SetupAttachment(RootComponent);
+// 	CollisionComponent->InitSphereRadius(50.f);
+// 	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+// 	CollisionComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+// 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+/// =======
+// 	//CDO Setting
+// 	{
+// 		// Set collision responses
+// 		MeshComponent->SetCollisionObjectType(ECC_WorldDynamic);
+// 		MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_WorldStatic, ECR_Block);    // Block ground/walls
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);   // Block dynamic objects
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Ignore);   // Ignore other items (no item-item collision)
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);          // Ignore players (pass through!)
+// 		MeshComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);     // Block visibility trace
+// 	}
+/// >>>>>>> development
 
 }
 
@@ -129,16 +163,39 @@ void AItemActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Enable physics simulation
-	MeshComponent->SetSimulatePhysics(true);
-	MeshComponent->SetEnableGravity(true);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
+///<<<<<<< HEAD
+// ========================================
+// 물리 설정 및 시뮬레이션 활성화 (생성자에서 이동)
+// ========================================
+// 생성자에서 물리 관련 함수 호출 시 CDO 문제 발생:
+// - SetSimulatePhysics() → 물리 엔진 등록 시도
+// - SetMassOverrideInKg(), SetLinearDamping(), SetAngularDamping()
+//   → 내부적으로 GetSimplePhysicalMaterial() 호출 → GEngine 필요
+// BeginPlay()는 실제 월드에 스폰될 때만 호출되므로 안전
+	if (MeshComponent)
+	{
+		// 물리 속성 설정
+		MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
+		MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
+		MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
 
-	// Physics properties
-	MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
-	MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
-	// Physics properties
-	MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
+		// 물리 시뮬레이션 활성화
+		MeshComponent->SetSimulatePhysics(true);
+		MeshComponent->SetEnableGravity(true);
+	}
+
+/// =======
+// 	// Enable physics simulation
+// 	MeshComponent->SetSimulatePhysics(true);
+// 	MeshComponent->SetEnableGravity(true);
+// 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);  // Both query and physics
+// 
+// 	// Physics properties
+// 	MeshComponent->SetLinearDamping(2.0f);   // Damping to stop rolling quickly
+// 	MeshComponent->SetAngularDamping(2.0f);  // Angular damping to stop spinning
+// 	// Physics properties
+// 	MeshComponent->SetMassOverrideInKg(NAME_None, 0.5f);  // Light weight (0.5kg)
+/// >>>>>>> development
 
 	if (HasAuthority())
 	{
@@ -167,6 +224,92 @@ void AItemActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+}
+
+// ========================================
+// 리플리케이션 설정
+// ========================================
+void AItemActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AItemActor, bPoolActive);
+	DOREPLIFETIME(AItemActor, ItemInformation);
+}
+
+// ========================================
+// 클라이언트에서 아이템 정보 수신 시 호출
+// StaticItemInfo를 로드하여 UI에서 사용 가능하게 함
+// ========================================
+void AItemActor::OnRep_ItemInformation()
+{
+	// 클라이언트에서 StaticItemInfo 로드
+	if (ItemInformation.ItemID != 0 && !StaticItemInfo)
+	{
+		if (UGameInstance* GI = GetWorld()->GetGameInstance())
+		{
+			UItemResourceManager* ResourceManager = GI->GetSubsystem<UItemResourceManager>();
+			if (ResourceManager)
+			{
+				StaticItemInfo = ResourceManager->GetStaticItem(ItemInformation.ItemType, ItemInformation.ItemID);
+
+				// 메시와 스케일도 적용
+				if (StaticItemInfo && StaticItemInfo->WorldMesh && MeshComponent)
+				{
+					MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
+					MeshComponent->SetWorldScale3D(StaticItemInfo->WorldMeshScale);
+				}
+
+				UE_LOG(LogTemp, Log, TEXT("[ItemActor::OnRep_ItemInformation] Client loaded StaticItemInfo: ID=%d, Type=%d"),
+					ItemInformation.ItemID, (int32)ItemInformation.ItemType);
+			}
+		}
+	}
+}
+
+// ========================================
+// 클라이언트에서 풀 활성화 상태 변경 시 호출
+// ========================================
+void AItemActor::OnRep_PoolActive()
+{
+	if (bPoolActive)
+	{
+		// 활성화
+		SetActorHiddenInGame(false);
+		SetActorEnableCollision(true);
+		SetActorTickEnabled(true);
+
+		if (MeshComponent)
+		{
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		}
+	}
+	else
+	{
+		// 비활성화
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+		SetActorTickEnabled(false);
+
+		if (MeshComponent)
+		{
+			MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
+}
+
+// ========================================
+// 풀 활성화 상태 설정 (서버에서 호출)
+// ========================================
+void AItemActor::SetPoolActive(bool bActive)
+{
+	if (HasAuthority())
+	{
+		bPoolActive = bActive;
+
+		// 서버에서도 즉시 적용 (OnRep은 클라이언트에서만 호출됨)
+		OnRep_PoolActive();
+	}
 }
 
 void AItemActor::OnConstruction(const FTransform& Transform)
@@ -213,6 +356,10 @@ void AItemActor::InitializeItemBS_Item(FBS_Item& _item)
 				if (StaticItemInfo->WorldMesh && MeshComponent)
 				{
 					MeshComponent->SetStaticMesh(StaticItemInfo->WorldMesh);
+
+					// 스케일 설정 (버그 수정: 아이템 크기 줄어듦 문제)
+					// OnConstruction은 풀링된 아이템에서 호출 안 되므로 여기서 설정
+					MeshComponent->SetWorldScale3D(StaticItemInfo->WorldMeshScale);
 				}
 
 				// Set LifeSpan to 0 for dropped items (infinite - stay forever)

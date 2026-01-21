@@ -351,7 +351,9 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 	}
 
 	// DEBUG: Log actor being returned
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?�� ReturnToPoolByClass called for Actor: %p"), Actor);
+
+	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ReturnToPoolByClass called for Actor: %p"), Actor);
+
 
 	TSubclassOf<AActor> ActorClass = Actor->GetClass();
 	FPoolData* PoolData = ClassPools.Find(ActorClass);
@@ -363,7 +365,8 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 	}
 
 	// DEBUG: Log Available size before Add
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?�� Available.Num() BEFORE Add: %d"), PoolData->Available.Num());
+
+	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] Available.Num() BEFORE Add: %d"), PoolData->Available.Num());
 
 	// Deactivate before returning
 	Object->Deactivate(Actor);

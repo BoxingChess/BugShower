@@ -31,6 +31,9 @@ class BUGSHOWER_API ABSCharacterPlayer : public ABSCharacterBase
 public:
 	ABSCharacterPlayer();
 
+	// 네트워크 리플리케이션 설정
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -122,9 +125,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (EditCondition = "bAutoEquipDefaultWeapon"))
 	TObjectPtr<class UWeaponDataAsset> DefaultWeaponData;
 
-	// 현재 장착된 무기 (런타임에 자동으로 설정됨)
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	// 현재 장착된 무기 (런타임에 자동으로 설정됨, 네트워크 복제)
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon, VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<AWeaponActor> CurrentWeapon;
+
+	// CurrentWeapon 복제 시 호출되는 콜백
+	UFUNCTION()
+	void OnRep_CurrentWeapon();
 
 public:
 	/**
@@ -171,11 +178,25 @@ public:
 	void StartFireWeapon();
 
 	/**
+	 * 발사 시작 Server RPC
+	 * 클라이언트가 발사 버튼을 누르면 서버에 요청
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerStartFireWeapon();
+
+	/**
 	 * 발사 중지 (좌클릭 뗌)
 	 * CurrentWeapon의 WeaponComponent->StopFire() 호출
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void StopFireWeapon();
+
+	/**
+	 * 발사 중지 Server RPC
+	 * 클라이언트가 발사 버튼을 떼면 서버에 요청
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerStopFireWeapon();
 
 	/**
 	 * 재장전 (R키)
@@ -184,6 +205,27 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void ReloadWeapon();
+
+	/**
+	 * 재장전 Server RPC
+	 * 클라이언트가 재장전 키를 누르면 서버에 요청
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerReloadWeapon();
+
+	/**
+	 * 발사 애니메이션 Multicast RPC
+	 * 서버에서 모든 클라이언트에게 발사 애니메이션 재생 요청
+	 */
+	UFUNCTION(NetMulticast, Unreliable, Category = "Weapon")
+	void MulticastPlayFireAnimation();
+
+	/**
+	 * 재장전 애니메이션 Multicast RPC
+	 * 서버에서 모든 클라이언트에게 재장전 애니메이션 재생 요청
+	 */
+	UFUNCTION(NetMulticast, Unreliable, Category = "Weapon")
+	void MulticastPlayReloadAnimation();
 
 	/**
 	 * 현재 장착된 무기 가져오기
@@ -264,10 +306,36 @@ private:
 	void OnPlayerHPChanged(float CurrentHP, float MaxHP);
 
 	/**
+	 * 에블라 입자 변경 시 호출되는 콜백 함수
+	 * UI 업데이트 등에 사용
+	 */
+	UFUNCTION()
+	void OnPlayerAblaParticleChanged(float CurrentAblaParticle, float MaxAblaParticle);
+
+	/**
+	 * [Client RPC] 클라이언트에서 HP UI 업데이트
+	 */
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateHealthUI(float CurrentHP, float MaxHP);
+
+	/**
+	 * [Client RPC] 클라이언트에서 에블라 UI 업데이트
+	 */
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateAblaParticleUI(float CurrentAblaParticle, float MaxAblaParticle);
+
+	/**
 	 * 플레이어 사망 시 호출되는 콜백 함수
 	 */
 	UFUNCTION()
 	void OnPlayerDied();
+
+	/**
+	 * 아이템 사용 시 호출되는 콜백 함수
+	 * 실제 아이템 효과를 적용 (힐, 에블라 감소 등)
+	 */
+	UFUNCTION()
+	void OnItemUsed(const UBSStaticItemDataAsset* ItemData);
 
 	// ========================================
 	// 스탯 Getter 함수 (Coupling 방지)

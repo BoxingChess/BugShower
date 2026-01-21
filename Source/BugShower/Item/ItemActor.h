@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Net/UnrealNetwork.h"
 #include "BSItem.h"
 #include "BSStaticItemDataAsset.h"
 
@@ -39,7 +40,10 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
+	// 리플리케이션 설정
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -51,9 +55,12 @@ public:
 	const UBSStaticItemDataAsset* GetItemStaticData() const { return StaticItemInfo; }
 
 protected:
-	// Dynamic item data (runtime state)
-	UPROPERTY()
+	// Dynamic item data (runtime state) - 리플리케이트하여 클라이언트에서도 UI 표시 가능
+	UPROPERTY(ReplicatedUsing = OnRep_ItemInformation)
 	FBS_Item ItemInformation;
+
+	UFUNCTION()
+	void OnRep_ItemInformation();
 
 	// Static item data (asset reference) - Now GC safe
 	// 에디터에서 데이터 어셋을 직접 설정할 수 있습니다
@@ -63,6 +70,19 @@ protected:
 	// Flag to track if this actor came from pooling system
 	UPROPERTY()
 	bool bIsPooled = false;
+
+	// ========================================
+	// 풀 활성화 상태 (네트워크 리플리케이션)
+	// 클라이언트에서 아이템 감지 버그 수정
+	// ========================================
+	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
+	bool bPoolActive = false;
+
+	UFUNCTION()
+	void OnRep_PoolActive();
+
+	// 서버에서 호출: 풀 활성화 상태 변경
+	void SetPoolActive(bool bActive);
 
 public:
 	void SetPooled(bool bValue) { bIsPooled = bValue; }

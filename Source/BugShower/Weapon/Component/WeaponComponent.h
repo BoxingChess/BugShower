@@ -38,6 +38,13 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentWeaponData();
 
+	// UI 업데이트 (탄약 정보) - 서버에서 호출하면 Client RPC 전송
+	void UpdateAmmoUI();
+
+	// [Client RPC] 클라이언트에서 탄약 UI 업데이트
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateAmmoUI(int32 InCurrentAmmo, int32 InReserveAmmo);
+
 	// ========================================
 	// 탄약 & 재장전
 	// ========================================

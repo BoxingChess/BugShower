@@ -11,16 +11,16 @@ struct FBS_Item
 {
 	GENERATED_BODY();
 
-    //¾ÆÀÌÅÛÀÇ Á¾·ù
+    //ì•„ì´í…œì˜ íƒ€ì…
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    EItemType ItemType;
+    EItemType ItemType = EItemType::None;
 
-    //¾ÆÀÌÅÛÀÇ ID
+    //ì•„ì´í…œì˜ ID
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    uint8 ItemID;
+    uint8 ItemID = 0;
 
-    //ItemÀÇ ¼ö·®, ÀÌÈÄ InventoryStack¿¡ ½×±â À§ÇØ¼­´Â ÇØ´ç º¯¼ö¿Í ¹«°Ô¸¦ °öÇÑ °ªÀ» ³Ö´Â´Ù.
+    //Itemì˜ ìˆ˜ëŸ‰, í•˜ë‚˜ì˜ InventoryStackì— ë‹´ê¸° ìœ„í•´ì„œëŠ” í•´ë‹¹ ì•„ì´í…œ ê°œìˆ˜ë§Œ ë‹´ì„ ìˆ˜ê°€ ìˆë‹¤.
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
-    int32 Quantity;
+    int32 Quantity = 0;
 
 };

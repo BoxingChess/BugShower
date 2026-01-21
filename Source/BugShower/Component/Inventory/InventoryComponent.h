@@ -12,6 +12,9 @@
 // 인벤토리 변경 델리게이트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryChanged);
 
+// 아이템 사용 델리게이트 (ItemData를 전달하여 Character가 효과 적용)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, const UBSStaticItemDataAsset*, ItemData);
+
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class BUGSHOWER_API UInventoryComponent : public UActorComponent
 {
@@ -25,13 +28,26 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
-	// Consumable item inventory (Replicated to all clients)
-	UPROPERTY(ReplicatedUsing = OnRep_ItemInventory)
+	// ========================================
+	// 네트워크 복제 시스템
+	// ========================================
+
+	// 로컬 인벤토리 캐시 (UBSItemInstance 포함, UI/로직 사용)
+	// 서버/클라이언트 모두 사용하지만 직접 복제되지 않음
+	UPROPERTY()
 	TArray<TObjectPtr<UBSItemInstance>> ItemInventory;
 
-	// Called when ItemInventory is replicated to client
+	// 네트워크 복제용 아이템 데이터 (FBS_Item 구조체만 복제)
+	// 서버 → 클라이언트로만 전송됨
+	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedItemData)
+	TArray<FBS_Item> ReplicatedItemData;
+
+	// 클라이언트: ReplicatedItemData 받으면 ItemInventory 재구성
 	UFUNCTION()
-	void OnRep_ItemInventory();
+	void OnRep_ReplicatedItemData();
+
+	// 서버: ItemInventory 변경 시 ReplicatedItemData 업데이트
+	void SyncReplicatedData();
 
 	// Equipment slot - Weapon / Tool
 	// TODO: Implement equipment system with mesh attachment and animations
@@ -82,10 +98,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	int32 ConsumeItemByID(uint8 ItemID, int32 Amount);
 
+	/**
+	 * 소비 아이템 사용 (힐, 에블라 아이템 등)
+	 * @param ItemIndex 인벤토리에서의 아이템 인덱스
+	 * @return 사용 성공 여부
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool UseItem(int32 ItemIndex);
+
+	/**
+	 * [Server RPC] 소비 아이템 사용
+	 * @param ItemIndex 인벤토리에서의 아이템 인덱스
+	 */
+	UFUNCTION(Server, Reliable)
+	void ServerUseItem(int32 ItemIndex);
+
 public:
 	TArray<UBSItemInstance*> GetItemInventory() { return ItemInventory; };
 
 	// Delegate broadcast when inventory changes
 	UPROPERTY(BlueprintAssignable)
 	FOnInventoryChanged OnInventoryChanged;
+
+	// Delegate broadcast when item is used (Character will handle the actual effect)
+	UPROPERTY(BlueprintAssignable)
+	FOnItemUsed OnItemUsed;
 };

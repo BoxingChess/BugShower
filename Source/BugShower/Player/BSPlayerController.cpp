@@ -37,6 +37,8 @@ void ABSPlayerController::BeginPlay()
 	}
 
 	// Initialize UI Manager for this player
+	// NOTE: InitializePlayerUI 내부에서 IsLocalController() 체크가 있으므로
+	// 여기서는 체크하지 않음 (패키징 빌드 타이밍 이슈 방지)
 	UGameInstance* GameInstance = GetGameInstance();
 	if (!GameInstance)
 	{
