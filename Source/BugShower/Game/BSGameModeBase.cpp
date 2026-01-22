@@ -113,6 +113,16 @@ void ABSGameModeBase::StartPlay()
 
 		LOG_NETWORK_INFO(TEXT("Game Started! NumPlayer : %d"), BSGameState->AlivePlayerCount);
 	}
+
+	// Initialize object pools on server (after clients are ready)
+	if (HasAuthority())
+	{
+		if (UPoolingSubsystem* PoolSys = GetWorld()->GetSubsystem<UPoolingSubsystem>())
+		{
+			PoolSys->InitializePoolsFromTable();
+			LOG_NETWORK_INFO(TEXT("Pool initialized from GameMode::StartPlay()"));
+		}
+	}
 }
 
 void ABSGameModeBase::OnPlayerDied(AController* DeadPlayerController)

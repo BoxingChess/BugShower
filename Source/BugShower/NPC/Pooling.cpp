@@ -92,7 +92,11 @@ void APooling::Tick(float DeltaTime)
 			if (NavSys->GetRandomPointInNavigableRadius(SpawnLocation, SpawnRadius, RandomLocation))
 			{
 				TScriptInterface<ISpawnable> SpawnActor = PoolSys->SpawnFromClass(MonsterClass, RandomLocation);
-				LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());
+
+				if (SpawnActor)
+				{
+					LOG_LOGIC_INFO(TEXT("Monster : %s Spawned from pool"), *GetName());
+				}
 			}
 
 		}
