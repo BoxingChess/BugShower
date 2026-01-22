@@ -126,6 +126,61 @@ AMonsterProjectile::AMonsterProjectile()
 void AMonsterProjectile::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Client: Apply initial pool state (OnRep may not be called on initial replication)
+	if (!HasAuthority())
+	{
+		OnRep_PoolActive();
+	}
+}
+
+// ========================================
+// Replication
+// ========================================
+void AMonsterProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AMonsterProjectile, bPoolActive);
+}
+
+void AMonsterProjectile::OnRep_PoolActive()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[MonsterProjectile::OnRep_PoolActive] %s - bPoolActive: %s"),
+		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
+
+	if (bPoolActive)
+	{
+		// Activate visuals on client
+		SetActorHiddenInGame(false);
+		SetActorEnableCollision(true);
+
+		if (CollisionComp)
+		{
+			CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		}
+	}
+	else
+	{
+		// Deactivate visuals on client
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+
+		if (CollisionComp)
+		{
+			CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
+}
+
+void AMonsterProjectile::SetPoolActive(bool bActive)
+{
+	if (HasAuthority())
+	{
+		bPoolActive = bActive;
+		// Server also applies immediately (OnRep is only called on clients)
+		OnRep_PoolActive();
+	}
 }
 
 UPrimitiveComponent* AMonsterProjectile::GetPrimaryRenderComponent()

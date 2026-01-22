@@ -48,11 +48,14 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	void OnConstruction(const FTransform& Transform);
+
 public:
 	void InitializeItemBS_Item(FBS_Item& _item);
 
 	FBS_Item& GetItemData();
 	const UBSStaticItemDataAsset* GetItemStaticData() const { return StaticItemInfo; }
+
+
 
 protected:
 	// Dynamic item data (runtime state) - 리플리케이트하여 클라이언트에서도 UI 표시 가능
@@ -81,8 +84,9 @@ protected:
 	UFUNCTION()
 	void OnRep_PoolActive();
 
-	// 서버에서 호출: 풀 활성화 상태 변경
-	void SetPoolActive(bool bActive);
+public:
+	// ISpawnable interface
+	virtual void SetPoolActive(bool bActive) override;
 
 public:
 	void SetPooled(bool bValue) { bIsPooled = bValue; }

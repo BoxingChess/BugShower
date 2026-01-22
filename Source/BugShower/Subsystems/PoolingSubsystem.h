@@ -112,9 +112,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
 	void InitializePoolsFromConfig();
 
-	// Initialize pools from DataTable
+	// Initialize pools from DataTable - nullptr is using engine pooling default setting
 	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
-	void InitializePoolsFromTable(UDataTable* PoolConfigTable);
+	void InitializePoolsFromTable(UDataTable* PoolConfigTableParam = nullptr);
 
 protected:
 	// Calculate drops from configuration
@@ -154,9 +154,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
 	TArray<FPoolConfig> PoolConfigs;
 
-	// Alternative: DataTable for pool configurations
-	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
-	UDataTable* PoolConfigTable;
 
 	UPROPERTY(EditAnywhere, Category = "Pooling|Config")
 	bool bAutoInitializePools = true;
@@ -164,8 +161,11 @@ private:
 	UPROPERTY()
 	bool bPoolsInitialized;
 
-	// ========== Drop Management ==========
 	// DataTable containing monster drop configurations
 	UPROPERTY()
 	UDataTable* MonsterDropTable;
+
+	//DataTable for pool configurations
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
+	UDataTable* PoolConfigTable;
 };

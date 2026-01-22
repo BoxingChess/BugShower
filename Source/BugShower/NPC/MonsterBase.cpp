@@ -9,7 +9,7 @@
 #include "Logging/BugShowerLog.h"
 #include "Subsystems/PoolingSubsystem.h"
 #include "CVar/DebugDrawUtils.h"
-#include "Components/CapsuleComponent.h"  // Ä«¸Þ¶ó Ãæµ¹À» ¹æÁöÇÏ°íÀÚ Ãß°¡ÇÔ.
+#include "Components/CapsuleComponent.h"  // Ä«ï¿½Þ¶ï¿½ ï¿½æµ¹ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ï¿½ï¿½.
 
 
 
@@ -39,6 +39,10 @@ void AMonsterBase::Spawn(const FVector pos)
 	{
 		LOG_LOGIC_WARNING(TEXT("Spawn: No AI Controller found"));
 	}
+
+
+
+
 }
 
 void AMonsterBase::DeSpawn()
@@ -116,7 +120,7 @@ AMonsterBase::AMonsterBase()
 	AttackRange = 1500.f;
 	ProjectileSpeed = 1000.f;
 
-	// CapsuleÀÌ Camera Ã¤³ÎÀ» ¹«½ÃÇÏµµ·Ï ¼³Á¤ (Spring Arm°ú Ãæµ¹ ¹æÁö)
+	// Capsuleï¿½ï¿½ Camera Ã¤ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (Spring Armï¿½ï¿½ ï¿½æµ¹ ï¿½ï¿½ï¿½ï¿½)
 	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
 }
@@ -133,6 +137,17 @@ void AMonsterBase::BeginPlay()
 	}
 }
 
+void AMonsterBase::PostNetInit()
+{
+	Super::PostNetInit();
+
+	// Client: Apply pool state after network replication is complete
+	UE_LOG(LogTemp, Warning, TEXT("[MonsterBase::PostNetInit] %s - bPoolActive: %s"),
+		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
+
+	OnRep_PoolActive();
+}
+
 
 
 void AMonsterBase::PostInitializeComponents()
@@ -142,6 +157,50 @@ void AMonsterBase::PostInitializeComponents()
 
 	// Drop ID defaults to monster class name
 	MonsterDropID = FName(*GetClass()->GetName());
+}
+
+// ========================================
+// Replication
+// ========================================
+void AMonsterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	// REPNOTIFY_Always: OnRep is called even on initial replication
+	DOREPLIFETIME_CONDITION_NOTIFY(AMonsterBase, bPoolActive, COND_None, REPNOTIFY_Always);
+}
+
+void AMonsterBase::OnRep_PoolActive()
+{
+	FString msg = GetWorld()->GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server");
+
+	UE_LOG(LogTemp, Warning, TEXT("%s - [MonsterBase::OnRep_PoolActive] %s - bPoolActive: %s"),*msg,
+		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
+
+	if (bPoolActive)
+	{
+		// Activate visuals on client
+		SetActorHiddenInGame(false);
+		SetActorEnableCollision(true);
+		SetActorTickEnabled(true);
+	}
+	else
+	{
+		// Deactivate visuals on client
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+		SetActorTickEnabled(false);
+	}
+}
+
+void AMonsterBase::SetPoolActive(bool bActive)
+{
+	if (HasAuthority())
+	{
+		bPoolActive = bActive;
+		// Server also applies immediately (OnRep is only called on clients)
+		OnRep_PoolActive();
+	}
 }
 
 // Called every frame

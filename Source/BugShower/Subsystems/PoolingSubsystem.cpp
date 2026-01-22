@@ -10,6 +10,8 @@
 #include "Engine/DataTable.h"
 #include "PoolingSetting.h"
 
+
+
 void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -18,79 +20,31 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	LOG_POOLING_INFO(TEXT("Start PoolingSubsystem initialized"));
 
-	if (!GetWorld() || GetWorld()->GetNetMode() == NM_Client)
-	{
-		LOG_POOLING_INFO(TEXT("World is Null Or Client don't need to initialize"));
-		return;
-	}
-
 	// Auto-initialize pools if enabled
 	if (bAutoInitializePools)
 	{
 		const UPoolingSettings* Settings = GetDefault<UPoolingSettings>();
 
-		// Settings에서 테이블 로드 시도
-		bool bLoadedFromSettings = false;
-
-		if (!Settings->PoolConfigTable.IsNull() && !Settings->MonsterDropTable.IsNull())
+		// Settings에서 테이블 로드
+		if (!Settings->PoolConfigTable.IsNull())
 		{
-			UDataTable* PoolTable = Settings->PoolConfigTable.LoadSynchronous();
-			if (PoolTable)
-			{
-				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded PoolConfigTable from Settings: %s"), *PoolTable->GetName());
-				InitializePoolsFromTable(PoolTable);
-			}
-
-			UDataTable* DropTable = Settings->MonsterDropTable.LoadSynchronous();
-			if (DropTable)
-			{
-				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded MonsterDropTable from Settings: %s"), *DropTable->GetName());
-				SetDropConfigTable(DropTable);
-			}
-
-			bLoadedFromSettings = true;
+			PoolConfigTable = Settings->PoolConfigTable.LoadSynchronous();
 		}
 
-
-#if WITH_EDITOR
-		// Settings에서 로드 실패 시 기본 경로에서 로드
-		if (!bLoadedFromSettings)
+		if (!Settings->MonsterDropTable.IsNull())
 		{
-			UDataTable* PoolTable = LoadObject<UDataTable>(
-				nullptr,
-				TEXT("/Game/Data/DT_PoolConfig.DT_PoolConfig")
-			);
-
-			if (PoolTable)
-			{
-				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded PoolConfigTable from default path"));
-				InitializePoolsFromTable(PoolTable);
-			}
-
-			UDataTable* DropTable = LoadObject<UDataTable>(
-				nullptr,
-				TEXT("/Game/Data/DT_MonsterDrops.DT_MonsterDrops")
-			);
-
-			if (DropTable)
-			{
-				SetDropConfigTable(DropTable);
-				UE_LOG(LogTemp, Log, TEXT("[PoolingSubsystem] Loaded MonsterDropTable from default path"));
-			}
+			MonsterDropTable = Settings->MonsterDropTable.LoadSynchronous();
 		}
-#endif
+
+		LOG_POOLING_INFO(TEXT("Tables loaded - PoolConfigTable: %s, MonsterDropTable: %s"),
+			PoolConfigTable ? *PoolConfigTable->GetName() : TEXT("None"),
+			MonsterDropTable ? *MonsterDropTable->GetName() : TEXT("None"));
 	}
 }
 
 void UPoolingSubsystem::Deinitialize()
 {
-	// Clean up class-based pools
 	ClassPools.Empty();
-	LOG_POOLING_INFO(
-		TEXT("PoolingSubsystem %p | World=%s"),
-		this,
-		*GetWorld()->GetName()
-	);
 	LOG_POOLING_INFO(TEXT("PoolingSubsystem deinitialized"));
 
 	Super::Deinitialize();
@@ -174,18 +128,8 @@ bool UPoolingSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 		return false;
 	}
 
-	// 디버그: World 정보 출력
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ShouldCreateSubsystem - MapName: %s, WorldType: %d, NetMode: %d"),
-		*MapName, (int32)World->WorldType, (int32)World->GetNetMode());
-
 	// Game/PIE World에서만 생성 (Editor preview 등 제외)
 	if (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE)
-	{
-		return false;
-	}
-
-	// 클라이언트에서는 생성하지 않음
-	if (World->GetNetMode() == NM_Client)
 	{
 		return false;
 	}
@@ -216,13 +160,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 		return;
 	}
 
-	// DEBUG: Log pool registration start
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?�� RegisterPoolForClass: Creating pool for %s with size %d"), *ActorClass->GetName(), Size);
-
-	// Create new pool data
 	FPoolData NewPool;
-
-
 
 	// Spawn and initialize pool objects
 	for (int32 i = 0; i < Size; i++)
@@ -248,22 +186,16 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 				continue;
 			}
 
+			// NOTE: Do NOT set dormancy here!
+			// Clients joining after pool initialization won't receive dormant actors
+			// Use bPoolActive replication for client sync instead
+
 			Spawnable.SetInterface(InterfacePtr);
 
 			// Add to pool first
 			NewPool.All.Add(Spawnable);
 			NewPool.Available.Add(Spawnable);
-
 			InterfacePtr->Deactivate(SpawnedActor);
-			
-
-			// DEBUG: Log actor pointer added (only for first 10 items to avoid spam)
-			if (i < 10)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?�� Added Actor %p to pool (index %d)"), SpawnedActor, i);
-			}
-
-			LOG_POOLING_INFO(TEXT("Created %s object %d/%d"), *ActorClass->GetName(), i + 1, Size);
 		}
 		else
 		{
@@ -275,12 +207,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 		}
 	}
 
-	// DEBUG: Log final pool state BEFORE MoveTemp
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?�� Pool registered: All.Num()=%d, Available.Num()=%d"), NewPool.All.Num(), NewPool.Available.Num());
-
-	// Store the pool
 	ClassPools.Add(ActorClass, MoveTemp(NewPool));
-
 	LOG_POOLING_INFO(TEXT("Registered pool for class %s with %d objects"), *ActorClass->GetName(), Size);
 }
 
@@ -291,6 +218,12 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 	if (!ActorClass)
 	{
 		LOG_POOLING_ERROR(TEXT("SpawnFromClass: ActorClass is null"));
+		return TScriptInterface<ISpawnable>();
+	}
+
+	if (ClassPools.Num() == 0)
+	{
+		LOG_POOLING_ERROR(TEXT("SpawnFromClass: Pool is Empty"));
 		return TScriptInterface<ISpawnable>();
 	}
 
@@ -310,10 +243,6 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 
 	TScriptInterface<ISpawnable> Spawnable = PoolData->Available.Pop();
 
-	// DEBUG: Log Available array size after Pop and actor pointer
-	AActor* DebugActor = Cast<AActor>(Spawnable.GetObject());
-
-	// Validate the spawnable object
 	AActor* SpawnedActor = Cast<AActor>(Spawnable.GetObject());
 	if (!SpawnedActor)
 	{
@@ -332,6 +261,7 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 	SpawnableInterface->Spawn(Position);
 
 	LOG_POOLING_INFO(TEXT("Spawned %s at location: %s"), *ActorClass->GetName(), *Position.ToString());
+
 	return Spawnable;
 }
 
@@ -350,11 +280,6 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 		return;
 	}
 
-	// DEBUG: Log actor being returned
-
-	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ReturnToPoolByClass called for Actor: %p"), Actor);
-
-
 	TSubclassOf<AActor> ActorClass = Actor->GetClass();
 	FPoolData* PoolData = ClassPools.Find(ActorClass);
 
@@ -364,20 +289,8 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 		return;
 	}
 
-	// DEBUG: Log Available size before Add
-
-	// UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] Available.Num() BEFORE Add: %d"), PoolData->Available.Num());
-
-	// Deactivate before returning
 	Object->Deactivate(Actor);
-
-	// Return to available queue
 	PoolData->Available.Add(Object);
-
-	// DEBUG: Log Available size after Add
-	UE_LOG(LogTemp, Warning, TEXT("[PoolingSubsystem] ?�� Available.Num() AFTER Add: %d"), PoolData->Available.Num());
-
-	LOG_POOLING_INFO(TEXT("Returned %s to class pool"), *ActorClass->GetName());
 }
 
 void UPoolingSubsystem::ReturnAllOfClass(TSubclassOf<AActor> ActorClass)
@@ -445,7 +358,10 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 		return;
 	}
 
-	if (!PoolConfigTableParam)
+	// 파라미터가 없으면 멤버 변수 사용
+	UDataTable* TableToUse = PoolConfigTableParam ? PoolConfigTableParam : PoolConfigTable;
+
+	if (!TableToUse)
 	{
 		LOG_POOLING_ERROR(TEXT("InitializePoolsFromTable: PoolConfigTable is null"));
 		return;
@@ -454,14 +370,13 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Starting pool initialization from DataTable"));
 
 	TArray<FPoolConfigTableRow*> AllRows;
-	PoolConfigTableParam->GetAllRows<FPoolConfigTableRow>(TEXT("InitializePoolsFromTable"), AllRows);
+	TableToUse->GetAllRows<FPoolConfigTableRow>(TEXT("InitializePoolsFromTable"), AllRows);
 
 	int32 TotalPools = 0;
 	for (FPoolConfigTableRow* Row : AllRows)
 	{
 		if (!Row || !Row->ActorClass)
 		{
-			LOG_POOLING_WARNING(TEXT("InitializePoolsFromTable: Skipping invalid row"));
 			continue;
 		}
 
@@ -470,7 +385,7 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 	}
 
 	bPoolsInitialized = true;
-	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Initialized %d pools from DataTable"), TotalPools);
+	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Initialized %d pools"), TotalPools);
 }
 
 // ========== Drop Management Implementation ==========
