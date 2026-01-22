@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Net/UnrealNetwork.h"
 #include "NPC/Spawnable.h"
 #include "MonsterProjectile.generated.h"
 
@@ -19,6 +20,18 @@ public:
 	virtual UPrimitiveComponent* GetPrimaryRenderComponent() override;
 	UFUNCTION()
 	virtual void DeSpawn() override;
+	virtual void SetPoolActive(bool bActive) override;
+
+protected:
+	// Pool active state (replicated for client sync)
+	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
+	bool bPoolActive = false;
+
+	UFUNCTION()
+	void OnRep_PoolActive();
+
+	// Replication
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 
