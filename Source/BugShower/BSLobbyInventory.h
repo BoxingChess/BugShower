@@ -190,14 +190,10 @@ protected:
 	class UBorder* ItemSelect;
 	UPROPERTY(meta = (BindWidget))
 	class UOverlay* DisplayRegion;
-	UPROPERTY(meta = (BindWidget))
-	class UImage* BackGround;
+	/*UPROPERTY(meta = (BindWidget))
+	class UImage* BackGround;*/
 	UPROPERTY(meta = (BindWidget))
 	class UImage* ItemIcon;
-	UPROPERTY(meta = (BindWidget))
-	class USizeBox* NameSize;
-	UPROPERTY(meta = (BindWidget))
-	class UTextBlock* ItemName;
 
 	// 버튼 이벤트 핸들러
 	UFUNCTION()
@@ -330,13 +326,6 @@ protected:
 	// TileView 스크롤 설정
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory|Scroll")
 	float WheelScrollMultiplier = 2.0f;
-
-	// TileView 타일 설정
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory|Layout")
-	float EntryWidth = 128.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Inventory|Layout")
-	float EntryHeight = 128.0f;
 
 private:
 

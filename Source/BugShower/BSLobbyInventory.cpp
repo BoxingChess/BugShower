@@ -356,19 +356,7 @@ void UBSTileItem::UpdateDisplay()
 	TObjectPtr<const UBSStaticItemDataAsset> StaticData = ItemData->GetItemStaticData();
 	FBS_Item DynmicData = ItemData->GetItemData();
 
-	// StaticData가 nullptr인 경우 (테스트용 더미 데이터)
-	if (StaticData == nullptr)
-	{
-		// 기본 텍스트 표시
-		ItemName->SetText(FText::FromString(FString::Printf(TEXT("Test Item #%d"), DynmicData.ItemID)));
-		// 아이콘은 비워둠
-		ItemIcon->SetBrushFromTexture(nullptr);
-	}
-	else
-	{
-		ItemIcon->SetBrushFromTexture(StaticData->Icon);
-		ItemName->SetText(StaticData->DisplayName);
-	}
+	ItemIcon->SetBrushFromTexture(StaticData->Icon);
 }
 
 void UBSTileItem::OnItemClicked()
@@ -763,10 +751,6 @@ void UBSLobbyInventory::NativeConstruct()
 
 		// 마우스 휠 스크롤 속도 설정
 		Inventory->SetWheelScrollMultiplier(WheelScrollMultiplier);
-
-		// 타일 크기 설정
-		Inventory->SetEntryWidth(EntryWidth);
-		Inventory->SetEntryHeight(EntryHeight);
 	}
 
 	// GameInstance의 인벤토리 변경 델리게이트 구독
