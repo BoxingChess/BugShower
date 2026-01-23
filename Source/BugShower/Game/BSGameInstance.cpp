@@ -663,10 +663,25 @@ const int32 UBSGameInstance::GetCredit() const
 void UBSGameInstance::SetCredit(const int32 NewCredit)
 {
 	{
-		if (CurrentSaveGame) {
+		if (CurrentSaveGame) 
+		{
 			CurrentSaveGame->Credit = NewCredit;
 			OnCreditChanged.Broadcast(NewCredit);
 		}
+	}
+}
+
+const int32 UBSGameInstance::GetTicket() const
+{
+	return CurrentSaveGame ? CurrentSaveGame->RecruitmentTicket : 0;
+}
+
+void UBSGameInstance::SetTicket(const int32 NewTicket)
+{
+	if (CurrentSaveGame) 
+	{
+		CurrentSaveGame->RecruitmentTicket = NewTicket;
+		OnTicketChanged.Broadcast(NewTicket);
 	}
 }
 

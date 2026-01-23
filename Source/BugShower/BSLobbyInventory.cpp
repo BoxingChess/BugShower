@@ -224,8 +224,7 @@ void UBSClickPopUp::OnSellItems()
 		return;
 	}
 
-	//여기에 선택한 아이템을 게임 인스턴스에 전달하는 로직 추가 필요
-	int SelectAmount = FCString::Atoi(*EditingSelectCounting->GetText().ToString());
+	int32 SelectAmount = FMath::RoundToInt(CountingSlider->GetValue());
 	BSGameInstance->SellItems(ItemData, SelectAmount);
 
 	UpdateDisplay(ItemData);
@@ -263,9 +262,9 @@ void UBSClickPopUp::OnBuyItems()
 		return;
 	}
 
-	//여기에 선택한 아이템을 게임 인스턴스에 전달하는 로직 추가 필요
-	int SelectAmount = FCString::Atoi(*EditingSelectCounting->GetText().ToString());
+	int32 SelectAmount = FMath::RoundToInt(CountingSlider->GetValue());
 	BSGameInstance->BuyItems(ItemData, SelectAmount);
+	BSGameInstance->SetTicket(SelectAmount);
 
 	UpdateDisplay(ItemData);
 

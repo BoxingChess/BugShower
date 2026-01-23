@@ -56,6 +56,9 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Player")
 	int32 Credit;
 
+	UPROPERTY(VisibleAnywhere, Category = "Player")
+	int32 RecruitmentTicket;
+
 	// ========================================
 	// 추가 플레이어 데이터 (향후 확장)
 	// ========================================
