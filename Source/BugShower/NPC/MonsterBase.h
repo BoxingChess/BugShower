@@ -55,8 +55,6 @@ protected:
 	UFUNCTION()
 	void OnRep_PoolActive();
 
-	// No longer needed - use GetWorld()->GetSubsystem<UPoolingSubsystem>() instead
-	// TWeakObjectPtr<AActor> OwningPool;
 public:
 	// Sets default values for this character's properties
 	AMonsterBase();
@@ -91,6 +89,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EMonsterGrade Grade;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EAttackType Type;
 
@@ -117,7 +116,6 @@ public:
 	// Fire projectile towards target (called from BT Task)
 	void FireProjectile(AActor* Target);
 
-	// Drop item on death
 	UFUNCTION()
 	void OnDeath(AActor* DeadMonster);
 
@@ -127,12 +125,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TSubclassOf<class AMonsterProjectile> ProjectileClass;
 
-	// Drop items at monster location
 	void DropItems();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class UMonsterStatComponent* MonsterStatComp;
 
-	//need animation comp
 };
