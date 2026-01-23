@@ -175,15 +175,16 @@ bool UBSGameInstance::SavePlayerData()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Saving to slot: %s"), *SaveSlotName);
-	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Credit before save: %d"), CurrentSaveGame->Credit);
+	UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Credit before save: %d, Ticket: %d"),
+		CurrentSaveGame->Credit, CurrentSaveGame->RecruitmentTicket);
 
 	// 디스크에 저장
 	bool bSuccess = UGameplayStatics::SaveGameToSlot(CurrentSaveGame, SaveSlotName, UserIndex);
 
 	if (bSuccess)
 	{
-		UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Save successful! Saved %d items, Credit: %d"),
-			CurrentSaveGame->SavedItems.Num(), CurrentSaveGame->Credit);
+		UE_LOG(LogTemp, Log, TEXT("BSGameInstance::SavePlayerData - Save successful! Saved %d items, Credit: %d, Ticket: %d"),
+			CurrentSaveGame->SavedItems.Num(), CurrentSaveGame->Credit, CurrentSaveGame->RecruitmentTicket);
 	}
 	else
 	{

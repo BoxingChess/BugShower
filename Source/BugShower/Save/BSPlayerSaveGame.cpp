@@ -12,4 +12,5 @@ UBSPlayerSaveGame::UBSPlayerSaveGame()
 	PlayerLevel = 1;
 	PlayerExperience = 0;
 	Credit = 0;
+	RecruitmentTicket = 0;
 }
