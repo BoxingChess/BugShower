@@ -18,6 +18,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLobbyInventoryChanged, const TArr
 //플레이어 돈 변경 델리게이트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCreditChanged, const int32, NewCredit);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTicketChanged, const int32, NewTicket);
+
 
 /**
  * BugShower Game Instance
@@ -45,11 +47,6 @@ public:
 	// 인벤토리 변경 이벤트
 	// ========================================
 
-	/**
-	 * 인벤토리 변경 델리게이트
-	 * 아이템 추가/제거/사용 시 자동으로 브로드캐스트됨
-	 * UI들은 이 델리게이트를 구독하여 자동으로 갱신할 수 있음
-	 */
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
 	FOnLobbyInventoryChanged OnStorageChanged;
 
@@ -57,7 +54,10 @@ public:
 	FOnLobbyInventoryChanged OnSelectedItemsChanged;
 
 	UPROPERTY(BlueprintAssignable, Category = "Inventory")
-	FOnCreditChanged OnCreditChanged;;
+	FOnCreditChanged OnCreditChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Inventory")
+	FOnTicketChanged OnTicketChanged;
 
 private:
 	// ========================================
@@ -210,9 +210,19 @@ public:
 	void BuyItems(const UBSItemInstance* AddData,int32 Amount);
 
 
+	UFUNCTION(BlueprintCallable)
 	const int32 GetCredit() const;
 
+
+	UFUNCTION(BlueprintCallable)
 	void SetCredit(const int32 NewCredit);
+
+	
+	UFUNCTION(BlueprintCallable)
+	const int32 GetTicket() const;
+
+	UFUNCTION(BlueprintCallable)
+	void SetTicket(const int32 NewTicket);
 
 	// ========================================
 	// Network - Listen Server
