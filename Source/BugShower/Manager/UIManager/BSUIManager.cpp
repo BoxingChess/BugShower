@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "BSUIManager.h"
+#include "BSUISettings.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
@@ -55,13 +56,20 @@ void UBSUIManager::Initialize(FSubsystemCollectionBase& Collection)
 	// CSV 위치: Content/DataTables/DT_UIConfigs.csv
 	// ========================================
 
-	// UIConfigTable이 없으면 기본 경로에서 자동 로드
+	// UIConfigTable이 없으면 Project Settings에서 로드
 	if (!UIConfigTable && UIConfigs.Num() == 0)
 	{
-		UIConfigTable = LoadObject<UDataTable>(nullptr, TEXT("/Game/DataTables/DT_UIConfigs.DT_UIConfigs"));
-		if (UIConfigTable)
+		const UBSUISettings* Settings = GetDefault<UBSUISettings>();
+		if (Settings && !Settings->UIConfigTable.IsNull())
 		{
-			UE_LOG(LogTemp, Log, TEXT("BSUIManager - Auto-loaded UIConfigTable from /Game/DataTables/DT_UIConfigs"));
+			UIConfigTable = Settings->UIConfigTable.LoadSynchronous();
+			UE_LOG(LogTemp, Log, TEXT("BSUIManager - Loaded UIConfigTable from Project Settings"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("BSUIManager - UIConfigTable not set in Project Settings!"));
+			UE_LOG(LogTemp, Error, TEXT("Go to: Edit > Project Settings > Game > UI Settings"));
+			UE_LOG(LogTemp, Error, TEXT("Set UIConfigTable to your DT_UIConfigs DataTable"));
 		}
 	}
 
