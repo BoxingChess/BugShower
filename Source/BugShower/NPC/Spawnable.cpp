@@ -7,9 +7,6 @@
 
 void ISpawnable::Activate(AActor* Actor, const FVector& Position)
 {
-	// Replicate pool active state to clients
-	SetPoolActive(true);
-
 	Actor->SetActorHiddenInGame(false);
 	Actor->SetActorEnableCollision(true);
 	Actor->SetActorTickEnabled(true);
@@ -23,8 +20,8 @@ void ISpawnable::Activate(AActor* Actor, const FVector& Position)
 	Actor->SetActorLocation(SafePos, false, nullptr, ETeleportType::TeleportPhysics);
 
 	// State 복구: RootComponent (충돌) + PrimaryRenderComponent (렌더링)
-	RecreateStateIfNeeded(Cast<UPrimitiveComponent>(Actor->GetRootComponent()));
-	RecreateStateIfNeeded(GetPrimaryRenderComponent());
+	//RecreateStateIfNeeded(Cast<UPrimitiveComponent>(Actor->GetRootComponent()));
+	//RecreateStateIfNeeded(GetPrimaryRenderComponent());
 }
 
 void ISpawnable::Deactivate(AActor* Actor)
@@ -47,6 +44,7 @@ void ISpawnable::RecreateStateIfNeeded(UPrimitiveComponent* Prim)
 	if (!Prim->IsRenderStateCreated())
 	{
 		Prim->RecreateRenderState_Concurrent();
+
 	}
 	if (!Prim->IsPhysicsStateCreated())
 	{

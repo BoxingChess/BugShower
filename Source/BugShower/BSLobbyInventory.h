@@ -190,8 +190,7 @@ protected:
 	class UBorder* ItemSelect;
 	UPROPERTY(meta = (BindWidget))
 	class UOverlay* DisplayRegion;
-	/*UPROPERTY(meta = (BindWidget))
-	class UImage* BackGround;*/
+
 	UPROPERTY(meta = (BindWidget))
 	class UImage* ItemIcon;
 

@@ -9,7 +9,7 @@
 #include "Logging/BugShowerLog.h"
 #include "Engine/DataTable.h"
 #include "PoolingSetting.h"
-
+#include "Engine/World.h"
 
 
 void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -39,6 +39,8 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		LOG_POOLING_INFO(TEXT("Tables loaded - PoolConfigTable: %s, MonsterDropTable: %s"),
 			PoolConfigTable ? *PoolConfigTable->GetName() : TEXT("None"),
 			MonsterDropTable ? *MonsterDropTable->GetName() : TEXT("None"));
+
+		FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UPoolingSubsystem::OnActorsInitialized);
 	}
 }
 
@@ -48,6 +50,11 @@ void UPoolingSubsystem::Deinitialize()
 	LOG_POOLING_INFO(TEXT("PoolingSubsystem deinitialized"));
 
 	Super::Deinitialize();
+}
+
+void UPoolingSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	//InitializePoolsFromTable();
 }
 
 bool UPoolingSubsystem::FireProjectileAt(
@@ -579,4 +586,15 @@ void UPoolingSubsystem::SpawnDroppedItems(
 			LOG_POOLING_WARNING(TEXT("Failed to spawn drop item %s - pool may be empty"), *ItemClass->GetName());
 		}
 	}
+}
+
+void UPoolingSubsystem::OnActorsInitialized(const FActorsInitializedParams& Params)
+{
+	// 자신의 월드인지 확인
+	if (Params.World != GetWorld())
+	{
+		return;
+	}
+
+	InitializePoolsFromTable();
 }

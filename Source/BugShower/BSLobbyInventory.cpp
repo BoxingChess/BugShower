@@ -666,6 +666,7 @@ bool UBSTileItem::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 	UListViewBase* ItemTileView = GetOwningListView();
 	UBSLobbyInventory* ParentInventory = ItemTileView->GetTypedOuter<UBSLobbyInventory>();
 
+
 	if (!ParentInventory)
 	{
 		LOG_LOGIC_INFO(TEXT("TileItem: Could not find parent inventory"));
