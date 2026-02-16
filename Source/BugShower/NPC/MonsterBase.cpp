@@ -15,16 +15,13 @@
 
 void AMonsterBase::Spawn(const FVector pos)
 {
+	SetPoolActive(true);
 	Activate(this, pos);
 
 	MonsterStatComp->ResetHP();
 
 	AAIController* AI = Cast<AAIController>(GetController());
-	if (AI)
-	{
-		
-	}
-	else
+	if (!AI)
 	{
 		SpawnDefaultController();
 	}
@@ -43,8 +40,8 @@ void AMonsterBase::Spawn(const FVector pos)
 
 
 
-}
 
+}
 void AMonsterBase::DeSpawn()
 {
 	Deactivate(this);

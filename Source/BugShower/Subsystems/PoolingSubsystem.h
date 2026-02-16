@@ -59,6 +59,9 @@ public:
 	// USubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+	void OnActorsInitialized(const FActorsInitializedParams& Params);
 
 	// High-level API for spawning pooled objects
 	UFUNCTION(BlueprintCallable, Category = "Pooling")
