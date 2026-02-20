@@ -80,6 +80,15 @@ protected:
 	float SprintingThreshold;
 
 	// ========================================
+	// 에임 Pitch (상체 위/아래 회전)
+	// ========================================
+
+	// Controller Pitch와 Actor Rotation의 차이 (-90 ~ +90)
+	// AnimBP에서 Transform (Modify) Bone 노드에 연결하여 Spine 본 회전에 사용
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Aim")
+	float AimPitch;
+
+	// ========================================
 	// 발사 애니메이션
 	// ========================================
 public:

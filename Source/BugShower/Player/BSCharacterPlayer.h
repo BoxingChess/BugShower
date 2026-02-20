@@ -8,6 +8,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/PointLightComponent.h"
+#include "Components/PostProcessComponent.h"
 #include "EnhancedInputComponent.h"
 #include "BSCharacterTypes.h"
 
@@ -74,6 +75,29 @@ protected:
 	// First person camera
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UCameraComponent> FirstPersonCamera;
+
+	// ========================================
+	// 화면 효과 (HP 비네트, 에블라 글리치)
+	// ========================================
+
+	// 화면 효과용 PostProcess 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ScreenEffect", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UPostProcessComponent> ScreenEffectPostProcess;
+
+	// HP 비네트 효과 베이스 머티리얼 (에디터에서 M_PP_Vignette 할당)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScreenEffect")
+	TObjectPtr<UMaterialInterface> VignetteMaterial;
+
+	// 에블라 글리치 효과 베이스 머티리얼 (에디터에서 M_PP_Glitch 할당)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ScreenEffect")
+	TObjectPtr<UMaterialInterface> GlitchMaterial;
+
+	// 런타임 다이나믹 머티리얼 인스턴스
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> VignetteMID;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> GlitchMID;
 
 	// ========================================
 	// 인벤토리 3D 프리뷰용 카메라
@@ -268,22 +292,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Weapon")
 	TObjectPtr<class UInputAction> IA_ReloadWeapon;
 
-	// ========================================
-	// 수류탄 시스템 (기존 코드)
-	// ========================================
-
-public:
-	// 수류탄 발사 (우클릭 - Started)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Grenade")
-	TObjectPtr<class UInputAction> FireAction;
-
-	// Projectile class to spawn
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-	TSubclassOf<class AProjectileBase> ProjectileClass;
-
-	// 수류탄 발사 (우클릭)
-public:
-	void Fire();
 
 	// ========================================
 	// 데미지 시스템
@@ -337,6 +345,19 @@ private:
 	UFUNCTION()
 	void OnItemUsed(const UBSStaticItemDataAsset* ItemData);
 
+	// ========================================
+	// 플레이어 기본 스탯 상수
+	// ========================================
+private:
+	static constexpr float DefaultMaxHP             = 100.f;
+	static constexpr float DefaultMaxAblaParticle   = 100.f;
+	static constexpr float DefaultWalkSpeed         = 600.f;
+	static constexpr float DefaultSprintSpeed       = 900.f;
+	static constexpr int32 DefaultMaxJumpCount      = 2;
+	static constexpr float DefaultJumpPower         = 600.f;
+	static constexpr float DefaultAblaGainRate      = 0.1f;
+
+public:
 	// ========================================
 	// 스탯 Getter 함수 (Coupling 방지)
 	// ========================================
