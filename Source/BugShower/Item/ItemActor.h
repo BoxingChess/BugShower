@@ -74,20 +74,6 @@ protected:
 	UPROPERTY()
 	bool bIsPooled = false;
 
-	// ========================================
-	// 풀 활성화 상태 (네트워크 리플리케이션)
-	// 클라이언트에서 아이템 감지 버그 수정
-	// ========================================
-	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
-	bool bPoolActive = false;
-
-	UFUNCTION()
-	void OnRep_PoolActive();
-
-public:
-	// ISpawnable interface
-	virtual void SetPoolActive(bool bActive) override;
-
 public:
 	void SetPooled(bool bValue) { bIsPooled = bValue; }
 	bool IsPooled() const { return bIsPooled; }

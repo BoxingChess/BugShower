@@ -1,7 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "NPC/MonsterBase.h"
-#include "Net/UnrealNetwork.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NPC/MonsterAIController.h"
@@ -15,7 +14,6 @@
 
 void AMonsterBase::Spawn(const FVector pos)
 {
-	SetPoolActive(true);
 	Activate(this, pos);
 
 	MonsterStatComp->ResetHP();
@@ -134,18 +132,6 @@ void AMonsterBase::BeginPlay()
 	}
 }
 
-void AMonsterBase::PostNetInit()
-{
-	Super::PostNetInit();
-
-	// Client: Apply pool state after network replication is complete
-	UE_LOG(LogTemp, Warning, TEXT("[MonsterBase::PostNetInit] %s - bPoolActive: %s"),
-		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
-
-	OnRep_PoolActive();
-}
-
-
 
 void AMonsterBase::PostInitializeComponents()
 {
@@ -156,49 +142,6 @@ void AMonsterBase::PostInitializeComponents()
 	MonsterDropID = FName(*GetClass()->GetName());
 }
 
-// ========================================
-// Replication
-// ========================================
-void AMonsterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	// REPNOTIFY_Always: OnRep is called even on initial replication
-	DOREPLIFETIME_CONDITION_NOTIFY(AMonsterBase, bPoolActive, COND_None, REPNOTIFY_Always);
-}
-
-void AMonsterBase::OnRep_PoolActive()
-{
-	FString msg = GetWorld()->GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server");
-
-	UE_LOG(LogTemp, Warning, TEXT("%s - [MonsterBase::OnRep_PoolActive] %s - bPoolActive: %s"),*msg,
-		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
-
-	if (bPoolActive)
-	{
-		// Activate visuals on client
-		SetActorHiddenInGame(false);
-		SetActorEnableCollision(true);
-		SetActorTickEnabled(true);
-	}
-	else
-	{
-		// Deactivate visuals on client
-		SetActorHiddenInGame(true);
-		SetActorEnableCollision(false);
-		SetActorTickEnabled(false);
-	}
-}
-
-void AMonsterBase::SetPoolActive(bool bActive)
-{
-	if (HasAuthority())
-	{
-		bPoolActive = bActive;
-		// Server also applies immediately (OnRep is only called on clients)
-		OnRep_PoolActive();
-	}
-}
 
 // Called every frame
 void AMonsterBase::Tick(float DeltaTime)

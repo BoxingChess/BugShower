@@ -45,21 +45,10 @@ public:
 	virtual void DeSpawn() override;
 
 	virtual void ReturnPool() override;
-	virtual void SetPoolActive(bool bActive) override;
-
-protected:
-	// Pool active state (replicated for client sync)
-	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
-	bool bPoolActive = false;
-
-	UFUNCTION()
-	void OnRep_PoolActive();
 
 public:
 	// Sets default values for this character's properties
 	AMonsterBase();
-
-	virtual void PostNetInit() override;
 
 	//fixed value for monster stats
 	UPROPERTY(EditAnywhere, Category = "MeleeStat")
@@ -99,10 +88,7 @@ protected:
 
 	virtual void PostInitializeComponents() override;
 
-	// Replication
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 

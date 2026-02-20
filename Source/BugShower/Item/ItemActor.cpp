@@ -24,15 +24,9 @@ void AItemActor::Spawn(const FVector pos)
 	// IMPORTANT: Clear lifespan FIRST to prevent immediate expiration!
 	SetLifeSpan(0.0f);
 
-	// NOTE: Dormancy is not used - bPoolActive replication handles client sync
-
-
 	// For physics-enabled actors, need special handling
 	if (MeshComponent && MeshComponent->IsSimulatingPhysics())
 	{
-		// Activate() not called in this path, so call SetPoolActive directly
-		SetPoolActive(true);
-
 		// Temporarily disable physics, set location, then re-enable
 		MeshComponent->SetSimulatePhysics(false);
 		SetActorLocation(pos);
@@ -45,7 +39,6 @@ void AItemActor::Spawn(const FVector pos)
 	}
 	else
 	{
-		// Standard activation (SetPoolActive called inside Activate)
 		Activate(this, pos);
 	}
 
@@ -68,7 +61,6 @@ void AItemActor::Spawn(const FVector pos)
 
 void AItemActor::ReturnPool()
 {
-	// SetPoolActive(false) called inside Deactivate()
 	Deactivate(this);
 
 	// Return to pool via subsystem
@@ -91,7 +83,6 @@ void AItemActor::DeSpawn()
 	// DEBUG: Log this actor being despawned
 	UE_LOG(LogTemp, Warning, TEXT("[ItemActor::DeSpawn] 🟠 Actor %p despawning"), this);
 
-	// SetPoolActive(false) called inside Deactivate()
 	Deactivate(this);
 
 	// Return to pool via subsystem
@@ -194,8 +185,6 @@ void AItemActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	// REPNOTIFY_Always: OnRep is called even on initial replication
-	DOREPLIFETIME_CONDITION_NOTIFY(AItemActor, bPoolActive, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME(AItemActor, ItemInformation);
 }
 
@@ -229,55 +218,6 @@ void AItemActor::OnRep_ItemInformation()
 	}
 }
 
-// ========================================
-// 클라이언트에서 풀 활성화 상태 변경 시 호출
-// ========================================
-void AItemActor::OnRep_PoolActive()
-{
-	FString msg = GetWorld()->GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server");
-
-	UE_LOG(LogTemp, Warning, TEXT("%s - [AItemActor::OnRep_PoolActive] %s - bPoolActive: %s"), *msg,
-		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"))
-
-		if (bPoolActive)
-		{
-			// 활성화
-			SetActorHiddenInGame(false);
-			SetActorEnableCollision(true);
-			SetActorTickEnabled(true);
-
-			if (MeshComponent)
-			{
-				MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-			}
-		}
-		else
-		{
-			// 비활성화
-			SetActorHiddenInGame(true);
-			SetActorEnableCollision(false);
-			SetActorTickEnabled(false);
-
-			if (MeshComponent)
-			{
-				MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			}
-		}
-}
-
-// ========================================
-// 풀 활성화 상태 설정 (서버에서 호출)
-// ========================================
-void AItemActor::SetPoolActive(bool bActive)
-{
-	if (HasAuthority())
-	{
-		bPoolActive = bActive;
-
-		// 서버에서도 즉시 적용 (OnRep은 클라이언트에서만 호출됨)
-		OnRep_PoolActive();
-	}
-}
 
 void AItemActor::OnConstruction(const FTransform& Transform)
 {

@@ -193,10 +193,6 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 				continue;
 			}
 
-			// NOTE: Do NOT set dormancy here!
-			// Clients joining after pool initialization won't receive dormant actors
-			// Use bPoolActive replication for client sync instead
-
 			Spawnable.SetInterface(InterfacePtr);
 
 			// Add to pool first

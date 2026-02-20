@@ -26,15 +26,9 @@ void ISpawnable::Activate(AActor* Actor, const FVector& Position)
 
 void ISpawnable::Deactivate(AActor* Actor)
 {
-	// Replicate pool inactive state to clients
-	SetPoolActive(false);
-
 	Actor->SetActorHiddenInGame(true);
 	Actor->SetActorEnableCollision(false);
 	Actor->SetActorTickEnabled(false);
-
-	// NOTE: Do NOT set dormancy here!
-	// bPoolActive replication handles client sync
 }
 
 void ISpawnable::RecreateStateIfNeeded(UPrimitiveComponent* Prim)
