@@ -1040,7 +1040,6 @@ void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
 
 void ABSCharacterPlayer::ClientShowHitEffect_Implementation()
 {
-	if (!HitEffectMaterial) return;
 
 	APlayerController* PC = GetController<APlayerController>();
 	if (!PC || !PC->PlayerCameraManager) return;
