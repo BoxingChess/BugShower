@@ -46,6 +46,21 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UPoolingSubsystem::Deinitialize()
 {
+	//풀 제거
+	for (auto& [Class, PoolData] : ClassPools)
+	{
+		for (TScriptInterface<ISpawnable>& Spawnable : PoolData.All)
+		{
+			if (AActor* Actor = Cast<AActor>(Spawnable.GetObject()))
+			{
+				if (IsValid(Actor))
+				{
+					Actor->Destroy();
+				}
+			}
+		}
+	}
+
 	ClassPools.Empty();
 	LOG_POOLING_INFO(TEXT("PoolingSubsystem deinitialized"));
 
