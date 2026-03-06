@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Player/BSCharacterBase.h"
+
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
@@ -325,6 +326,12 @@ private:
 	void ClientUpdateAblaParticleUI(float CurrentAblaParticle, float MaxAblaParticle);
 
 	/**
+	 * [Client RPC] MonsterProjectile 피격 시 화면 오렌지 이펙트 재생
+	 */
+	UFUNCTION(Client, Unreliable)
+	void ClientShowHitEffect();
+
+	/**
 	 * 플레이어 사망 시 호출되는 콜백 함수
 	 */
 	UFUNCTION()
@@ -340,8 +347,8 @@ private:
 	// ========================================
 	// 스탯 Getter 함수 (Coupling 방지)
 	// ========================================
-
 public:
+
 	/**
 	 * 최대 점프 횟수 가져오기
 	 * MovementComponent가 StatComponent를 직접 알 필요 없게 하기 위한 간접 레이어
