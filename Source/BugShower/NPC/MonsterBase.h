@@ -82,6 +82,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EAttackType Type;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	uint8 bIsDashing : 1;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -102,6 +105,11 @@ public:
 	// Fire projectile towards target (called from BT Task)
 	void FireProjectile(AActor* Target);
 
+	void StartDash();
+	void StopDash();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	UFUNCTION()
 	void OnDeath(AActor* DeadMonster);
 
@@ -116,5 +124,4 @@ protected:
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class UMonsterStatComponent* MonsterStatComp;
-
 };

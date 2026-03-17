@@ -6,7 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 
 
-UMonsterBaseAnimInstance::UMonsterBaseAnimInstance() : MovingThreshould(3), DashThreshould(5), GroundSpeed(0), Velocity(FVector{ 0,0,0 }), bIsIdle(true), bIsFalling(false), bIsDash(false)
+UMonsterBaseAnimInstance::UMonsterBaseAnimInstance() : MovingThreshould(3), GroundSpeed(0), Velocity(FVector{ 0,0,0 }), bIsIdle(true), bIsWalk(false), bIsDash(false), bIsFalling(false)
 {
 
 }
@@ -14,10 +14,10 @@ UMonsterBaseAnimInstance::UMonsterBaseAnimInstance() : MovingThreshould(3), Dash
 void UMonsterBaseAnimInstance::NativeInitializeAnimation()
 {
 	Super::NativeInitializeAnimation();
-	Owner = Cast<ACharacter>(GetOwningActor());
-	if (Owner)
+	ACharacter* Character = Cast<ACharacter>(GetOwningActor());
+	if (Character)
 	{
-		Movement = Owner->GetCharacterMovement();
+		Movement = Character->GetCharacterMovement();
 	}
 }
 
@@ -25,11 +25,15 @@ void UMonsterBaseAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
-	if (Movement)
-	{
-		Velocity = Movement->Velocity;
-		GroundSpeed = Velocity.Size2D();
-		bIsIdle = GroundSpeed < MovingThreshould;
-		bIsFalling = Movement->IsFalling();
-	}
+	if (!Movement) return;
+
+	AMonsterBase* Monster = Cast<AMonsterBase>(GetOwningActor());
+	if (!Monster) return;
+
+	Velocity = Movement->Velocity;
+	GroundSpeed = Velocity.Size2D();
+	bIsDash = Monster->bIsDashing;
+	bIsWalk = !bIsDash && GroundSpeed > MovingThreshould;
+	bIsIdle = !bIsDash && !bIsWalk;
+	bIsFalling = Movement->IsFalling();
 }

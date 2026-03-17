@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "NPC/MonsterBase.h"
+#include "Net/UnrealNetwork.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "NPC/MonsterAIController.h"
@@ -100,6 +101,7 @@ AMonsterBase::AMonsterBase()
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	bIsDashing = false;
 	bReplicates = true;	//Replicate setting
 	SetReplicateMovement(true);	//sync with position
 
@@ -110,7 +112,7 @@ AMonsterBase::AMonsterBase()
 	MonsterStatComp = CreateDefaultSubobject<UMonsterStatComponent>(TEXT("MonsterStatComponent"));
 
 	// Default fixed value settings
-	DashSpeed = 600.f;
+	DashSpeed = 1600.f;
 	DashDistance = 600.f;
 	AttackRange = 1500.f;
 	ProjectileSpeed = 1000.f;
@@ -137,6 +139,7 @@ void AMonsterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
+	GetCharacterMovement()->MaxAcceleration = DashSpeed * 2.0f;
 
 	// Drop ID defaults to monster class name
 	MonsterDropID = FName(*GetClass()->GetName());
@@ -181,6 +184,24 @@ float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 	MonsterStatComp->ApplyDamage(DamageAmount);
 
 	return DamageAmount;
+}
+
+void AMonsterBase::StartDash()
+{
+	bIsDashing = true;
+	GetCharacterMovement()->MaxWalkSpeed = DashSpeed;
+}
+
+void AMonsterBase::StopDash()
+{
+	bIsDashing = false;
+	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
+}
+
+void AMonsterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AMonsterBase, bIsDashing);
 }
 
 void AMonsterBase::FireProjectile(AActor* Target)
