@@ -1,0 +1,111 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '.github/**'
+      - 'AutoPR/**'
+      - 'SETUP_GUIDE.md'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # ── Job 1: PR 설명 자동 생성 ─────────────────────────────────────────────
+  ai-description:
+    name: Generate PR Description
+    runs-on: ubuntu-latest
+    if: |
+      github.event.action == 'opened' ||
+      github.event.pull_request.body == '' ||
+      github.event.pull_request.body == null
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install anthropic requests
+
+      - name: Generate PR description
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: python scripts/ai_pr_description.py
+
+  # ── Job 2: AI 코드 리뷰 ──────────────────────────────────────────────────
+  ai-review:
+    name: Claude AI Code Review
+    runs-on: ubuntu-latest
+    needs: [ai-description]
+    if: always()
+    outputs:
+      bug_level: ${{ steps.review.outputs.bug_level }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install anthropic requests
+
+      - name: Run AI Code Review
+        id: review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python scripts/ai_review.py
+
+  # ── Job 3: 부재 시 자동 승인 & Merge ────────────────────────────────────
+  # 조건: REVIEWER_ABSENT=true + 버그 없음
+  # 재지정은 담당자가 GitHub에서 직접 수동으로 처리
+  ai-auto-approve:
+    name: Auto Approve (Reviewer Absent)
+    runs-on: ubuntu-latest
+    needs: [ai-review]
+    if: |
+      always() &&
+      vars.REVIEWER_ABSENT == 'true' &&
+      (needs.ai-review.outputs.bug_level == 'none' ||
+       needs.ai-review.outputs.bug_level == 'style')
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Auto Approve & Merge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          BUG_LEVEL: ${{ needs.ai-review.outputs.bug_level }}
+        run: python scripts/ai_auto_approve.py
