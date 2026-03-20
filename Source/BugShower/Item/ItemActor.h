@@ -4,16 +4,34 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Net/UnrealNetwork.h"
 #include "BSItem.h"
 #include "BSStaticItemDataAsset.h"
+
+#include "NPC/Spawnable.h"
+#include "ItemEnum.h"
 
 #include "ItemActor.generated.h"
 
 UCLASS()
-class BUGSHOWER_API AItemActor : public AActor
+class BUGSHOWER_API AItemActor : public AActor, public ISpawnable
 {
 	GENERATED_BODY()
-	
+
+// Interface functions
+public:
+	virtual EPoolType GetPoolType() const override { return EPoolType::Item; }
+	virtual void Spawn(const FVector pos) override;
+	virtual void ReturnPool() override;
+	virtual UPrimitiveComponent* GetPrimaryRenderComponent() override { return MeshComponent; }
+
+	//don't use super::LifeSpanExpired() in ISpawnable derived classes
+	virtual void LifeSpanExpired() override;
+
+	UFUNCTION()
+	virtual void DeSpawn() override;
+
+
 public:	
 	// Sets default values for this actor's properties
 	AItemActor();
@@ -22,28 +40,71 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:	
+	// 리플리케이션 설정
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
 	void OnConstruction(const FTransform& Transform);
+
 public:
 	void InitializeItemBS_Item(FBS_Item& _item);
 
-	FBS_Item& GetItemData() { return ItemInformation; }
+	FBS_Item& GetItemData();
 	const UBSStaticItemDataAsset* GetItemStaticData() const { return StaticItemInfo; }
 
+
+
 protected:
-	// Dynamic item data (runtime state)
-	UPROPERTY()
+	// Dynamic item data (runtime state) - 리플리케이트하여 클라이언트에서도 UI 표시 가능
+	UPROPERTY(ReplicatedUsing = OnRep_ItemInformation)
 	FBS_Item ItemInformation;
+
+	UFUNCTION()
+	void OnRep_ItemInformation();
 
 	// Static item data (asset reference) - Now GC safe
 	// 에디터에서 데이터 어셋을 직접 설정할 수 있습니다
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item")
 	TObjectPtr<const UBSStaticItemDataAsset> StaticItemInfo = nullptr;
 
+	// Flag to track if this actor came from pooling system
+	UPROPERTY()
+	bool bIsPooled = false;
+
+	// ========================================
+	// 풀 활성화 상태 (네트워크 리플리케이션)
+	// 클라이언트에서 아이템 감지 버그 수정
+	// ========================================
+	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
+	bool bPoolActive = false;
+
+	UFUNCTION()
+	void OnRep_PoolActive();
+
 public:
-	UPROPERTY(VisibleAnywhere)
+	// ISpawnable interface
+	virtual void SetPoolActive(bool bActive) override;
+
+public:
+	void SetPooled(bool bValue) { bIsPooled = bValue; }
+	bool IsPooled() const { return bIsPooled; }
+
+protected:
+	// Pickup function
+	UFUNCTION(BlueprintCallable, Category = "Item")
+	virtual void OnPickup(AActor* PickupActor);
+
+	UFUNCTION()
+	void OnOverlapBegin(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+public:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UStaticMeshComponent* MeshComponent;
+
+	//이제 아래것을 Use Complex Collision As Simple설정 처럼 바꿀거라 주석처리를 하겠다.
+	//UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	//class USphereComponent* CollisionComponent;
 };

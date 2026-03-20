@@ -9,6 +9,11 @@
 
 #include "InventoryComponent.generated.h"
 
+// ì¸ë²¤í† ë¦¬ ë³€ê²½ ë¸ë¦¬ê²Œì´íŠ¸
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInventoryChanged);
+
+// ì•„ì´í…œ ì‚¬ìš© ë¸ë¦¬ê²Œì´íŠ¸ (ItemDataë¥¼ ì „ë‹¬í•˜ì—¬ Characterê°€ íš¨ê³¼ ì ìš©)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemUsed, const UBSStaticItemDataAsset*, ItemData);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class BUGSHOWER_API UInventoryComponent : public UActorComponent
@@ -18,28 +23,104 @@ class BUGSHOWER_API UInventoryComponent : public UActorComponent
 public:
 	// Sets default values for this component's properties
 	UInventoryComponent();
+
+	// Replication setup
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 private:
-	//¼ÒºñÅÛÀÇ ÀÎº¥Åä¸® ÀÔ´Ï´Ù.
+	// ========================================
+	// ë„¤íŠ¸ì›Œí¬ ë³µì œ ì‹œìŠ¤í…œ
+	// ========================================
+
+	// ë¡œì»¬ ì¸ë²¤í† ë¦¬ ìºì‹œ (UBSItemInstance í¬í•¨, UI/ë¡œì§ ì‚¬ìš©)
+	// ì„œë²„/í´ë¼ì´ì–¸íŠ¸ ëª¨ë‘ ì‚¬ìš©í•˜ì§€ë§Œ ì§ì ‘ ë³µì œë˜ì§€ ì•ŠìŒ
 	UPROPERTY()
 	TArray<TObjectPtr<UBSItemInstance>> ItemInventory;
 
-	//ÀåºñÅÛ - ÃÑ / Ä® µî 
-	///TODO : ÀÌÈÄ ±ÙÁ¢¹«±â´Â µû·Î »©¼­ ¿ø°Å¸® ¹«±â¶ûÀº º°°³·Î µé°í´Ù´Ò¼ö ÀÖ°Ô ÇÑ´Ù. Áö±İÀº ¹«±â ±³Ã¼ ¾Ö´Ï¸ŞÀÌ¼ÇÀÌ ¾ø´Ù. 
+	// ë„¤íŠ¸ì›Œí¬ ë³µì œìš© ì•„ì´í…œ ë°ì´í„° (FBS_Item êµ¬ì¡°ì²´ë§Œ ë³µì œ)
+	// ì„œë²„ â†’ í´ë¼ì´ì–¸íŠ¸ë¡œë§Œ ì „ì†¡ë¨
+	UPROPERTY(ReplicatedUsing = OnRep_ReplicatedItemData)
+	TArray<FBS_Item> ReplicatedItemData;
+
+	// í´ë¼ì´ì–¸íŠ¸: ReplicatedItemData ë°›ìœ¼ë©´ ItemInventory ì¬êµ¬ì„±
+	UFUNCTION()
+	void OnRep_ReplicatedItemData();
+
+	// ì„œë²„: ItemInventory ë³€ê²½ ì‹œ ReplicatedItemData ì—…ë°ì´íŠ¸
+	void SyncReplicatedData();
+
+	// Equipment slot - Weapon / Tool
+	// TODO: Implement equipment system with mesh attachment and animations
 	UPROPERTY()
 	TObjectPtr<AItemActor> EquipmentItem = nullptr;
 
-	//ÀÎº¥Åä¸®³» ¾ÆÀÌÅÛµéÀÌ °¡Áú¼ö ÀÖ´Â ÃÖ´ë ¹«°Ô
+	// Maximum weight capacity
 	int32 MaxWeight = 500;
 
-	//ÇöÀç µé°íÀÖ´Â ¹«°Ô
+	// Current weight
 	int32 CurrentWeight = 0;
 public:
-	//¾ÆÀÌÅÛÀ» ÀÎº¥Åä¸® or ÀåºñÅÛ¿¡ Ãß°¡ÇÑ´Ù.
+	// Add item to inventory or equipment slot
 	void AddItem(AItemActor* DroppedActor);
 
-	//ÀÎº¥Åä¸® or ÀåºñÅÛÀ» ¹ö¸°´Ù.
-	void DiscardItem(UBSItemInstance* DroppedActor, int32 Count = 1);
+	/**
+	 * Add UBSItemInstance directly to inventory (for loading from save or selected items)
+	 * Server-only function
+	 *
+	 * @param ItemInstances - Array of item instances to add
+	 */
+	void AddItemInstances(const TArray<UBSItemInstance*>& ItemInstances);
+
+	// Discard item from inventory by index (Internal function - Do not call from client)
+	void DiscardItemByIndex(int32 ItemIndex, int32 Count = 1);
+
+	// [Server RPC] Discard item from inventory by index. Automatically synced to all clients
+	UFUNCTION(Server, Reliable)
+	void ServerDiscardItem(int32 ItemIndex, int32 Count = 1);
+
+	// Find item index in inventory
+	int32 FindItemIndex(UBSItemInstance* ItemInstance) const;
+
+	/**
+	 * íŠ¹ì • ì•„ì´í…œ IDì˜ ì´ ê°œìˆ˜ ì¡°íšŒ (íƒ„ì•½ìš©)
+	 * @param ItemID ì•„ì´í…œ ID (201=9mm, 202=5.56mm, 203=7.62mm ë“±)
+	 * @return ì¸ë²¤í† ë¦¬ì— ìˆëŠ” í•´ë‹¹ ì•„ì´í…œì˜ ì´ ê°œìˆ˜
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	int32 GetItemCountByID(uint8 ItemID) const;
+
+	/**
+	 * ì¸ë²¤í† ë¦¬ì—ì„œ ì•„ì´í…œ ì†Œë¹„ (íƒ„ì•½ìš©)
+	 * @param ItemID ì•„ì´í…œ ID
+	 * @param Amount ì†Œë¹„í•  ê°œìˆ˜
+	 * @return ì‹¤ì œë¡œ ì†Œë¹„ëœ ê°œìˆ˜ (ì¸ë²¤í† ë¦¬ì— ë¶€ì¡±í•˜ë©´ ê°€ëŠ¥í•œ ë§Œí¼ë§Œ)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	int32 ConsumeItemByID(uint8 ItemID, int32 Amount);
+
+	/**
+	 * ì†Œë¹„ ì•„ì´í…œ ì‚¬ìš© (í, ì—ë¸”ë¼ ì•„ì´í…œ ë“±)
+	 * @param ItemIndex ì¸ë²¤í† ë¦¬ì—ì„œì˜ ì•„ì´í…œ ì¸ë±ìŠ¤
+	 * @return ì‚¬ìš© ì„±ê³µ ì—¬ë¶€
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	bool UseItem(int32 ItemIndex);
+
+	/**
+	 * [Server RPC] ì†Œë¹„ ì•„ì´í…œ ì‚¬ìš©
+	 * @param ItemIndex ì¸ë²¤í† ë¦¬ì—ì„œì˜ ì•„ì´í…œ ì¸ë±ìŠ¤
+	 */
+	UFUNCTION(Server, Reliable)
+	void ServerUseItem(int32 ItemIndex);
+
 public:
 	TArray<UBSItemInstance*> GetItemInventory() { return ItemInventory; };
 
+	// Delegate broadcast when inventory changes
+	UPROPERTY(BlueprintAssignable)
+	FOnInventoryChanged OnInventoryChanged;
+
+	// Delegate broadcast when item is used (Character will handle the actual effect)
+	UPROPERTY(BlueprintAssignable)
+	FOnItemUsed OnItemUsed;
 };

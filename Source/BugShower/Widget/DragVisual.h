@@ -15,7 +15,7 @@ class BUGSHOWER_API UDragVisual : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(meta = (BindWidget))  //같은 이름의 블루프린트 위젯과 자동연결되게씀
+	UPROPERTY(meta = (BindWidget))  
     UImage* DragIcon_Img;
 
     UPROPERTY(meta = (BindWidget))

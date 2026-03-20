@@ -14,10 +14,9 @@ UPlayerStatComponent::UPlayerStatComponent()
 	CurrentHP = 100.f;
 	MaxHP = 100.f;
 
-	CurrentStamina = 100.f;
-	MaxStamina = 100.f;
-	StaminaRecoveryRate = 10.f;
-	StaminaRecoveryDelay = 2.f;
+	CurrentAblaParticle = 0.f;
+	MaxAblaParticle = 100.f;
+	AblaParticleGainRate = 0.1f;
 
 	WalkSpeed = 600.f;
 	SprintSpeed = 900.f;
@@ -29,6 +28,8 @@ UPlayerStatComponent::UPlayerStatComponent()
 	Damage = 10.f;
 	Defense = 5.f;
 
+	bIsArmed = false;
+
 	Level = 1;
 	Experience = 0;
 }
@@ -37,9 +38,9 @@ void UPlayerStatComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// HP와 스태미나를 최대치로 초기화
+	// HP는 최대치로, 에블라 입자는 0으로 초기화
 	CurrentHP = MaxHP;
-	CurrentStamina = MaxStamina;
+	CurrentAblaParticle = 0.f;
 
 	// Owner의 CharacterMovementComponent에 이동 속도 적용
 	if (ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner()))
@@ -48,6 +49,7 @@ void UPlayerStatComponent::BeginPlay()
 		{
 			MovementComp->MaxWalkSpeed = WalkSpeed;
 			MovementComp->JumpZVelocity = JumpPower;
+			UE_LOG(LogTemp, Warning, TEXT("PlayerStatComponent - MaxWalkSpeed initialized to %.1f"), WalkSpeed);
 		}
 	}
 }
@@ -56,18 +58,13 @@ void UPlayerStatComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// 스태미나 자동 회복 (서버에서만)
+	// 에블라 입자 자동 증가 (서버에서만)
 	if (GetOwner() && GetOwner()->HasAuthority())
 	{
-		if (CurrentStamina < MaxStamina)
+		if (CurrentAblaParticle < MaxAblaParticle)
 		{
-			TimeSinceLastStaminaUse += DeltaTime;
-
-			// 일정 시간 후 스태미나 회복 시작
-			if (TimeSinceLastStaminaUse >= StaminaRecoveryDelay)
-			{
-				RecoverStamina(StaminaRecoveryRate * DeltaTime);
-			}
+			// 체내에 지속적으로 쌓임
+			GainAblaParticle(AblaParticleGainRate * DeltaTime);
 		}
 	}
 }
@@ -80,9 +77,9 @@ void UPlayerStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	DOREPLIFETIME(UPlayerStatComponent, CurrentHP);
 	DOREPLIFETIME(UPlayerStatComponent, MaxHP);
 
-	// 스태미나 리플리케이션
-	DOREPLIFETIME(UPlayerStatComponent, CurrentStamina);
-	DOREPLIFETIME(UPlayerStatComponent, MaxStamina);
+	// 에블라 입자 리플리케이션
+	DOREPLIFETIME(UPlayerStatComponent, CurrentAblaParticle);
+	DOREPLIFETIME(UPlayerStatComponent, MaxAblaParticle);
 
 	// 이동 관련 스탯
 	DOREPLIFETIME(UPlayerStatComponent, WalkSpeed);
@@ -96,6 +93,7 @@ void UPlayerStatComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	// 전투 스탯
 	DOREPLIFETIME(UPlayerStatComponent, Damage);
 	DOREPLIFETIME(UPlayerStatComponent, Defense);
+	DOREPLIFETIME(UPlayerStatComponent, bIsArmed);
 
 	// 레벨 & 경험치
 	DOREPLIFETIME(UPlayerStatComponent, Level);
@@ -194,37 +192,36 @@ void UPlayerStatComponent::ResetHP()
 }
 
 // ========================================
-// 스태미나 시스템 구현
+// 에블라 입자 시스템 구현
 // ========================================
 
-void UPlayerStatComponent::OnRep_StaminaChanged()
+void UPlayerStatComponent::OnRep_AblaParticleChanged()
 {
-	// 스태미나가 변경되면 델리게이트 브로드캐스트
-	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+	// 에블라 입자가 변경되면 델리게이트 브로드캐스트
+	OnAblaParticleChanged.Broadcast(CurrentAblaParticle, MaxAblaParticle);
 }
 
-bool UPlayerStatComponent::UseStamina(float Amount)
+bool UPlayerStatComponent::ConsumeAblaParticle(float Amount)
 {
 	if (GetOwner() && !GetOwner()->HasAuthority())
 		return false;
 
-	if (CurrentStamina < Amount)
-		return false; // 스태미나 부족
+	if (CurrentAblaParticle < Amount)
+		return false; // 에블라 입자 부족
 
-	CurrentStamina = FMath::Max(CurrentStamina - Amount, 0.f);
-	TimeSinceLastStaminaUse = 0.f; // 회복 타이머 리셋
+	CurrentAblaParticle = FMath::Max(CurrentAblaParticle - Amount, 0.f);
 
-	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+	OnAblaParticleChanged.Broadcast(CurrentAblaParticle, MaxAblaParticle);
 	return true;
 }
 
-void UPlayerStatComponent::RecoverStamina(float Amount)
+void UPlayerStatComponent::GainAblaParticle(float Amount)
 {
 	if (GetOwner() && !GetOwner()->HasAuthority())
 		return;
 
-	CurrentStamina = FMath::Min(CurrentStamina + Amount, MaxStamina);
-	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+	CurrentAblaParticle = FMath::Min(CurrentAblaParticle + Amount, MaxAblaParticle);
+	OnAblaParticleChanged.Broadcast(CurrentAblaParticle, MaxAblaParticle);
 }
 
 // ========================================
@@ -264,13 +261,13 @@ void UPlayerStatComponent::LevelUp()
 
 	// 레벨업 시 스탯 증가
 	MaxHP += 10.f;
-	MaxStamina += 5.f;
+	MaxAblaParticle += 5.f;
 	Damage += 2.f;
 	Defense += 1.f;
 
-	// HP와 스태미나 전체 회복
+	// HP 전체 회복, 에블라 입자는 리셋
 	CurrentHP = MaxHP;
-	CurrentStamina = MaxStamina;
+	CurrentAblaParticle = 0.f;
 
 	UE_LOG(LogTemp, Warning, TEXT("Player leveled up to Level %d!"), Level);
 
@@ -278,14 +275,14 @@ void UPlayerStatComponent::LevelUp()
 	OnLevelUp.Broadcast(Level, 0);
 
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
-	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+	OnAblaParticleChanged.Broadcast(CurrentAblaParticle, MaxAblaParticle);
 }
 
 // ========================================
 // 초기화 함수
 // ========================================
 
-void UPlayerStatComponent::InitializeStats(float InMaxHP, float InMaxStamina, float InWalkSpeed,
+void UPlayerStatComponent::InitializeStats(float InMaxHP, float InMaxAblaParticle, float InWalkSpeed,
                                             float InSprintSpeed, int32 InMaxJumpCount, float InJumpPower)
 {
 	if (GetOwner() && !GetOwner()->HasAuthority())
@@ -295,8 +292,8 @@ void UPlayerStatComponent::InitializeStats(float InMaxHP, float InMaxStamina, fl
 	MaxHP = InMaxHP;
 	CurrentHP = InMaxHP;
 
-	MaxStamina = InMaxStamina;
-	CurrentStamina = InMaxStamina;
+	MaxAblaParticle = InMaxAblaParticle;
+	CurrentAblaParticle = 0.f;
 
 	WalkSpeed = InWalkSpeed;
 	SprintSpeed = InSprintSpeed;
@@ -316,7 +313,7 @@ void UPlayerStatComponent::InitializeStats(float InMaxHP, float InMaxStamina, fl
 
 	// UI 업데이트
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
-	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+	OnAblaParticleChanged.Broadcast(CurrentAblaParticle, MaxAblaParticle);
 }
 
 void UPlayerStatComponent::ResetAllStats()
@@ -325,8 +322,23 @@ void UPlayerStatComponent::ResetAllStats()
 		return;
 
 	CurrentHP = MaxHP;
-	CurrentStamina = MaxStamina;
+	CurrentAblaParticle = 0.f;
 
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
-	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
+	OnAblaParticleChanged.Broadcast(CurrentAblaParticle, MaxAblaParticle);
+}
+
+// ========================================
+// 전투 스탯 구현
+// ========================================
+
+void UPlayerStatComponent::SetIsArmed(bool bNewIsArmed)
+{
+	// 서버 권한 체크
+	if (GetOwner() && !GetOwner()->HasAuthority())
+		return;
+
+	bIsArmed = bNewIsArmed;
+
+	UE_LOG(LogTemp, Log, TEXT("PlayerStatComponent - SetIsArmed: %s"), bIsArmed ? TEXT("true") : TEXT("false"));
 }

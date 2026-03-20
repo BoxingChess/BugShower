@@ -10,6 +10,10 @@
 #include "TimerManager.h"
 #include "Projectile/Bullet.h"
 #include "Projectile/ProjectileBase.h"
+#include "Manager/UIManager/BSUIManager.h"
+#include "Animation/BSAnimInstance.h"
+#include "Component/Inventory/InventoryComponent.h"
+#include "Item/ItemEnum.h"
 
 UWeaponComponent::UWeaponComponent()
 {
@@ -40,8 +44,8 @@ void UWeaponComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	// 탄 퍼짐 점진적으로 감소 (시간이 지나면 정확도 회복)
 	DecreaseSpread(DeltaTime);
 
-	// 연발 모드일 때 계속 발사
-	if (bIsFiring && CurrentWeaponData && CurrentWeaponData->FireMode == EFireMode::Auto)
+	// 발사 중이면 계속 발사 (연발)
+	if (bIsFiring && CurrentWeaponData)
 	{
 		if (CanFire() && HasFireIntervalPassed())
 		{
@@ -58,12 +62,89 @@ void UWeaponComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 	DOREPLIFETIME(UWeaponComponent, CurrentAmmo);
 	DOREPLIFETIME(UWeaponComponent, ReserveAmmo);
 	DOREPLIFETIME(UWeaponComponent, bIsReloading);
+	DOREPLIFETIME(UWeaponComponent, bIsFiring);  // 발사 상태 동기화
 }
 
 void UWeaponComponent::OnRep_CurrentWeaponData()
 {
 	// 무기 데이터가 변경됨 (WeaponActor에서 메쉬 업데이트 처리)
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::OnRep_CurrentWeaponData - Weapon data replicated"));
+	FString NetRole = GetOwner() ? (GetOwner()->HasAuthority() ? TEXT("[Server]") : TEXT("[Client]")) : TEXT("[Unknown]");
+	UE_LOG(LogTemp, Warning, TEXT("%s OnRep_CurrentWeaponData - Weapon data replicated"), *NetRole);
+
+	// 클라이언트에서 인벤토리 델리게이트 바인딩 (서버는 EquipWeapon에서 이미 처리함)
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s   Setting up client delegate binding..."), *NetRole);
+
+		AActor* WeaponActor = GetOwner();
+		if (WeaponActor)
+		{
+			AActor* Character = WeaponActor->GetOwner();
+			if (Character)
+			{
+				UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>();
+				if (InventoryComp)
+				{
+					// 인벤토리 변경 시 UI 업데이트하도록 델리게이트 바인딩
+					if (!InventoryComp->OnInventoryChanged.IsAlreadyBound(this, &UWeaponComponent::UpdateAmmoUI))
+					{
+						InventoryComp->OnInventoryChanged.AddDynamic(this, &UWeaponComponent::UpdateAmmoUI);
+						UE_LOG(LogTemp, Warning, TEXT("%s   Bound to OnInventoryChanged delegate"), *NetRole);
+					}
+					// UI 업데이트는 OnRep_ReplicatedItemData에서 델리게이트 브로드캐스트로 자동 처리됨
+				}
+			}
+		}
+	}
+}
+
+void UWeaponComponent::UpdateAmmoUI()
+{
+	// WeaponActor → Character 찾기
+	AActor* WeaponActor = GetOwner();
+	if (!WeaponActor)
+	{
+		return;
+	}
+
+	APawn* Character = Cast<APawn>(WeaponActor->GetOwner());
+	if (!Character)
+	{
+		return;
+	}
+
+	int32 ReserveAmmoCount = GetReserveAmmo();
+
+	// 서버: Client RPC로 해당 클라이언트에게만 전송
+	if (Character->HasAuthority())
+	{
+		ClientUpdateAmmoUI(CurrentAmmo, ReserveAmmoCount);
+	}
+	// 클라이언트: 로컬 플레이어라면 직접 UI 업데이트 (델리게이트 콜백용)
+	else if (Character->IsLocallyControlled())
+	{
+		if (UGameInstance* GI = GetWorld()->GetGameInstance())
+		{
+			if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+			{
+				UIManager->UpdateAmmoUI(CurrentAmmo, ReserveAmmoCount);
+				UE_LOG(LogTemp, Log, TEXT("[Client Local] Ammo UI Updated: %d/%d"), CurrentAmmo, ReserveAmmoCount);
+			}
+		}
+	}
+}
+
+void UWeaponComponent::ClientUpdateAmmoUI_Implementation(int32 InCurrentAmmo, int32 InReserveAmmo)
+{
+	// 클라이언트에서만 실행됨 (서버가 호출)
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(InCurrentAmmo, InReserveAmmo);
+			UE_LOG(LogTemp, Log, TEXT("[Client] Ammo UI Updated: %d/%d"), InCurrentAmmo, InReserveAmmo);
+		}
+	}
 }
 
 // ========================================
@@ -84,16 +165,48 @@ void UWeaponComponent::EquipWeapon(UWeaponDataAsset* WeaponData, int32 AmmoCount
 		UnequipWeapon();
 	}
 
+	// 서버/클라이언트 구분
+	FString NetRole = GetOwner() ? (GetOwner()->HasAuthority() ? TEXT("[Server]") : TEXT("[Client]")) : TEXT("[Unknown]");
+
 	// 새 무기 설정
 	CurrentWeaponData = WeaponData;
 	CurrentAmmo = WeaponData->MagSize;  // 탄창 가득 채움
-	ReserveAmmo = AmmoCount;
+	// ReserveAmmo는 이제 GetReserveAmmo()로 인벤토리에서 실시간 조회
 	bIsReloading = false;
 	bIsFiring = false;
 	CurrentSpreadAngle = 0.0f;
 
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::EquipWeapon - Equipped %s (Ammo: %d/%d)"),
-		*WeaponData->WeaponName.ToString(), CurrentAmmo, ReserveAmmo);
+	UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
+	UE_LOG(LogTemp, Warning, TEXT("%s WeaponComponent::EquipWeapon - START"), *NetRole);
+	UE_LOG(LogTemp, Warning, TEXT("%s   Weapon: %s"), *NetRole, *WeaponData->WeaponName.ToString());
+	UE_LOG(LogTemp, Warning, TEXT("%s   MagSize: %d"), *NetRole, WeaponData->MagSize);
+	UE_LOG(LogTemp, Warning, TEXT("%s   CurrentAmmo (탄창): %d"), *NetRole, CurrentAmmo);
+
+	// GetReserveAmmo() 호출 전 로그
+	UE_LOG(LogTemp, Warning, TEXT("%s   Calling GetReserveAmmo()..."), *NetRole);
+	int32 ReserveAmmoCount = GetReserveAmmo();
+	UE_LOG(LogTemp, Warning, TEXT("%s   ReserveAmmo (인벤토리): %d"), *NetRole, ReserveAmmoCount);
+	UE_LOG(LogTemp, Warning, TEXT("%s   Final: %d/%d"), *NetRole, CurrentAmmo, ReserveAmmoCount);
+	UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
+
+	// UI 업데이트 (UpdateAmmoUI가 Client RPC 전송)
+	UpdateAmmoUI();
+
+	// 인벤토리 변경 델리게이트 바인딩 (탄약 아이템 픽업/드롭 시 UI 업데이트)
+	if (AActor* WeaponActor = GetOwner())
+	{
+		if (AActor* Character = WeaponActor->GetOwner())
+		{
+			if (UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>())
+			{
+				// 이미 바인딩되어 있으면 제거 후 재바인딩 (중복 방지)
+				InventoryComp->OnInventoryChanged.RemoveDynamic(this, &UWeaponComponent::HandleInventoryChanged);
+				InventoryComp->OnInventoryChanged.AddDynamic(this, &UWeaponComponent::HandleInventoryChanged);
+
+				UE_LOG(LogTemp, Log, TEXT("WeaponComponent::EquipWeapon - Bound to OnInventoryChanged delegate"));
+			}
+		}
+	}
 }
 
 void UWeaponComponent::UnequipWeapon()
@@ -106,6 +219,19 @@ void UWeaponComponent::UnequipWeapon()
 	// 발사 중지
 	StopFire();
 
+	// 인벤토리 변경 델리게이트 언바인딩
+	if (AActor* WeaponActor = GetOwner())
+	{
+		if (AActor* Character = WeaponActor->GetOwner())
+		{
+			if (UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>())
+			{
+				InventoryComp->OnInventoryChanged.RemoveDynamic(this, &UWeaponComponent::HandleInventoryChanged);
+				UE_LOG(LogTemp, Log, TEXT("WeaponComponent::UnequipWeapon - Unbound from OnInventoryChanged delegate"));
+			}
+		}
+	}
+
 	// 재장전 타이머 정리
 	if (GetWorld())
 	{
@@ -115,7 +241,7 @@ void UWeaponComponent::UnequipWeapon()
 	// 데이터 초기화
 	CurrentWeaponData = nullptr;
 	CurrentAmmo = 0;
-	ReserveAmmo = 0;
+	// ReserveAmmo는 이제 인벤토리에서 조회하므로 초기화 불필요
 	bIsReloading = false;
 	bIsFiring = false;
 	CurrentSpreadAngle = 0.0f;
@@ -136,23 +262,18 @@ void UWeaponComponent::StartFire()
 	}
 
 	bIsFiring = true;
-	CurrentBurstCount = 0;
 
-	// 단발/점사 모드는 즉시 발사
-	if (CurrentWeaponData->FireMode == EFireMode::Single || CurrentWeaponData->FireMode == EFireMode::Burst)
+	// 즉시 1발 발사
+	if (CanFire())
 	{
-		if (CanFire())
-		{
-			Fire();
-		}
+		Fire();
 	}
-	// 연발 모드는 Tick에서 처리
+	// 이후 연발은 Tick에서 처리
 }
 
 void UWeaponComponent::StopFire()
 {
 	bIsFiring = false;
-	CurrentBurstCount = 0;
 }
 
 bool UWeaponComponent::CanFire() const
@@ -259,19 +380,13 @@ void UWeaponComponent::Fire()
 	// 반동 적용
 	ApplyRecoil();
 
-	// 점사 모드 처리
-	if (CurrentWeaponData->FireMode == EFireMode::Burst)
-	{
-		CurrentBurstCount++;
-		if (CurrentBurstCount >= CurrentWeaponData->BurstCount)
-		{
-			// 점사 완료
-			bIsFiring = false;
-			CurrentBurstCount = 0;
-		}
-	}
+	// 발사 애니메이션 재생
+	PlayFireAnimation();
 
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Fire - Fired! (Ammo: %d/%d)"), CurrentAmmo, ReserveAmmo);
+	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Fire - Fired! (Ammo: %d/%d)"), CurrentAmmo, GetReserveAmmo());
+
+	// UI 업데이트 (Client RPC로 해당 플레이어에게만 전송)
+	UpdateAmmoUI();
 }
 
 bool UWeaponComponent::FireSingleTrace()
@@ -310,19 +425,19 @@ bool UWeaponComponent::FireSingleTrace()
 		QueryParams
 	);
 
-	// 디버그 라인 그리기 (개발 빌드에서만)
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	DrawDebugLine(
-		GetWorld(),
-		Start,
-		bHit ? HitResult.ImpactPoint : End,
-		bHit ? FColor::Red : FColor::Green,
-		false,
-		0.5f,
-		0,
-		1.0f
-	);
-#endif
+	/// 디버그 라인 그리기 (개발 빌드에서만)
+//#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+//	DrawDebugLine(
+//		GetWorld(),
+//		Start,
+//		bHit ? HitResult.ImpactPoint : End,
+//		bHit ? FColor::Red : FColor::Green,
+//		false,
+//		0.5f,
+//		0,
+//		1.0f
+//	);
+//#endif
 
 	// 명중 처리
 	if (bHit)
@@ -397,8 +512,8 @@ bool UWeaponComponent::FireSingleProjectile()
 	FVector Direction = GetFireDirection();
 
 	// 프로젝타일 스폰 위치와 회전
-	// 캐릭터 앞 100cm에서 스폰하여 자기 자신과 충돌 방지
-	FVector SpawnLocation = Start + (Direction * 100.0f);
+	// 총구 위치에서 바로 스폰 (SpawnParams에서 Owner Ignore 설정으로 충돌 방지)
+	FVector SpawnLocation = Start;
 	FRotator SpawnRotation = Direction.Rotation();
 
 	// 스폰 파라미터
@@ -467,18 +582,8 @@ FVector UWeaponComponent::GetFireStartLocation() const
 		return FVector::ZeroVector;
 	}
 
-	// 카메라 중심에서 발사 (FPS 스타일 - 정확한 조준)
-	if (CurrentWeaponData->FireOrigin == EFireOrigin::Camera)
-	{
-		UCameraComponent* Camera = GetOwnerCamera();
-		if (Camera)
-		{
-			// 카메라 위치 반환
-			return Camera->GetComponentLocation();
-		}
-	}
-
-	// 총구에서 발사 (TPS 스타일 - 시각적으로 정확)
+	// TPS 방식: 항상 총구에서 발사 (시각적 일관성)
+	// 방향은 GetFireDirection()에서 카메라 조준점을 향하도록 계산됨
 	USkeletalMeshComponent* WeaponMesh = GetWeaponMesh();
 	if (WeaponMesh)
 	{
@@ -488,8 +593,14 @@ FVector UWeaponComponent::GetFireStartLocation() const
 			return WeaponMesh->GetSocketLocation(CurrentWeaponData->MuzzleSocketName);
 		}
 
-		// 소켓이 없으면 무기 끝점 사용
-		return WeaponMesh->GetComponentLocation();
+		// 소켓이 없으면 MuzzleOffset 사용 (무기 기준 상대 좌표, Scale 적용!)
+		FVector WeaponLoc = WeaponMesh->GetComponentLocation();
+		FRotator WeaponRot = WeaponMesh->GetComponentRotation();
+		FVector WeaponScale = WeaponMesh->GetComponentScale();
+
+		// MuzzleOffset에 메쉬 Scale 적용
+		FVector ScaledOffset = CurrentWeaponData->MuzzleOffset * WeaponScale;
+		return WeaponLoc + WeaponRot.RotateVector(ScaledOffset);
 	}
 
 	// 폴백: WeaponActor 위치
@@ -508,24 +619,58 @@ FVector UWeaponComponent::GetFireDirection() const
 		return FVector::ForwardVector;
 	}
 
-	// 카메라 방향 가져오기
+	// TPS 방식: 카메라 레이캐스트로 조준점 찾기 → 총구에서 조준점으로 방향 계산
+
+	// 1. 카메라에서 레이캐스트로 조준점 찾기
 	UCameraComponent* Camera = GetOwnerCamera();
-	FVector Direction = FVector::ForwardVector;
+	FVector TargetPoint;
 
 	if (Camera)
 	{
-		Direction = Camera->GetForwardVector();
+		FVector CameraLoc = Camera->GetComponentLocation();
+		FVector CameraForward = Camera->GetForwardVector();
+		FVector TraceEnd = CameraLoc + (CameraForward * CurrentWeaponData->MaxRange);
+
+		// 레이캐스트 설정
+		FHitResult Hit;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(GetOwner());  // WeaponActor 무시
+		if (ACharacter* OwnerChar = GetOwnerCharacter())
+		{
+			Params.AddIgnoredActor(OwnerChar);  // 캐릭터 무시
+		}
+
+		// 레이캐스트 실행
+		bool bHit = GetWorld()->LineTraceSingleByChannel(
+			Hit, CameraLoc, TraceEnd, ECC_Visibility, Params
+		);
+
+		// 조준점: 히트 지점 또는 최대사거리 끝
+		TargetPoint = bHit ? Hit.Location : TraceEnd;
 	}
-	else if (ACharacter* OwnerChar = GetOwnerCharacter())
+	else
 	{
-		Direction = OwnerChar->GetActorForwardVector();
-	}
-	else if (AActor* OwnerActor = GetOwner())
-	{
-		Direction = OwnerActor->GetActorForwardVector();
+		// 카메라 없으면 폴백: 캐릭터 또는 Actor 방향
+		FVector FallbackDirection = FVector::ForwardVector;
+		if (ACharacter* OwnerChar = GetOwnerCharacter())
+		{
+			FallbackDirection = OwnerChar->GetActorForwardVector();
+		}
+		else if (AActor* OwnerActor = GetOwner())
+		{
+			FallbackDirection = OwnerActor->GetActorForwardVector();
+		}
+
+		// 총구 위치에서 앞으로
+		FVector MuzzleLoc = GetFireStartLocation();
+		TargetPoint = MuzzleLoc + (FallbackDirection * CurrentWeaponData->MaxRange);
 	}
 
-	// 탄 퍼짐 계산
+	// 2. 총구에서 조준점으로 방향 계산
+	FVector MuzzleLoc = GetFireStartLocation();
+	FVector Direction = (TargetPoint - MuzzleLoc).GetSafeNormal();
+
+	// 3. 탄 퍼짐 계산
 	float SpreadAngle = CalculateCurrentSpread();
 
 	// 산탄총은 별도의 퍼짐 각도 사용
@@ -534,7 +679,7 @@ FVector UWeaponComponent::GetFireDirection() const
 		SpreadAngle = CurrentWeaponData->ShotgunSpreadAngle;
 	}
 
-	// 방향에 랜덤 퍼짐 추가
+	// 4. 방향에 랜덤 퍼짐 추가
 	return AddSpreadToDirection(Direction, SpreadAngle);
 }
 
@@ -719,7 +864,7 @@ void UWeaponComponent::Reload()
 	}
 
 	// 예비 탄약이 없으면 무시
-	if (ReserveAmmo <= 0)
+	if (GetReserveAmmo() <= 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::Reload - No reserve ammo!"));
 		return;
@@ -749,7 +894,10 @@ void UWeaponComponent::Reload()
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::Reload - Reloading... (%.1f seconds)"), CurrentWeaponData->ReloadTime);
 
-	// TODO: 재장전 애니메이션/사운드 재생
+	// 재장전 애니메이션 재생
+	PlayReloadAnimation();
+
+	// TODO: 재장전 사운드 재생
 }
 
 void UWeaponComponent::OnReloadComplete()
@@ -763,32 +911,89 @@ void UWeaponComponent::OnReloadComplete()
 	// 필요한 탄약 수 계산
 	int32 AmmoNeeded = CurrentWeaponData->MagSize - CurrentAmmo;
 
-	// 예비 탄약에서 가져올 수 있는 만큼 가져옴
-	int32 AmmoToReload = FMath::Min(AmmoNeeded, ReserveAmmo);
+	// 예비 탄약(인벤토리)에서 가져올 수 있는 만큼 가져옴
+	int32 AmmoToReload = FMath::Min(AmmoNeeded, GetReserveAmmo());
 
-	// 탄약 이동
+	// 탄약 이동 (탄창에 추가)
 	CurrentAmmo += AmmoToReload;
-	ReserveAmmo -= AmmoToReload;
+
+	// 인벤토리에서 탄약 소비 (서버에서만 실행)
+	// WeaponActor의 Owner가 Character임
+	if (AActor* WeaponActor = GetOwner())
+	{
+		// 데디서버 환경: 서버에서만 인벤토리 소비 (Replicated ItemInventory가 클라이언트로 전파됨)
+		if (WeaponActor->HasAuthority())
+		{
+			if (AActor* Character = WeaponActor->GetOwner())
+			{
+				if (UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>())
+				{
+					// AmmoType을 ItemID로 변환
+					uint8 AmmoItemID = AmmoTypeToItemID(CurrentWeaponData->AmmoType);
+
+					if (AmmoItemID != 0)
+					{
+						// 인벤토리에서 실제로 탄약 소비
+						int32 ConsumedAmount = InventoryComp->ConsumeItemByID(AmmoItemID, AmmoToReload);
+
+						if (ConsumedAmount != AmmoToReload)
+						{
+							UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::OnReloadComplete - Consumed %d ammo from inventory, expected %d"),
+								ConsumedAmount, AmmoToReload);
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// 재장전 완료
 	bIsReloading = false;
 
 	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::OnReloadComplete - Reload complete! (Ammo: %d/%d)"),
-		CurrentAmmo, ReserveAmmo);
+		CurrentAmmo, GetReserveAmmo());
+
+	// UI 업데이트 (Client RPC로 해당 플레이어에게만 전송)
+	UpdateAmmoUI();
 
 	// TODO: 재장전 완료 사운드 재생
 }
 
+void UWeaponComponent::HandleInventoryChanged()
+{
+	// 인벤토리가 변경되었을 때 UI만 업데이트
+	// (탄약 아이템을 먹거나 버렸을 때)
+	if (!CurrentWeaponData)
+	{
+		return;  // 무기가 장착되지 않았으면 무시
+	}
+
+	// UpdateAmmoUI()에서 IsLocallyControlled 체크 및 UI 업데이트 수행
+	UpdateAmmoUI();
+}
+
 void UWeaponComponent::AddAmmo(int32 Amount)
 {
+	// [DEPRECATED] 이 함수는 더 이상 사용되지 않습니다.
+	// 탄약은 이제 InventoryComponent에서 관리되므로,
+	// 인벤토리에 직접 아이템을 추가해야 합니다.
+	// UI 업데이트만 수행합니다.
+
+	UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::AddAmmo - [DEPRECATED] This function is deprecated. Please add ammo items directly to InventoryComponent instead."));
+
 	if (Amount <= 0)
 	{
 		return;
 	}
 
-	ReserveAmmo += Amount;
-
-	UE_LOG(LogTemp, Log, TEXT("WeaponComponent::AddAmmo - Added %d ammo (Total: %d)"), Amount, ReserveAmmo);
+	// UI 업데이트 (인벤토리에서 실시간 조회)
+	if (UGameInstance* GI = GetWorld()->GetGameInstance())
+	{
+		if (UBSUIManager* UIManager = GI->GetSubsystem<UBSUIManager>())
+		{
+			UIManager->UpdateAmmoUI(CurrentAmmo, GetReserveAmmo());
+		}
+	}
 }
 
 // ========================================
@@ -831,4 +1036,127 @@ UCameraComponent* UWeaponComponent::GetOwnerCamera() const
 
 	// 캐릭터의 카메라 컴포넌트 찾기
 	return OwnerChar->FindComponentByClass<UCameraComponent>();
+}
+
+// ========================================
+// 애니메이션 재생
+// ========================================
+
+void UWeaponComponent::PlayFireAnimation()
+{
+	ACharacter* OwnerChar = GetOwnerCharacter();
+	if (!OwnerChar || !OwnerChar->GetMesh())
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	// BSAnimInstance로 캐스팅하여 PlayFireMontage 호출
+	if (UBSAnimInstance* BSAnim = Cast<UBSAnimInstance>(AnimInstance))
+	{
+		BSAnim->PlayFireMontage();
+	}
+}
+
+void UWeaponComponent::PlayReloadAnimation()
+{
+	ACharacter* OwnerChar = GetOwnerCharacter();
+	if (!OwnerChar || !OwnerChar->GetMesh())
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	// BSAnimInstance로 캐스팅하여 PlayReloadMontage 호출
+	if (UBSAnimInstance* BSAnim = Cast<UBSAnimInstance>(AnimInstance))
+	{
+		BSAnim->PlayReloadMontage();
+	}
+}
+
+// ========================================
+// Helper Functions
+// ========================================
+
+/**
+ * AmmoType을 ItemID로 변환 (InventoryComponent와 통신용)
+ */
+uint8 UWeaponComponent::AmmoTypeToItemID(EAmmoType AmmoType)
+{
+	switch (AmmoType)
+	{
+		case EAmmoType::Ammo_9mm:
+			return static_cast<uint8>(EConsumableID::Ammunition_9mm);  // 201
+		case EAmmoType::Ammo_556mm:
+			return static_cast<uint8>(EConsumableID::Ammunition_5_56mm);  // 202
+		case EAmmoType::Ammo_762mm:
+			return static_cast<uint8>(EConsumableID::Ammunition_7_62mm);  // 203
+		// 12Gauge, 45ACP는 나중에 추가 가능
+		default:
+			UE_LOG(LogTemp, Warning, TEXT("WeaponComponent::AmmoTypeToItemID - Unknown AmmoType: %d"), static_cast<int32>(AmmoType));
+			return 0;  // 매핑 없음
+	}
+}
+
+/**
+ * 예비 탄약 조회 (인벤토리에서 실시간 조회)
+ * 이제 ReserveAmmo 멤버 변수를 사용하지 않고, 항상 인벤토리에서 조회
+ */
+int32 UWeaponComponent::GetReserveAmmo() const
+{
+	// 서버/클라이언트 구분
+	FString NetRole = GetOwner() ? (GetOwner()->HasAuthority() ? TEXT("[Server]") : TEXT("[Client]")) : TEXT("[Unknown]");
+
+	if (!CurrentWeaponData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - CurrentWeaponData is null!"), *NetRole);
+		return 0;
+	}
+
+	// Owner (WeaponActor)의 Owner (Character)에서 InventoryComponent 찾기
+	AActor* WeaponActor = GetOwner();
+	if (!WeaponActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - WeaponActor is null!"), *NetRole);
+		return 0;
+	}
+
+	AActor* Character = WeaponActor->GetOwner();
+	if (!Character)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - Character is null!"), *NetRole);
+		return 0;
+	}
+
+	UInventoryComponent* InventoryComp = Character->FindComponentByClass<UInventoryComponent>();
+	if (!InventoryComp)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - InventoryComponent not found!"), *NetRole);
+		return 0;
+	}
+
+	// AmmoType을 ItemID로 변환
+	uint8 AmmoItemID = AmmoTypeToItemID(CurrentWeaponData->AmmoType);
+	if (AmmoItemID == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("%s GetReserveAmmo - AmmoItemID is 0 for AmmoType: %d"), *NetRole, static_cast<int32>(CurrentWeaponData->AmmoType));
+		return 0;
+	}
+
+	// 인벤토리에서 탄약 개수 조회
+	int32 AmmoCount = InventoryComp->GetItemCountByID(AmmoItemID);
+	UE_LOG(LogTemp, Log, TEXT("%s GetReserveAmmo - AmmoType: %d, ItemID: %d, Count: %d"),
+		*NetRole, static_cast<int32>(CurrentWeaponData->AmmoType), AmmoItemID, AmmoCount);
+
+	return AmmoCount;
 }

@@ -25,9 +25,9 @@ enum class EWidgetBehavior : uint8
 UENUM(BlueprintType)
 enum class EUIInputMode : uint8
 {
-	GameOnly,			// 게임만 (일반 플레이) - 마우스 숨김, 캐릭터 조작 가능
-	GameAndUI,			// 게임 + UI (인벤토리 등) - 마우스 표시, 캐릭터 조작 + UI 클릭 가능
-	UIOnly				// UI만 (메인 메뉴 등) - 마우스 표시, 캐릭터 조작 불가, UI만 조작
+	GameOnly UMETA(DisplayName = "Game Only", ToolTip = "게임만 (일반 플레이) - 마우스 숨김, 캐릭터 조작 가능"),
+	GameAndUI UMETA(DisplayName = "Game and UI", ToolTip = "게임 + UI (인벤토리 등) - 마우스 표시, 캐릭터 조작 + UI 클릭 가능"),
+	UIOnly UMETA(DisplayName = "UI Only", ToolTip = "UI만 (메인 메뉴 등) - 마우스 표시, 캐릭터 조작 불가, UI만 조작")
 };
 
 /**
@@ -66,12 +66,17 @@ struct FBSWidgetConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	EUIInputMode InputMode = EUIInputMode::GameOnly;
 
+	// Viewport 추가 여부 - false면 생성만 하고 AddToViewport() 호출 안 함 (툴팁용)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	bool bAddToViewport = true;
+
 	FBSWidgetConfig()
 		: WidgetClass(nullptr)
 		, ZOrder(0)
 		, Behavior(EWidgetBehavior::Toggle)
 		, bRequiresMouseCursor(false)
 		, InputMode(EUIInputMode::GameOnly)
+		, bAddToViewport(true)
 	{}
 };
 
@@ -127,4 +132,69 @@ namespace BSUINames
 	const FName Crosshair = TEXT("Crosshair");
 	const FName PickupPrompt = TEXT("PickupPrompt");
 	const FName Map = TEXT("Map");
+	const FName AmmoDisplay = TEXT("AmmoDisplay");
 }
+
+/**
+ * UI Config Name 상수 정의
+ *
+ * 용도: UI Config 이름을 문자열 대신 상수로 사용하여 오타 방지
+ * 사용: UIManager->SwitchUIConfig(BSUIConfigNames::InGame);
+ *
+ * 예시:
+ * - Default: 기본 UI (하위 호환용)
+ * - InGame: 인게임 UI (HealthBar, AmmoDisplay, Crosshair)
+ * - Lobby: 로비 UI (PlayerList, ChatBox, ReadyButton)
+ * - Result: 결과 화면 UI (ScoreBoard, Stats)
+ */
+namespace BSUIConfigNames
+{
+	const FName Default = TEXT("Default");
+	const FName InGame = TEXT("InGame");
+	const FName Lobby = TEXT("Lobby");
+	const FName Result = TEXT("Result");
+}
+
+/**
+ * UI Config 테이블 Row (CSV/DataTable용)
+ *
+ * 용도: CSV 파일 또는 DataTable에서 UI Config 정보를 읽어오기 위한 구조체
+ * CSV 형식: ConfigName, AssetPath
+ *
+ * 예시 CSV:
+ * ConfigName,AssetPath
+ * InGame,"/Game/DataAsset/DA_BugShowerUI.DA_BugShowerUI"
+ * Lobby,"/Game/DataAsset/DA_LobbyUI.DA_LobbyUI"
+ * Result,"/Game/DataAsset/DA_ResultUI.DA_ResultUI"
+ *
+ * 사용법:
+ * 1. CSV 파일 생성 (Content/DataTables/DT_UIConfigs.csv)
+ * 2. 에디터에서 DataTable 생성 (Row Structure: FBSUIConfigTableRow)
+ * 3. CSV Import 또는 에디터에서 직접 편집
+ * 4. BSUIManager의 UIConfigTable에 할당
+ */
+USTRUCT(BlueprintType)
+struct FBSUIConfigTableRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	/**
+	 * Config 이름 (예: InGame, Lobby, Result)
+	 * SwitchUIConfig()에서 사용할 이름
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	FName ConfigName;
+
+	/**
+	 * UI Config DataAsset 경로
+	 * 예: /Game/DataAsset/DA_BugShowerUI.DA_BugShowerUI
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "UI")
+	FSoftObjectPath ConfigAssetPath;
+
+	FBSUIConfigTableRow()
+		: ConfigName(NAME_None)
+		, ConfigAssetPath()
+	{
+	}
+};

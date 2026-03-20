@@ -113,10 +113,14 @@ private:
     TWeakObjectPtr<class UInventoryComponent> Inventory;
 
     //���� �����ִ� ������ ����
-    UPROPERTY(Transient) 
+    UPROPERTY(Transient)
     TWeakObjectPtr<AItemActor> FocusedItem;
 
-    
+    //현재 바라보고 있는 무기 포커스
+    UPROPERTY(Transient)
+    TWeakObjectPtr<class AWeaponActor> FocusedWeapon;
+
+
     // ���� ������ ��� �����
     UPROPERTY()
     TArray<AActor*>  PreviousNearbyItems;

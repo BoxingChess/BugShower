@@ -31,6 +31,10 @@ public:
 	// ========================================
 
 protected:
+	// 충돌 컴포넌트 (픽업 감지용)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	class USphereComponent* CollisionComponent;
+
 	// 무기 메쉬 (Skeletal Mesh for animations)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* WeaponMesh;

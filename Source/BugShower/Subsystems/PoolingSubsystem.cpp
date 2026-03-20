@@ -3,11 +3,14 @@
 #include "Subsystems/PoolingSubsystem.h"
 #include "NPC/Spawnable.h"
 #include "Projectile/MonsterProjectile.h"
-#include "Item/ItemBase.h"
+#include "Item/ItemActor.h"
 #include "NavigationSystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Logging/BugShowerLog.h"
 #include "Engine/DataTable.h"
+#include "PoolingSetting.h"
+#include "Engine/World.h"
+
 
 void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -20,32 +23,38 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// Auto-initialize pools if enabled
 	if (bAutoInitializePools)
 	{
-		// Try DataTable first
-		if (PoolConfigTable)
+		const UPoolingSettings* Settings = GetDefault<UPoolingSettings>();
+
+		// Settings에서 테이블 로드
+		if (!Settings->PoolConfigTable.IsNull())
 		{
-			InitializePoolsFromTable(PoolConfigTable);
+			PoolConfigTable = Settings->PoolConfigTable.LoadSynchronous();
 		}
-		// Otherwise use array config
-		else if (PoolConfigs.Num() > 0)
+
+		if (!Settings->MonsterDropTable.IsNull())
 		{
-			InitializePoolsFromConfig();
+			MonsterDropTable = Settings->MonsterDropTable.LoadSynchronous();
 		}
-		else
-		{
-			LOG_POOLING_WARNING(TEXT("PoolingSubsystem: No pool configuration found. Set PoolConfigs or PoolConfigTable."));
-		}
+
+		LOG_POOLING_INFO(TEXT("Tables loaded - PoolConfigTable: %s, MonsterDropTable: %s"),
+			PoolConfigTable ? *PoolConfigTable->GetName() : TEXT("None"),
+			MonsterDropTable ? *MonsterDropTable->GetName() : TEXT("None"));
+
+		FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UPoolingSubsystem::OnActorsInitialized);
 	}
-	LOG_POOLING_INFO(TEXT("End PoolingSubsystem initialized"));
 }
 
 void UPoolingSubsystem::Deinitialize()
 {
-	// Clean up class-based pools
 	ClassPools.Empty();
-
 	LOG_POOLING_INFO(TEXT("PoolingSubsystem deinitialized"));
 
 	Super::Deinitialize();
+}
+
+void UPoolingSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	//InitializePoolsFromTable();
 }
 
 bool UPoolingSubsystem::FireProjectileAt(
@@ -106,6 +115,35 @@ bool UPoolingSubsystem::FireProjectileAt(
 }
 
 
+bool UPoolingSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	if (!Super::ShouldCreateSubsystem(Outer))
+	{
+		return false;
+	}
+
+	UWorld* World = Cast<UWorld>(Outer);
+	if (!World)
+	{
+		return false;
+	}
+
+	// InGame 맵에서만 생성
+	FString MapName = World->GetName();
+	if (!MapName.Contains(TEXT("InGame")))
+	{
+		return false;
+	}
+
+	// Game/PIE World에서만 생성 (Editor preview 등 제외)
+	if (World->WorldType != EWorldType::Game && World->WorldType != EWorldType::PIE)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 // ========== Class-Based Pooling Implementation ==========
 
 void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int32 Size)
@@ -129,10 +167,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 		return;
 	}
 
-	// Create new pool data
 	FPoolData NewPool;
-
-	
 
 	// Spawn and initialize pool objects
 	for (int32 i = 0; i < Size; i++)
@@ -158,16 +193,16 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 				continue;
 			}
 
+			// NOTE: Do NOT set dormancy here!
+			// Clients joining after pool initialization won't receive dormant actors
+			// Use bPoolActive replication for client sync instead
+
 			Spawnable.SetInterface(InterfacePtr);
 
-			// Deactivate the object using the interface pointer directly
-			InterfacePtr->Deactivate(SpawnedActor);
-
-			// Add to pool
+			// Add to pool first
 			NewPool.All.Add(Spawnable);
 			NewPool.Available.Add(Spawnable);
-
-			LOG_POOLING_INFO(TEXT("Created %s object %d/%d"), *ActorClass->GetName(), i + 1, Size);
+			InterfacePtr->Deactivate(SpawnedActor);
 		}
 		else
 		{
@@ -179,9 +214,7 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 		}
 	}
 
-	// Store the pool
 	ClassPools.Add(ActorClass, MoveTemp(NewPool));
-
 	LOG_POOLING_INFO(TEXT("Registered pool for class %s with %d objects"), *ActorClass->GetName(), Size);
 }
 
@@ -192,6 +225,12 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 	if (!ActorClass)
 	{
 		LOG_POOLING_ERROR(TEXT("SpawnFromClass: ActorClass is null"));
+		return TScriptInterface<ISpawnable>();
+	}
+
+	if (ClassPools.Num() == 0)
+	{
+		LOG_POOLING_ERROR(TEXT("SpawnFromClass: Pool is Empty"));
 		return TScriptInterface<ISpawnable>();
 	}
 
@@ -211,7 +250,6 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 
 	TScriptInterface<ISpawnable> Spawnable = PoolData->Available.Pop();
 
-	// Validate the spawnable object
 	AActor* SpawnedActor = Cast<AActor>(Spawnable.GetObject());
 	if (!SpawnedActor)
 	{
@@ -230,6 +268,7 @@ TScriptInterface<ISpawnable> UPoolingSubsystem::SpawnFromClass(
 	SpawnableInterface->Spawn(Position);
 
 	LOG_POOLING_INFO(TEXT("Spawned %s at location: %s"), *ActorClass->GetName(), *Position.ToString());
+
 	return Spawnable;
 }
 
@@ -257,12 +296,8 @@ void UPoolingSubsystem::ReturnToPoolByClass(TScriptInterface<ISpawnable> Object)
 		return;
 	}
 
-	// Deactivate before returning
 	Object->Deactivate(Actor);
-
-	// Return to available queue
 	PoolData->Available.Add(Object);
-	LOG_POOLING_INFO(TEXT("Returned %s to class pool"), *ActorClass->GetName());
 }
 
 void UPoolingSubsystem::ReturnAllOfClass(TSubclassOf<AActor> ActorClass)
@@ -330,7 +365,10 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 		return;
 	}
 
-	if (!PoolConfigTableParam)
+	// 파라미터가 없으면 멤버 변수 사용
+	UDataTable* TableToUse = PoolConfigTableParam ? PoolConfigTableParam : PoolConfigTable;
+
+	if (!TableToUse)
 	{
 		LOG_POOLING_ERROR(TEXT("InitializePoolsFromTable: PoolConfigTable is null"));
 		return;
@@ -339,14 +377,13 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Starting pool initialization from DataTable"));
 
 	TArray<FPoolConfigTableRow*> AllRows;
-	PoolConfigTableParam->GetAllRows<FPoolConfigTableRow>(TEXT("InitializePoolsFromTable"), AllRows);
+	TableToUse->GetAllRows<FPoolConfigTableRow>(TEXT("InitializePoolsFromTable"), AllRows);
 
 	int32 TotalPools = 0;
 	for (FPoolConfigTableRow* Row : AllRows)
 	{
 		if (!Row || !Row->ActorClass)
 		{
-			LOG_POOLING_WARNING(TEXT("InitializePoolsFromTable: Skipping invalid row"));
 			continue;
 		}
 
@@ -355,7 +392,7 @@ void UPoolingSubsystem::InitializePoolsFromTable(UDataTable* PoolConfigTablePara
 	}
 
 	bPoolsInitialized = true;
-	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Initialized %d pools from DataTable"), TotalPools);
+	LOG_POOLING_INFO(TEXT("InitializePoolsFromTable: Initialized %d pools"), TotalPools);
 }
 
 // ========== Drop Management Implementation ==========
@@ -392,7 +429,7 @@ void UPoolingSubsystem::ProcessMonsterDrop(
 	}
 
 	// Calculate drops from configuration
-	TArray<TSubclassOf<AItemBase>> ItemsToDrop = CalculateDropsFromConfig(*DropConfig, ActiveConditions);
+	TArray<TSubclassOf<AItemActor>> ItemsToDrop = CalculateDropsFromConfig(*DropConfig, ActiveConditions);
 
 	if (ItemsToDrop.Num() == 0)
 	{
@@ -407,11 +444,11 @@ void UPoolingSubsystem::ProcessMonsterDrop(
 		ItemsToDrop.Num(), *MonsterDropID.ToString(), *DropLocation.ToString());
 }
 
-TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
+TArray<TSubclassOf<AItemActor>> UPoolingSubsystem::CalculateDropsFromConfig(
 	const FMonsterDropConfig& Config,
 	const FGameplayTagContainer& ActiveConditions) const
 {
-	TArray<TSubclassOf<AItemBase>> Result;
+	TArray<TSubclassOf<AItemActor>> Result;
 
 	// Layer 1: Guaranteed drops (always drop, ignore drop chance)
 	for (const FItemDropEntry& Entry : Config.GuaranteedDrops)
@@ -440,7 +477,7 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
 
 	// Layer 2: Common drops
 	int32 CommonDropCount = FMath::RandRange(Config.MinTotalDropCount, Config.MaxTotalDropCount);
-	TArray<TSubclassOf<AItemBase>> CommonDrops = SelectDropsByWeight(
+	TArray<TSubclassOf<AItemActor>> CommonDrops = SelectDropsByWeight(
 		Config.CommonDrops,
 		CommonDropCount,
 		ActiveConditions
@@ -448,7 +485,7 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
 	Result.Append(CommonDrops);
 
 	// Layer 3: Unique/Rare drops (usually 0-1 item)
-	TArray<TSubclassOf<AItemBase>> UniqueDrops = SelectDropsByWeight(
+	TArray<TSubclassOf<AItemActor>> UniqueDrops = SelectDropsByWeight(
 		Config.UniqueDrops,
 		1, // Usually only 1 unique drop
 		ActiveConditions
@@ -458,12 +495,12 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::CalculateDropsFromConfig(
 	return Result;
 }
 
-TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::SelectDropsByWeight(
+TArray<TSubclassOf<AItemActor>> UPoolingSubsystem::SelectDropsByWeight(
 	const TArray<FItemDropEntry>& Entries,
 	int32 MaxSelections,
 	const FGameplayTagContainer& ActiveConditions) const
 {
-	TArray<TSubclassOf<AItemBase>> Result;
+	TArray<TSubclassOf<AItemActor>> Result;
 
 	if (Entries.Num() == 0 || MaxSelections <= 0)
 		return Result;
@@ -514,7 +551,7 @@ TArray<TSubclassOf<AItemBase>> UPoolingSubsystem::SelectDropsByWeight(
 }
 
 void UPoolingSubsystem::SpawnDroppedItems(
-	const TArray<TSubclassOf<AItemBase>>& ItemClasses,
+	const TArray<TSubclassOf<AItemActor>>& ItemClasses,
 	const FVector& CenterLocation,
 	float SpreadRadius)
 {
@@ -523,7 +560,7 @@ void UPoolingSubsystem::SpawnDroppedItems(
 
 	for (int32 i = 0; i < ItemClasses.Num(); i++)
 	{
-		TSubclassOf<AItemBase> ItemClass = ItemClasses[i];
+		TSubclassOf<AItemActor> ItemClass = ItemClasses[i];
 		if (!ItemClass)
 			continue;
 
@@ -549,4 +586,15 @@ void UPoolingSubsystem::SpawnDroppedItems(
 			LOG_POOLING_WARNING(TEXT("Failed to spawn drop item %s - pool may be empty"), *ItemClass->GetName());
 		}
 	}
+}
+
+void UPoolingSubsystem::OnActorsInitialized(const FActorsInitializedParams& Params)
+{
+	// 자신의 월드인지 확인
+	if (Params.World != GetWorld())
+	{
+		return;
+	}
+
+	InitializePoolsFromTable();
 }

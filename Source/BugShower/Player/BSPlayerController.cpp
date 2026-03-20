@@ -7,6 +7,10 @@
 #include "EnhancedInputComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Manager/UIManager/BSUIManager.h"
+#include "Game/BSGameInstance.h"
+#include "Player/BSCharacterPlayer.h"
+#include "Component/Inventory/InventoryComponent.h"
+#include "GameFramework/PlayerState.h"
 
 ABSPlayerController::ABSPlayerController()
 {
@@ -21,6 +25,11 @@ void ABSPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Set input mode to Game Only for gameplay
+	FInputModeGameOnly InputMode;
+	SetInputMode(InputMode);
+	bShowMouseCursor = false;
+
 	// Setup Enhanced Input System
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
@@ -28,6 +37,8 @@ void ABSPlayerController::BeginPlay()
 	}
 
 	// Initialize UI Manager for this player
+	// NOTE: InitializePlayerUI 내부에서 IsLocalController() 체크가 있으므로
+	// 여기서는 체크하지 않음 (패키징 빌드 타이밍 이슈 방지)
 	UGameInstance* GameInstance = GetGameInstance();
 	if (!GameInstance)
 	{
@@ -58,6 +69,21 @@ void ABSPlayerController::BeginPlay()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("PlayerController is not possessing any pawn"));
 	}
+
+	// 세이브 데이터 로드 (클라이언트에서만)
+	// 모든 클라이언트는 기본 슬롯 "PlayerSaveSlot" 사용
+	// 각 클라이언트의 로컬 PC에 저장되므로 충돌하지 않음
+	if (IsLocalController())
+	{
+		UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GetGameInstance());
+		if (BSGameInstance)
+		{
+			// 세이브 데이터 로드
+			BSGameInstance->LoadPlayerSaveData();
+			UE_LOG(LogTemp, Log, TEXT("BSPlayerController::BeginPlay - Loaded save data from slot: %s"),
+				*BSGameInstance->GetSaveSlotName());
+		}
+	}
 }
 
 void ABSPlayerController::EnableGameInput()
@@ -82,4 +108,64 @@ void ABSPlayerController::DisableGameInput()
 			UE_LOG(LogTemp, Warning, TEXT("BSPlayerController::DisableGameInput - Removed InputMappingContext"));
 		}
 	}
+}
+
+void ABSPlayerController::ClientSaveInventory_Implementation()
+{
+	// 클라이언트에서 실행됨!
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
+	UE_LOG(LogTemp, Warning, TEXT("BSPlayerController::ClientSaveInventory - Client saving inventory..."));
+
+	UBSGameInstance* BSGameInstance = Cast<UBSGameInstance>(GetGameInstance());
+	if (!BSGameInstance)
+	{
+		UE_LOG(LogTemp, Error, TEXT("BSPlayerController::ClientSaveInventory - GameInstance is NULL!"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Save Slot Name: %s"), *BSGameInstance->GetSaveSlotName());
+	UE_LOG(LogTemp, Warning, TEXT("Player ID: %s"), *BSGameInstance->GetPlayerID());
+
+	// 플레이어 캐릭터의 인벤토리 가져오기
+	ABSCharacterPlayer* PlayerCharacter = Cast<ABSCharacterPlayer>(GetPawn());
+	if (!PlayerCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSPlayerController::ClientSaveInventory - Player has no pawn"));
+		return;
+	}
+
+	UInventoryComponent* InventoryComp = PlayerCharacter->FindComponentByClass<UInventoryComponent>();
+	if (!InventoryComp)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BSPlayerController::ClientSaveInventory - Player has no InventoryComponent"));
+		return;
+	}
+
+	// 인벤토리 아이템 가져오기
+	TArray<UBSItemInstance*> PlayerItems = InventoryComp->GetItemInventory();
+
+	UE_LOG(LogTemp, Warning, TEXT("Items in InventoryComponent: %d"), PlayerItems.Num());
+
+	if (PlayerItems.Num() > 0)
+	{
+		// GameInstance에 아이템 추가
+		BSGameInstance->AddItemsToRuntimeInventory(PlayerItems);
+
+		UE_LOG(LogTemp, Warning, TEXT("Added %d items to GameInstance RuntimeInventory"), PlayerItems.Num());
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Total items in GameInstance before save: %d"), BSGameInstance->GetPlayerItems().Num());
+
+	// 클라이언트의 로컬 디스크에 저장
+	bool bSaveSuccess = BSGameInstance->SavePlayerData();
+
+	if (bSaveSuccess)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("✅ Successfully saved to local disk!"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("❌ Failed to save to disk!"));
+	}
+	UE_LOG(LogTemp, Warning, TEXT("========================================"));
 }

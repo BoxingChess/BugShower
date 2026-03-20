@@ -91,6 +91,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	TObjectPtr<class UInputAction> ALTKeyAction;
 
+	// Left Shift for Sprint
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	TObjectPtr<class UInputAction> SprintAction;
+
 public:
 	/*
 	위에서 연결한 MoveAction이 발생했을 때 실행되는 함수
@@ -145,4 +149,8 @@ public:
 
 	// ALT Key handler (for alternate actions)
 	void OnALTKeyPressed();
+
+	// Sprint handlers (Shift key)
+	void OnSprintStarted();
+	void OnSprintStopped();
 };

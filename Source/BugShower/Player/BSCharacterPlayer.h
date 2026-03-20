@@ -6,6 +6,8 @@
 #include "Player/BSCharacterBase.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Components/PointLightComponent.h"
 #include "EnhancedInputComponent.h"
 #include "BSCharacterTypes.h"
 
@@ -28,6 +30,9 @@ class BUGSHOWER_API ABSCharacterPlayer : public ABSCharacterBase
 	
 public:
 	ABSCharacterPlayer();
+
+	// 네트워크 리플리케이션 설정
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -70,6 +75,18 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UCameraComponent> FirstPersonCamera;
 
+	// ========================================
+	// 인벤토리 3D 프리뷰용 카메라
+	// ========================================
+
+	// 인벤토리 UI용 카메라 암 (회전용)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class USpringArmComponent> InventoryCameraArm;
+
+	// 인벤토리 UI용 SceneCapture2D (3D 캐릭터를 렌더링하여 UI에 표시)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class USceneCaptureComponent2D> InventoryCamera;
+
 public:
 	// Camera system
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Camera)
@@ -99,20 +116,28 @@ public:
 	// ========================================
 
 protected:
-	// 현재 장착된 무기 (WeaponActor)
-	// 빈손 상태일 때는 nullptr
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	// 게임 시작 시 기본 무기 자동 장착 여부
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	bool bAutoEquipDefaultWeapon = false;
+
+	// 기본 무기 DataAsset (bAutoEquipDefaultWeapon이 true일 때만 사용)
+	// 에디터에서 설정 가능 (None이면 무기 없이 시작)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (EditCondition = "bAutoEquipDefaultWeapon"))
+	TObjectPtr<class UWeaponDataAsset> DefaultWeaponData;
+
+	// 현재 장착된 무기 (런타임에 자동으로 설정됨, 네트워크 복제)
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentWeapon, VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<AWeaponActor> CurrentWeapon;
 
-	// 테스트용: 게임 시작 시 자동으로 장착할 무기 DataAsset
-	// Blueprint에서 설정 가능 (None이면 무기 없이 시작)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Debug")
-	TObjectPtr<class UWeaponDataAsset> TestWeaponData;
+	// CurrentWeapon 복제 시 호출되는 콜백
+	UFUNCTION()
+	void OnRep_CurrentWeapon();
 
 public:
 	/**
-	 * 무기 장착
+	 * 무기 장착 (로컬 실행)
 	 * WeaponActor를 캐릭터 손에 부착하고 사용 가능 상태로 만듦
+	 * 데디서버 환경에서는 ServerEquipWeapon을 호출해야 함
 	 *
 	 * @param Weapon - 장착할 WeaponActor (nullptr이면 무시)
 	 */
@@ -120,12 +145,29 @@ public:
 	void EquipWeapon(AWeaponActor* Weapon);
 
 	/**
-	 * 무기 해제
+	 * 무기 장착 서버 RPC
+	 * 클라이언트가 무기를 주울 때 서버에 요청하는 함수
+	 * 서버에서 EquipWeapon()을 실행하고 자동으로 모든 클라이언트에 리플리케이트됨
+	 *
+	 * @param Weapon - 장착할 WeaponActor
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerEquipWeapon(AWeaponActor* Weapon);
+
+	/**
+	 * 무기 해제 (로컬 실행)
 	 * 현재 장착된 무기를 손에서 떼어냄 (땅에 떨어뜨리거나 파괴)
 	 * 빈손 상태가 됨
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void UnequipWeapon();
+
+	/**
+	 * 무기 해제 서버 RPC
+	 * 클라이언트가 무기를 버릴 때 서버에 요청하는 함수
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerUnequipWeapon();
 
 	/**
 	 * 발사 시작 (좌클릭 누름)
@@ -136,11 +178,25 @@ public:
 	void StartFireWeapon();
 
 	/**
+	 * 발사 시작 Server RPC
+	 * 클라이언트가 발사 버튼을 누르면 서버에 요청
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerStartFireWeapon();
+
+	/**
 	 * 발사 중지 (좌클릭 뗌)
 	 * CurrentWeapon의 WeaponComponent->StopFire() 호출
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void StopFireWeapon();
+
+	/**
+	 * 발사 중지 Server RPC
+	 * 클라이언트가 발사 버튼을 떼면 서버에 요청
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerStopFireWeapon();
 
 	/**
 	 * 재장전 (R키)
@@ -149,6 +205,27 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void ReloadWeapon();
+
+	/**
+	 * 재장전 Server RPC
+	 * 클라이언트가 재장전 키를 누르면 서버에 요청
+	 */
+	UFUNCTION(Server, Reliable, BlueprintCallable, Category = "Weapon")
+	void ServerReloadWeapon();
+
+	/**
+	 * 발사 애니메이션 Multicast RPC
+	 * 서버에서 모든 클라이언트에게 발사 애니메이션 재생 요청
+	 */
+	UFUNCTION(NetMulticast, Unreliable, Category = "Weapon")
+	void MulticastPlayFireAnimation();
+
+	/**
+	 * 재장전 애니메이션 Multicast RPC
+	 * 서버에서 모든 클라이언트에게 재장전 애니메이션 재생 요청
+	 */
+	UFUNCTION(NetMulticast, Unreliable, Category = "Weapon")
+	void MulticastPlayReloadAnimation();
 
 	/**
 	 * 현재 장착된 무기 가져오기
@@ -163,6 +240,20 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool HasWeaponEquipped() const { return CurrentWeapon != nullptr; }
+
+	// ========================================
+	// 인벤토리 시스템 (멀티플레이어)
+	// ========================================
+
+	/**
+	 * 선택된 아이템을 서버로 전송하는 RPC
+	 * 클라이언트가 BeginPlay에서 자신의 GameInstance에 있는 선택된 아이템을 서버에 전달
+	 * 서버가 해당 플레이어의 인벤토리에 추가
+	 *
+	 * @param SelectedItems - 로비에서 선택한 아이템 배열 (FBS_Item)
+	 */
+	UFUNCTION(Server, Reliable)
+	void ServerLoadSelectedItems(const TArray<FBS_Item>& SelectedItems);
 
 	// ========================================
 	// 입력 액션 (Enhanced Input)
@@ -215,10 +306,36 @@ private:
 	void OnPlayerHPChanged(float CurrentHP, float MaxHP);
 
 	/**
+	 * 에블라 입자 변경 시 호출되는 콜백 함수
+	 * UI 업데이트 등에 사용
+	 */
+	UFUNCTION()
+	void OnPlayerAblaParticleChanged(float CurrentAblaParticle, float MaxAblaParticle);
+
+	/**
+	 * [Client RPC] 클라이언트에서 HP UI 업데이트
+	 */
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateHealthUI(float CurrentHP, float MaxHP);
+
+	/**
+	 * [Client RPC] 클라이언트에서 에블라 UI 업데이트
+	 */
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateAblaParticleUI(float CurrentAblaParticle, float MaxAblaParticle);
+
+	/**
 	 * 플레이어 사망 시 호출되는 콜백 함수
 	 */
 	UFUNCTION()
 	void OnPlayerDied();
+
+	/**
+	 * 아이템 사용 시 호출되는 콜백 함수
+	 * 실제 아이템 효과를 적용 (힐, 에블라 감소 등)
+	 */
+	UFUNCTION()
+	void OnItemUsed(const UBSStaticItemDataAsset* ItemData);
 
 	// ========================================
 	// 스탯 Getter 함수 (Coupling 방지)
@@ -249,5 +366,19 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Stats")
 	float GetSprintSpeed() const;
+
+	/**
+	 * 무기 장착 상태 가져오기
+	 * MovementComponent, AnimInstance가 StatComponent를 직접 알 필요 없게 하기 위한 간접 레이어
+	 */
+	UFUNCTION(BlueprintPure, Category = "Stats")
+	bool GetIsArmed() const;
+
+	/**
+	 * 무기 장착 상태 설정
+	 * EquipWeapon/UnequipWeapon에서 호출됨
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Stats")
+	void SetIsArmed(bool bNewIsArmed);
 
 };

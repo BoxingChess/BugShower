@@ -18,49 +18,85 @@ public:
 	UBSAnimInstance();
 
 protected:
-	//AnimInstance°¡ Ã³À½ »ı¼ºµÉ¶§ ÇÑ¹ø¸¸ È£ÃâÀÌ µÈ´Ù.
+	//AnimInstanceï¿½ï¿½ Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½É¶ï¿½ ï¿½Ñ¹ï¿½ï¿½ï¿½ È£ï¿½ï¿½ï¿½ï¿½ ï¿½È´ï¿½.
 	virtual void NativeInitializeAnimation() override;
 
-	//¸Å ÇÁ·¹ÀÓ¸¶´Ù È£ÃâµÈ´Ù.
-	virtual void NativeUpdateAnimation(float DeltaSeconds) override;	// ÀÌ µÎ°¡Áö ÇÔ¼ö¸¦ »ç¿ëÇÏ¿© ¿ì¸®°¡ ¾Ö´Ô ±×·¡ÇÁ¿¡¼­ ÂüÁ¶ÇÒ º¯¼ö°ªµéÀ» ÀúÀåÇÏµµ·Ï ÇØ¾ßÇÑ´Ù.
+	//ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ó¸ï¿½ï¿½ï¿½ È£ï¿½ï¿½È´ï¿½.
+	virtual void NativeUpdateAnimation(float DeltaSeconds) override;	// ï¿½ï¿½ ï¿½Î°ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ì¸®ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½×·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ ï¿½Ø¾ï¿½ï¿½Ñ´ï¿½.
 
-	///¾Ö´Ô ±×·¡ÇÁ°¡ ÂüÁ¶ÇØ¾ßÇÒ º¯¼öµé--------------------------------
+	///ï¿½Ö´ï¿½ ï¿½×·ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½--------------------------------
 
-	//ÀÌ ÀÎ½ºÅÏ½º¸¦ ¼ÒÀ¯ÇÏ°í ÀÖ´Â Ä³¸¯ÅÍÀÇ Á¤º¸¸¦ ´ã´Â º¯¼ö
+	//ï¿½ï¿½ ï¿½Î½ï¿½ï¿½Ï½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½Ö´ï¿½ Ä³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Character)
 	TObjectPtr<class ACharacter> Owner;
 	
-	//Ä³¸¯ÅÍ Movement ÄÄÆ÷³ÍÆ®¿¡ ´ëÇÑ °´Ã¼ Æ÷ÀÎÅÍ¸¦ ´ã´Â º¯¼ö 
-	//¸Å ÇÁ·¹ÀÓ¸¶´Ù Owner->GetCharacterMovement()ÀÌ·¸°Ô È£ÃâÇÏ´Â °Íº¸´Ù ÁÖ¼Ò¸¦ ÀúÀåÇØµÎ°í °ª¸¸ ºü¸£°Ô °¡Á®¿À´Â°Ô ´õ È¿À²ÀûÀÌ´Ï±î.
+	//Ä³ï¿½ï¿½ï¿½ï¿½ Movement ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ 
+	//ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ó¸ï¿½ï¿½ï¿½ Owner->GetCharacterMovement()ï¿½Ì·ï¿½ï¿½ï¿½ È£ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Íºï¿½ï¿½ï¿½ ï¿½Ö¼Ò¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ØµÎ°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â°ï¿½ ï¿½ï¿½ È¿ï¿½ï¿½ï¿½ï¿½ï¿½Ì´Ï±ï¿½.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Character)
 	TObjectPtr<class UCharacterMovementComponent> Movement;
 
-	//Ä³¸¯ÅÍ ¼Óµµ º¸°£
+	//Ä³ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	FVector Velocity;
 
-	//¶¥¿¡¼­ÀÇ ¼Óµµ
+	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	float GroundSpeed;
 
-	//ÇöÀç idle »óÅÂÀÎ°¡?
+	//ï¿½ï¿½ï¿½ï¿½ idle ï¿½ï¿½ï¿½ï¿½ï¿½Î°ï¿½?
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	uint8 bIsIdle : 1;
 
-	//ÇöÀç ¿òÁ÷ÀÌ°íÀÖ´ÂÁö ½¬°íÀÖ´ÂÁö?
+	//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ì°ï¿½ï¿½Ö´ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ö´ï¿½ï¿½ï¿½?
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	float MovingThreshould;
 
-	//ÇöÀç falling »óÅÂÀÎ°¡?
+	//ï¿½ï¿½ï¿½ï¿½ falling ï¿½ï¿½ï¿½ï¿½ï¿½Î°ï¿½?
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	uint8 bIsFalling : 1;
 
-	//ÇöÀç Jumping »óÅÂÀÎ°¡?
+	//ï¿½ï¿½ï¿½ï¿½ Jumping ï¿½ï¿½ï¿½ï¿½ï¿½Î°ï¿½?
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	uint8 bIsJumping : 1;
 
-	//ÇöÀç Á¡ÇÁÁßÀÎ°¡?¸¦ ÆÇ´ÜÇÒ¶§ ¾²´Â º¯¼ö
+	//ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î°ï¿½?ï¿½ï¿½ ï¿½Ç´ï¿½ï¿½Ò¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	float JumpingThreshould;
+
+	//ì´ê¸°ë¥¼ ë“¤ê³  ìˆëŠ”ì§€ ì—¬ë¶€ (StatComponentì—ì„œ ì½ì–´ì˜´)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Weapon)
+	uint8 bIsArmed : 1;
+
+	//ë°œì‚¬ ì¤‘ì¸ì§€ ì—¬ë¶€ (WeaponComponentì—ì„œ ì½ì–´ì˜´)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Weapon)
+	uint8 bIsFiring : 1;
+
+	//í˜„ì¬ ì „ë ¥ì§ˆì£¼ ì¤‘ì¸ì§€ ì—¬ë¶€
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	uint8 bIsSprinting : 1;
+
+	//ì „ë ¥ì§ˆì£¼ íŒë‹¨ ì„ê³„ê°’ (ì´ ì†ë„ ì´ìƒì´ë©´ Sprint)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	float SprintingThreshold;
+
+	// ========================================
+	// ë°œì‚¬ ì• ë‹ˆë©”ì´ì…˜
+	// ========================================
+public:
+	// ë°œì‚¬ ì• ë‹ˆë©”ì´ì…˜ ëª½íƒ€ì£¼
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Animation")
+	TObjectPtr<class UAnimMontage> FireMontage;
+
+	// ì¬ì¥ì „ ì• ë‹ˆë©”ì´ì…˜ ëª½íƒ€ì£¼
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon|Animation")
+	TObjectPtr<class UAnimMontage> ReloadMontage;
+
+	// ë°œì‚¬ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ (WeaponComponentì—ì„œ í˜¸ì¶œ)
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Animation")
+	void PlayFireMontage();
+
+	// ì¬ì¥ì „ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ (WeaponComponentì—ì„œ í˜¸ì¶œ)
+	UFUNCTION(BlueprintCallable, Category = "Weapon|Animation")
+	void PlayReloadMontage();
 };
 

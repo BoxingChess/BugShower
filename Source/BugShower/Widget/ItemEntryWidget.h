@@ -15,7 +15,7 @@ class UImage;
 class UTextBlock;
 
 /*
-* ListView¿¡ ¾µ ItemEntry. ¿ø·¡´Â ºí·çÇÁ¸°Æ®·Î¸¸ ±¸ÇöÇßÀ¸³ª entryÀÇ µå·¡±×¾Øµå·ÓÀ» Á»´õ È¿À²ÀûÀ¸·Î ¸¸µé°í ½Í¾î C++Å¬·¡½º·Î ¹Ù²Û´Ù.
+* ListViewï¿½ï¿½ ï¿½ï¿½ ItemEntry. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½Î¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ entryï¿½ï¿½ ï¿½å·¡ï¿½×¾Øµï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ È¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Í¾ï¿½ C++Å¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù²Û´ï¿½.
  */
 UCLASS()
 class BUGSHOWER_API UItemEntryWidget : public UUserWidget, public IUserObjectListEntry
@@ -24,15 +24,15 @@ class BUGSHOWER_API UItemEntryWidget : public UUserWidget, public IUserObjectLis
 	
 
 public:
-    //¾ÆÀÌÄÜÀ» ÀúÀåÇÏ´Â ÀÌ¹ÌÁö À§Á¬
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ì¹ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
     UImage* Img_Icon;
 
-    //¾ÆÀÌÅÛ ÀÌ¸§À» ÀúÀåÇÏ´Â ÅØ½ºÆ® ºí·Ï
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
     UTextBlock* Txt_Name;
 
-    //¾ÆÀÌÅÛÀÇ ¼ö·®À» ÀúÀåÇÏ´Â ÅØ½ºÆ® ºí·Ï
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
     UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
     UTextBlock* Txt_Qty;
 
@@ -41,6 +41,9 @@ public:
 
 public:
     virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
+
+    // ë“œë˜ê·¸ ê°ì§€ë¥¼ ìœ„í•œ ë§ˆìš°ìŠ¤ ì´ë²¤íŠ¸ ì˜¤ë²„ë¼ì´ë“œ
+    virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
     virtual void NativeOnDragDetected(const FGeometry& Geo, const FPointerEvent& MouseEvent, UDragDropOperation*& OutOperation) override;
 

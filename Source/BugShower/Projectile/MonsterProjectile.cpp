@@ -87,24 +87,19 @@ AMonsterProjectile::AMonsterProjectile()
 
 	// Create collision component
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
+	RootComponent = CollisionComp;
+
 	CollisionComp->InitSphereRadius(15.0f);
-
 	CollisionComp->SetGenerateOverlapEvents(true);
+
 	CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &AMonsterProjectile::OnProjectileOverlap);
-
-
 	CollisionComp->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	CollisionComp->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	// pawn channel overlap for hitting characters
 	CollisionComp->SetCollisionResponseToChannel(ECollisionChannel::ECC_Pawn, ECollisionResponse::ECR_Overlap);
 
+	CollisionComp->OnComponentBeginOverlap.AddDynamic(this, &AMonsterProjectile::OnProjectileOverlap);
 
-	//CollisionComp->SetCollisionProfileName(TEXT("Projectile"));
-	//CollisionComp->SetNotifyRigidBodyCollision(true); // Enable hit events
-	//CollisionComp->OnComponentHit.AddDynamic(this, &AMonsterProjectile::OnProjectileHit);
-
-	RootComponent = CollisionComp;
 
 	// Create mesh component (visual)
 	ProjectileMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMesh"));
@@ -125,13 +120,72 @@ AMonsterProjectile::AMonsterProjectile()
 	ProjectileOwner = nullptr;
 
 	Life = 5.0f;
-	// Auto-destroy after 5 seconds
 	InitialLifeSpan = Life;
 }
 
 void AMonsterProjectile::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Client: Apply initial pool state (OnRep may not be called on initial replication)
+	if (!HasAuthority())
+	{
+		OnRep_PoolActive();
+	}
+}
+
+// ========================================
+// Replication
+// ========================================
+void AMonsterProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AMonsterProjectile, bPoolActive);
+}
+
+void AMonsterProjectile::OnRep_PoolActive()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[MonsterProjectile::OnRep_PoolActive] %s - bPoolActive: %s"),
+		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
+
+	if (bPoolActive)
+	{
+		// Activate visuals on client
+		SetActorHiddenInGame(false);
+		SetActorEnableCollision(true);
+
+		if (CollisionComp)
+		{
+			CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		}
+	}
+	else
+	{
+		// Deactivate visuals on client
+		SetActorHiddenInGame(true);
+		SetActorEnableCollision(false);
+
+		if (CollisionComp)
+		{
+			CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+	}
+}
+
+void AMonsterProjectile::SetPoolActive(bool bActive)
+{
+	if (HasAuthority())
+	{
+		bPoolActive = bActive;
+		// Server also applies immediately (OnRep is only called on clients)
+		OnRep_PoolActive();
+	}
+}
+
+UPrimitiveComponent* AMonsterProjectile::GetPrimaryRenderComponent()
+{
+	return ProjectileMesh;
 }
 
 void AMonsterProjectile::InitializeProjectile(const FVector& Direction, float InDamage, AActor* InOwner)
@@ -186,12 +240,12 @@ void AMonsterProjectile::LifeSpanExpired()
 void AMonsterProjectile::OnProjectileOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	// 디버그: 모든 충돌 출력
-	UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile Overlap! OtherActor: %s"),
-		OtherActor ? *OtherActor->GetName() : TEXT("NULL"));
+	// UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile Overlap! OtherActor: %s"),
+	// 	OtherActor ? *OtherActor->GetName() : TEXT("NULL"));
 
 	if (!HasAuthority())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile: No authority, ignoring"));
+		// UE_LOG(LogTemp, Warning, TEXT("MonsterProjectile: No authority, ignoring"));
 		return;
 	}
 

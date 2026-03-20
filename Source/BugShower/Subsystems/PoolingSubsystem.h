@@ -59,6 +59,9 @@ public:
 	// USubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+
+	void OnActorsInitialized(const FActorsInitializedParams& Params);
 
 	// High-level API for spawning pooled objects
 	UFUNCTION(BlueprintCallable, Category = "Pooling")
@@ -70,6 +73,8 @@ public:
 		float ProjectileSpeed,
 		float Damage
 	);
+
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
 	// ========== Class-Based Pooling API ==========
 	// Register a new pool for a specific monster class
@@ -110,19 +115,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
 	void InitializePoolsFromConfig();
 
-	// Initialize pools from DataTable
+	// Initialize pools from DataTable - nullptr is using engine pooling default setting
 	UFUNCTION(BlueprintCallable, Category = "Pooling|Initialization")
-	void InitializePoolsFromTable(UDataTable* PoolConfigTable);
+	void InitializePoolsFromTable(UDataTable* PoolConfigTableParam = nullptr);
 
 protected:
 	// Calculate drops from configuration
-	TArray<TSubclassOf<class AItemBase>> CalculateDropsFromConfig(
+	TArray<TSubclassOf<class AItemActor>> CalculateDropsFromConfig(
 		const FMonsterDropConfig& Config,
 		const FGameplayTagContainer& ActiveConditions
 	) const;
 
 	// Select items by weight from drop entries
-	TArray<TSubclassOf<class AItemBase>> SelectDropsByWeight(
+	TArray<TSubclassOf<class AItemActor>> SelectDropsByWeight(
 		const TArray<FItemDropEntry>& Entries,
 		int32 MaxSelections,
 		const FGameplayTagContainer& ActiveConditions
@@ -130,7 +135,7 @@ protected:
 
 	// Spawn dropped items in a spread pattern
 	void SpawnDroppedItems(
-		const TArray<TSubclassOf<class AItemBase>>& ItemClasses,
+		const TArray<TSubclassOf<class AItemActor>>& ItemClasses,
 		const FVector& CenterLocation,
 		float SpreadRadius
 	);
@@ -152,9 +157,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
 	TArray<FPoolConfig> PoolConfigs;
 
-	// Alternative: DataTable for pool configurations
-	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
-	UDataTable* PoolConfigTable;
 
 	UPROPERTY(EditAnywhere, Category = "Pooling|Config")
 	bool bAutoInitializePools = true;
@@ -162,8 +164,11 @@ private:
 	UPROPERTY()
 	bool bPoolsInitialized;
 
-	// ========== Drop Management ==========
 	// DataTable containing monster drop configurations
 	UPROPERTY()
 	UDataTable* MonsterDropTable;
+
+	//DataTable for pool configurations
+	UPROPERTY(EditAnywhere, Category = "Pooling|Config", meta = (AllowPrivateAccess = "true"))
+	UDataTable* PoolConfigTable;
 };

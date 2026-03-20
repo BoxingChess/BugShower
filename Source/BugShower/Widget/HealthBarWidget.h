@@ -12,7 +12,7 @@
  */
 /**
  * 플레이어 체력바 위젯
- * 항상 화면에 표시되며 HP, 스태미나 등을 표시
+ * 항상 화면에 표시되며 HP, 에블라 입자 등을 표시
  */
 UCLASS()
 class BUGSHOWER_API UHealthBarWidget : public UUserWidget
@@ -29,10 +29,10 @@ public:
 	void UpdateHealth(float CurrentHP, float MaxHP);
 
 	/**
-	 * 스태미나 업데이트 (C++에서 호출, Blueprint에서 구현)
-	 * @param CurrentStamina 현재 스태미나
-	 * @param MaxStamina 최대 스태미나
+	 * 에블라 입자 업데이트 (C++에서 호출, Blueprint에서 구현)
+	 * @param CurrentAblaParticle 현재 에블라 입자
+	 * @param MaxAblaParticle 최대 에블라 입자
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI")
-	void UpdateStamina(float CurrentStamina, float MaxStamina);
+	void UpdateAblaParticle(float CurrentAblaParticle, float MaxAblaParticle);
 };

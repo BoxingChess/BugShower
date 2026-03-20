@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "GameplayTagContainer.h"
+#include "Net/UnrealNetwork.h"
 #include "NPC/Spawnable.h"
 #include "NPC/PoolingType.h"
 #include "MonsterBase.generated.h"
@@ -38,19 +39,27 @@ class BUGSHOWER_API AMonsterBase : public ACharacter, public ISpawnable
 public:
 	virtual EPoolType GetPoolType() const override { return EPoolType::Monster; }
 	virtual void Spawn(const FVector pos) override;
+	virtual UPrimitiveComponent* GetPrimaryRenderComponent() override { return GetMesh(); }
 
 	UFUNCTION()
 	virtual void DeSpawn() override;
 
 	virtual void ReturnPool() override;
+	virtual void SetPoolActive(bool bActive) override;
 
 protected:
-	// No longer needed - use GetWorld()->GetSubsystem<UPoolingSubsystem>() instead
-	// TWeakObjectPtr<AActor> OwningPool;
+	// Pool active state (replicated for client sync)
+	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
+	bool bPoolActive = false;
+
+	UFUNCTION()
+	void OnRep_PoolActive();
+
 public:
 	// Sets default values for this character's properties
 	AMonsterBase();
 
+	virtual void PostNetInit() override;
 
 	//fixed value for monster stats
 	UPROPERTY(EditAnywhere, Category = "MeleeStat")
@@ -71,7 +80,7 @@ public:
 	TSubclassOf<AActor> BulletClass;
 
 	// Drop configuration ID (references DataTable row)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DropStat")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DropStat")
 	FName MonsterDropID;
 
 	// Active gameplay tags for conditional drops (quest, event, etc.)
@@ -80,12 +89,18 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EMonsterGrade Grade;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EAttackType Type;
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	virtual void PostInitializeComponents() override;
+
+	// Replication
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 public:	
 	// Called every frame
@@ -101,7 +116,6 @@ public:
 	// Fire projectile towards target (called from BT Task)
 	void FireProjectile(AActor* Target);
 
-	// Drop item on death
 	UFUNCTION()
 	void OnDeath(AActor* DeadMonster);
 
@@ -111,12 +125,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TSubclassOf<class AMonsterProjectile> ProjectileClass;
 
-	// Drop items at monster location
 	void DropItems();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class UMonsterStatComponent* MonsterStatComp;
 
-	//need animation comp
 };

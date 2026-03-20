@@ -35,13 +35,15 @@ public:
 	//~ End USubsystem Interface
 
 protected:
-	// Consumable item data registry
-	// 소모품 아이템 데이터 등록소
+	// 통합 아이템 데이터 등록소 (모든 타입의 아이템을 ItemID로 관리)
+	// ItemID는 전역적으로 고유해야 함
+	UPROPERTY()
+	TMap<uint8, TObjectPtr<UBSStaticItemDataAsset>> AllItems;
+
+	// [DEPRECATED] 기존 타입별 레지스트리 - 호환성을 위해 유지
 	UPROPERTY()
 	TMap<EConsumableID, TObjectPtr<UBSStaticItemDataAsset>> ConsumableItems;
 
-	// Equipment item data registry
-	// 장비 아이템 데이터 등록소
 	UPROPERTY()
 	TMap<EEquipmentID, TObjectPtr<UBSStaticItemDataAsset>> EquipmentItems;
 

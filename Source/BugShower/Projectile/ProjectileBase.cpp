@@ -10,25 +10,18 @@ AProjectileBase::AProjectileBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
+
 	// Collision component setup
 	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComponent"));
+	RootComponent = CollisionComponent;
+
 	CollisionComponent->InitSphereRadius(15.0f);
 
-	// Set up collision properly
-	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	// Use WorldDynamic object type - this collides with Pawn by default
-	// WorldDynamic 사용 - 기본적으로 Pawn과 충돌함
 	CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
 	CollisionComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
-	// Ignore camera to prevent screen shake
 	CollisionComponent->SetCollisionResponseToChannel(ECollisionChannel::ECC_Camera, ECollisionResponse::ECR_Ignore);
 
-	// Enable physics simulation for bouncing
-	CollisionComponent->SetSimulatePhysics(false); // ProjectileMovement handles physics
-	CollisionComponent->SetNotifyRigidBodyCollision(true); // Enable hit events
-
 	CollisionComponent->OnComponentHit.AddDynamic(this, &AProjectileBase::OnHit);
-	RootComponent = CollisionComponent;
 
 	// Mesh component setup
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
@@ -37,6 +30,7 @@ AProjectileBase::AProjectileBase()
 
 	// Set default mesh to engine's basic sphere
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshRef(TEXT("/Engine/BasicShapes/Sphere"));
+
 	if (SphereMeshRef.Succeeded())
 	{
 		MeshComponent->SetStaticMesh(SphereMeshRef.Object);
@@ -59,6 +53,14 @@ AProjectileBase::AProjectileBase()
 void AProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+
+	// Enable physics simulation for bouncing
+	CollisionComponent->SetSimulatePhysics(false); // ProjectileMovement handles physics
+	CollisionComponent->SetNotifyRigidBodyCollision(true); // Enable hit events
+
+	CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
 
 	// Ignore collision with instigator (player who fired) to prevent self-collision
 	// 발사한 플레이어와 충돌하지 않도록 설정 (몬스터는 충돌함)

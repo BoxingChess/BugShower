@@ -38,6 +38,13 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentWeaponData();
 
+	// UI 업데이트 (탄약 정보) - 서버에서 호출하면 Client RPC 전송
+	void UpdateAmmoUI();
+
+	// [Client RPC] 클라이언트에서 탄약 UI 업데이트
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateAmmoUI(int32 InCurrentAmmo, int32 InReserveAmmo);
+
 	// ========================================
 	// 탄약 & 재장전
 	// ========================================
@@ -47,7 +54,9 @@ protected:
 	UPROPERTY(Replicated)
 	int32 CurrentAmmo;
 
-	// 보유 중인 예비 탄약
+	// [DEPRECATED] 보유 중인 예비 탄약
+	// → 이제 인벤토리에서 직접 조회하므로 사용하지 않음 (GetReserveAmmo() 사용)
+	// → Replicated 속성은 유지하되, 값은 설정하지 않음
 	UPROPERTY(Replicated)
 	int32 ReserveAmmo;
 
@@ -64,7 +73,7 @@ protected:
 
 protected:
 	// 현재 발사 중인지 (트리거를 당기고 있는지)
-	UPROPERTY()
+	UPROPERTY(Replicated)
 	bool bIsFiring;
 
 	// 마지막 발사 시간 (연사 속도 제어용)
@@ -221,6 +230,13 @@ protected:
 	void OnReloadComplete();
 
 	/**
+	 * 인벤토리 변경 시 호출되는 콜백 (탄약 UI 업데이트용)
+	 * OnInventoryChanged 델리게이트에 바인딩됨
+	 */
+	UFUNCTION()
+	void HandleInventoryChanged();
+
+	/**
 	 * Owner WeaponActor의 메쉬 가져오기
 	 */
 	class USkeletalMeshComponent* GetWeaponMesh() const;
@@ -236,6 +252,20 @@ protected:
 	class UCameraComponent* GetOwnerCamera() const;
 
 	// ========================================
+	// 애니메이션 재생
+	// ========================================
+
+	/**
+	 * 발사 애니메이션 재생
+	 */
+	void PlayFireAnimation();
+
+	/**
+	 * 재장전 애니메이션 재생
+	 */
+	void PlayReloadAnimation();
+
+	// ========================================
 	// Getter 함수들
 	// ========================================
 
@@ -244,9 +274,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	int32 GetCurrentAmmo() const { return CurrentAmmo; }
 
-	// 예비 탄약
+	// 예비 탄약 (인벤토리에서 조회)
 	UFUNCTION(BlueprintPure, Category = "Weapon")
-	int32 GetReserveAmmo() const { return ReserveAmmo; }
+	int32 GetReserveAmmo() const;
 
 	// 무기 장착 여부
 	UFUNCTION(BlueprintPure, Category = "Weapon")
@@ -256,6 +286,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool IsReloading() const { return bIsReloading; }
 
+	// 발사 중 여부 (트리거를 당기고 있는지)
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool IsFiring() const { return bIsFiring; }
+
 	// 현재 무기 데이터
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	UWeaponDataAsset* GetCurrentWeaponData() const { return CurrentWeaponData; }
@@ -263,4 +297,12 @@ public:
 	// 현재 탄 퍼짐 각도
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	float GetCurrentSpread() const { return CurrentSpreadAngle; }
+
+private:
+	/**
+	 * AmmoType을 ItemID로 변환 (InventoryComponent와 통신용)
+	 * @param AmmoType 탄약 타입
+	 * @return ItemID (201=9mm, 202=5.56mm, 203=7.62mm), 실패 시 0
+	 */
+	static uint8 AmmoTypeToItemID(EAmmoType AmmoType);
 };

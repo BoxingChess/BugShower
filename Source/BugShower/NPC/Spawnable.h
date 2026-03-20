@@ -27,7 +27,6 @@ class BUGSHOWER_API ISpawnable
 public:
 	virtual EPoolType GetPoolType() const = 0;
 
-
 	// Activate object at specified position (called when spawning from pool)
 	virtual void Spawn(const FVector pos) = 0;
 
@@ -35,10 +34,19 @@ public:
 	virtual void ReturnPool() = 0;
 
 	// Delegate function for event (called when object wants to return itself)
-	virtual void DeSpawn() = 0;	
+	virtual void DeSpawn() = 0;
+
+	// 각 클래스의 주요 렌더링 컴포넌트 반환 (State 복구용)
+	virtual UPrimitiveComponent* GetPrimaryRenderComponent() = 0;
+
+	// Pool active state management (for network replication)
+	// Each implementing class must define UPROPERTY(ReplicatedUsing=OnRep_PoolActive) bool bPoolActive
+	virtual void SetPoolActive(bool bActive) = 0;
 
 	// Helper functions for common activation/deactivation
 	virtual void Activate(AActor* Actor, const FVector& Position);
 	virtual void Deactivate(AActor* Actor);
-protected:
+
+private:
+	void RecreateStateIfNeeded(UPrimitiveComponent* Prim);
 };

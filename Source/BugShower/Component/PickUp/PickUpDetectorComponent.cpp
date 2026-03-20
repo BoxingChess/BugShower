@@ -17,6 +17,7 @@
 
 #include "Player/BSCharacterPlayer.h"
 #include "Item/ItemActor.h"
+#include "Weapon/WeaponActor.h"
 
 
 
@@ -95,6 +96,24 @@ void UPickUpDetectorComponent::BeginPlay()
 	{
 		OwnerChar = nullptr;       // Ÿ���� �ٸ��� ��ȿȭ
 	}
+
+	// ========================================
+	// 초기화: LineTraceUI 숨기기
+	// ========================================
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (OwnerPawn)
+	{
+		APlayerController* PC = Cast<APlayerController>(OwnerPawn->GetController());
+		if (PC && PC->GetGameInstance())
+		{
+			UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
+			if (UIManager)
+			{
+				UIManager->UpdatePickupPrompt(nullptr);  // 초기에 UI 숨기기
+				UE_LOG(LogTemp, Log, TEXT("PickUpDetectorComponent::BeginPlay - LineTraceUI hidden on start"));
+			}
+		}
+	}
 }
 
 
@@ -165,17 +184,27 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 	);
 
 	// ���� ���Ͱ� ���������� �Ǻ�
-	AItemActor* NewFocus = nullptr;
+	AItemActor* NewFocusItem = nullptr;
+	AWeaponActor* NewFocusWeapon = nullptr;
+
 	if (bHit)
 	{
-		NewFocus = Cast<AItemActor>(Hit.GetActor());  // ������ �ƴϸ� nullptr
+		// 아이템인지 확인
+		NewFocusItem = Cast<AItemActor>(Hit.GetActor());
+		// 무기인지 확인
+		if (!NewFocusItem)
+		{
+			NewFocusWeapon = Cast<AWeaponActor>(Hit.GetActor());
+		}
 	}
 
 	// ��Ŀ���� �ٲ���� ���� ��������Ʈ ȣ��
-	if (FocusedItem.Get() != NewFocus)
+	bool bChanged = (FocusedItem.Get() != NewFocusItem) || (FocusedWeapon.Get() != NewFocusWeapon);
+	if (bChanged)
 	{
-		FocusedItem = NewFocus;
-		OnFocusItemChanged.Broadcast(NewFocus);   //���⼭ UI�� �̺�Ʈ ����
+		FocusedItem = NewFocusItem;
+		FocusedWeapon = NewFocusWeapon;
+		OnFocusItemChanged.Broadcast(NewFocusItem);   //���⼭ UI�� �̺�Ʈ ����
 
 		// Update LineTrace UI through UIManager
 		APawn* OwnerPawn = Cast<APawn>(GetOwner());
@@ -187,8 +216,22 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 				UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
 				if (UIManager)
 				{
-					// Update pickup prompt with item data (or hide if no item)
-					UIManager->UpdatePickupPrompt(NewFocus);
+					// Update pickup prompt with item data (or hide if no item/weapon)
+					if (NewFocusItem)
+					{
+						UIManager->UpdatePickupPrompt(NewFocusItem);
+					}
+					else if (NewFocusWeapon && NewFocusWeapon->GetWeaponData())
+					{
+						// 무기 UI 표시 (무기 이름)
+						// TODO: UpdatePickupPrompt를 무기도 받을 수 있도록 수정하거나 별도 함수 추가
+						// 임시로 로그만 출력
+						UE_LOG(LogTemp, Log, TEXT("Focused Weapon: %s"), *NewFocusWeapon->GetWeaponData()->WeaponName.ToString());
+					}
+					else
+					{
+						UIManager->UpdatePickupPrompt(nullptr);  // UI 숨기기
+					}
 				}
 			}
 		}
@@ -196,21 +239,28 @@ bool UPickUpDetectorComponent::LineTraceFocus()
 		return true;
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	// ����� �ð�ȭ
-	const FColor LineColor = NewFocus ? FColor::Red : (bHit ? FColor::Yellow : FColor::Cyan);
-	DrawDebugLine(GetWorld(), ViewLoc, End, LineColor, /*bPersistent*/false, /*LifeTime*/0.05f, 0, /*Thickness*/0.1f);
-
-	if (bHit)
-	{
-		DrawDebugPoint(GetWorld(), Hit.ImpactPoint, /*Size*/10.f, LineColor, false, 0.05f);
-
-		const FString NameStr = (NewFocus && NewFocus->GetItemStaticData())
-			? NewFocus->GetItemStaticData()->DisplayName.ToString()
-			: TEXT("<invalid>");
-		UE_LOG(LogTemp, Warning, TEXT("%s"), *NameStr);
-	}
-#endif
+/// 라이트레이스 시각화
+//#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+//	const bool bHasValidTarget = (NewFocusItem != nullptr) || (NewFocusWeapon != nullptr);
+//	const FColor LineColor = bHasValidTarget ? FColor::Red : (bHit ? FColor::Yellow : FColor::Cyan);
+//	DrawDebugLine(GetWorld(), ViewLoc, End, LineColor, /*bPersistent*/false, /*LifeTime*/0.05f, 0, /*Thickness*/0.1f);
+//
+//	if (bHit)
+//	{
+//		DrawDebugPoint(GetWorld(), Hit.ImpactPoint, /*Size*/10.f, LineColor, false, 0.05f);
+//
+//		FString NameStr = TEXT("<invalid>");
+//		if (NewFocusItem && NewFocusItem->GetItemStaticData())
+//		{
+//			NameStr = NewFocusItem->GetItemStaticData()->DisplayName.ToString();
+//		}
+//		else if (NewFocusWeapon && NewFocusWeapon->GetWeaponData())
+//		{
+//			NameStr = NewFocusWeapon->GetWeaponData()->WeaponName.ToString();
+//		}
+//		UE_LOG(LogTemp, Warning, TEXT("%s"), *NameStr);
+//	}
+//#endif
 
 	return false;
 }
@@ -273,16 +323,17 @@ void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 		QueryParams			 //���� �Ķ����
 	);
 
-	DrawDebugSphere(
-		GetWorld(),
-		Center,
-		NearbyRadius,
-		16,
-		FColor::Cyan,
-		/*bPersistentLines*/false,
-		/*LifeTime*/0.1f,
-		0,
-		/*Thickness*/1.0f);
+	///아이템 줍는 영역 시각화
+	//DrawDebugSphere(
+	//	GetWorld(),
+	//	Center,
+	//	NearbyRadius,
+	//	16,
+	//	FColor::Cyan,
+	//	/*bPersistentLines*/false,
+	//	/*LifeTime*/0.1f,
+	//	0,
+	//	/*Thickness*/1.0f);
 
 
 	// ���� �ڷᱸ�� �ʱ�ȭ
@@ -351,6 +402,32 @@ void UPickUpDetectorComponent::RefreshNearbyList(bool isForced /*= false*/)
 		// �α� Ȯ�ο�
 		UE_LOG(LogTemp, Warning, TEXT("Nearby items changed! Count = %d"), NearbyItems.Num());
 
+		// ========== [DEBUG LOG - START] 주변 아이템 상세 정보 출력 ==========
+		if (NearbyItems.Num() > 0)
+		{
+			UE_LOG(LogTemp, Log, TEXT("=== Nearby Items Detail ==="));
+			for (int32 i = 0; i < NearbyItems.Num(); ++i)
+			{
+				if (AActor* Item = NearbyItems[i])
+				{
+					FVector ItemLocation = Item->GetActorLocation();
+					FVector OwnerLocation = Owner->GetActorLocation();
+					float Distance = FVector::Dist(ItemLocation, OwnerLocation);
+
+					UE_LOG(LogTemp, Log, TEXT("  [%d] %s - Distance: %.1f units"),
+						i + 1,
+						*Item->GetName(),
+						Distance);
+				}
+			}
+			UE_LOG(LogTemp, Log, TEXT("==========================="));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("=== No nearby items found ==="));
+		}
+		// ========== [DEBUG LOG - END] 주변 아이템 상세 정보 출력 ==========
+
 		//���!
 		OnRefreshNearbyList.Broadcast();
 
@@ -366,41 +443,90 @@ void UPickUpDetectorComponent::TryPickupFocused()
 {
 	UE_LOG(LogTemp, Warning, TEXT("TryPickupFocused"));
 
-	// ���⼱ �����۸� ����
+	// 아이템 픽업 시도
 	if (AItemActor* Item = FocusedItem.Get())
 	{
-		ServerTryPickup(Item);  // ���� RPC
+		ServerTryPickup(Item);  // 서버 RPC
+	}
+	// 무기 픽업 시도
+	else if (AWeaponActor* Weapon = FocusedWeapon.Get())
+	{
+		// 무기 장착 서버 RPC 호출 (데디케이티드 서버 환경 대응)
+		if (ABSCharacterPlayer* Player = Cast<ABSCharacterPlayer>(GetOwner()))
+		{
+			Player->ServerEquipWeapon(Weapon);  // 서버 RPC로 변경
+			UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - Requesting weapon equip from server: %s"),
+				Weapon->GetWeaponData() ? *Weapon->GetWeaponData()->WeaponName.ToString() : TEXT("Unknown"));
+
+			// ========================================
+			// 무기 장착 후: FocusedItem 초기화 + UI 숨기기
+			// ========================================
+			FocusedItem = nullptr;
+			FocusedWeapon = nullptr;
+
+			// 델리게이트 브로드캐스트 (UI 업데이트)
+			OnFocusItemChanged.Broadcast(nullptr);
+
+			// UIManager를 통해 LineTraceUI 숨기기
+			APawn* Pawn = Cast<APawn>(GetOwner());
+			if (Pawn && Pawn->IsLocallyControlled())
+			{
+				APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+				if (PC && PC->GetGameInstance())
+				{
+					UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
+					if (UIManager)
+					{
+						UIManager->UpdatePickupPrompt(nullptr);
+						UE_LOG(LogTemp, Log, TEXT("TryPickupFocused - LineTraceUI hidden after weapon pickup"));
+					}
+				}
+			}
+		}
 	}
 
 }
 
 void UPickUpDetectorComponent::ServerTryPickup_Implementation(class AItemActor* Item)
 {
-	///���⼭���ʹ� �������� ����ȴ�.
-
-	//�������� ���ų� �ı������� ���ų� ���� �ı�������?
+	//TODO - 몬스터가 떨어트린 아이템의 경우도 삭제되어버린다.
+	//이쪽을 풀링으로 바꿔볼까?
+	//클로드한테 바닥에 아이템 뿌릴시 Spawn으로 바궈야하는거 아니냐고 물어보기.
 	if (!IsValid(Item) || Item->IsActorBeingDestroyed() || Item->IsPendingKillPending()) return;
 
 	APawn* Pawn = Cast<APawn>(GetOwner());
 	if (!Pawn) return;
 
-	// �κ��丮 ������Ʈ ã��
 	if (UInventoryComponent* Inv = Pawn->FindComponentByClass<UInventoryComponent>())
 	{
-		// ���� AddItem�� DroppedActor�� �޾� ���ο��� ����/����/�ı����� ó����
 		Inv->AddItem(Item);
 
-		//����������� ������ 0�� ��� -> ������ �����ȰŴ� ���͸� ����
-		if (Item->GetItemData().Quantity == 0)
-		{
-			Item->Destroy(); // ������ ������
-		}
+		// NOTE: DeSpawn() is now handled inside AddItem()
+		// Don't call DeSpawn() here to avoid duplicate pool returns!
+		// AddItem()에서 이미 DeSpawn()을 처리하므로 여기서는 호출하지 않음!
 
-		// AddItem���� ���� 0�̸� Destroy()���� ó���ϹǷ�
-		// ���⼭ ���� ���Ŵ� ���ʿ�. ��Ŀ���� ������ �ִ� �� ���.
-		if (!IsValid(Item))
+		// ========================================
+		// 아이템 픽업 후: FocusedItem 초기화 + UI 숨기기
+		// ========================================
+		FocusedItem = nullptr;
+		FocusedWeapon = nullptr;
+
+		// 델리게이트 브로드캐스트 (UI 업데이트)
+		OnFocusItemChanged.Broadcast(nullptr);
+
+		// UIManager를 통해 LineTraceUI 숨기기 (클라이언트에서만)
+		if (Pawn->IsLocallyControlled())
 		{
-			FocusedItem = nullptr;
+			APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+			if (PC && PC->GetGameInstance())
+			{
+				UBSUIManager* UIManager = PC->GetGameInstance()->GetSubsystem<UBSUIManager>();
+				if (UIManager)
+				{
+					UIManager->UpdatePickupPrompt(nullptr);
+					UE_LOG(LogTemp, Log, TEXT("ServerTryPickup - LineTraceUI hidden after pickup"));
+				}
+			}
 		}
 	}
 }
@@ -491,7 +617,13 @@ void UPickUpDetectorComponent::ChangeState()
 	if (bIsInventoryOpen)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("ChangeState - Opening inventory (calling ShowWidget)"));
+
+		// 주변 아이템 검색 (델리게이트가 자동으로 VicinityList 업데이트함)
+		RefreshNearbyList(true);
+
+		// 인벤토리 UI 표시
 		UIManager->ShowWidget(FName("Inventory"), PC);
+
 		PC->SetShowMouseCursor(true);
 	}
 	else

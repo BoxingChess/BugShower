@@ -13,6 +13,7 @@ enum class EItemType : uint8
 };
 
 //소비템 관련 Enum
+///이제는 AllItem으로 관리하기에 모든 아이템이 고유의 ID값을 갖도록하였음.
 UENUM(BlueprintType)
 enum class EConsumableID : uint8
 {
@@ -23,6 +24,8 @@ enum class EConsumableID : uint8
 	Adrenaline_Syringe              UMETA(DisplayName = "아드레날린 주사기"),
 	Painkillers                     UMETA(DisplayName = "진통제"),
 	Energy_Drinks                   UMETA(DisplayName = "에너지드링크"),
+	Abla_Suppressor                 UMETA(DisplayName = "에블라 억제제"),
+	Abla_Purifier                   UMETA(DisplayName = "에블라 정화제"),
 
 	//101~200까지는 투척류 아이템
 	Grenades = 101					UMETA(DisplayName = "수류탄"),

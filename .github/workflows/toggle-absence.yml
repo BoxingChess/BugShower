@@ -1,0 +1,71 @@
+name: Toggle My Absence
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "부재 설정"
+        required: true
+        type: choice
+        options:
+          - "부재 시작"
+          - "복귀"
+
+permissions:
+  actions: write   # Variables 수정에 필요
+
+jobs:
+  toggle-absence:
+    name: Toggle Absence Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update REVIEWER_ABSENT_LIST
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          MY_USERNAME: ${{ github.actor }}          # 실행한 사람의 GitHub 유저명
+          ACTION: ${{ github.event.inputs.action }}
+        run: |
+          python3 - <<'EOF'
+          import os
+          import requests
+
+          token    = os.environ["GITHUB_TOKEN"]
+          repo     = os.environ["REPO"]
+          username = os.environ["MY_USERNAME"]
+          action   = os.environ["ACTION"]
+
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          # 현재 REVIEWER_ABSENT_LIST 값 조회
+          url = f"https://api.github.com/repos/{repo}/actions/variables/REVIEWER_ABSENT_LIST"
+          resp = requests.get(url, headers=headers)
+          current = resp.json().get("value", "") if resp.ok else ""
+          absent_set = {r.strip() for r in current.split(",") if r.strip()}
+
+          if action == "부재 시작":
+              absent_set.add(username)
+              msg = f"✅ @{username} 부재 등록 완료"
+          else:
+              absent_set.discard(username)
+              msg = f"✅ @{username} 복귀 처리 완료"
+
+          new_value = ",".join(sorted(absent_set))
+
+          # 변수 존재 여부에 따라 PATCH or POST
+          if resp.ok:
+              requests.patch(url, headers=headers, json={"value": new_value}).raise_for_status()
+          else:
+              requests.post(
+                  f"https://api.github.com/repos/{repo}/actions/variables",
+                  headers=headers,
+                  json={"name": "REVIEWER_ABSENT_LIST", "value": new_value},
+              ).raise_for_status()
+
+          print(msg)
+          print(f"현재 부재 목록: {new_value if new_value else '(없음)'}")
+          EOF

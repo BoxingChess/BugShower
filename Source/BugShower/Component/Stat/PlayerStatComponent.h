@@ -9,8 +9,8 @@
 // Delegate for HP changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerHPChanged, float, CurrentHP, float, MaxHP);
 
-// Delegate for Stamina changes
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerStaminaChanged, float, CurrentStamina, float, MaxStamina);
+// Delegate for Abla Particle changes
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerAblaParticleChanged, float, CurrentAblaParticle, float, MaxAblaParticle);
 
 // Delegate for player death
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
@@ -21,7 +21,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayerLevelUp, int32, NewLevel, 
 
 /**
  * 플레이어 캐릭터의 스탯을 관리하는 컴포넌트
- * HP, 스태미나, 이동 속도, 점프 등 플레이어의 모든 수치를 관리합니다.
+ * HP, 에블라 입자, 이동 속도, 점프 등 플레이어의 모든 수치를 관리합니다.
  */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class BUGSHOWER_API UPlayerStatComponent : public UActorComponent
@@ -83,51 +83,45 @@ private:
 	void CheckDeath();
 
 	// ========================================
-	// 스태미나 시스템
+	// 에블라 입자 시스템
 	// ========================================
 public:
-	// Stamina Getters
-	UFUNCTION(BlueprintCallable, Category = "Stat|Stamina")
-	float GetCurrentStamina() const { return CurrentStamina; }
+	// Abla Particle Getters
+	UFUNCTION(BlueprintCallable, Category = "Stat|AblaParticle")
+	float GetCurrentAblaParticle() const { return CurrentAblaParticle; }
 
-	UFUNCTION(BlueprintCallable, Category = "Stat|Stamina")
-	float GetMaxStamina() const { return MaxStamina; }
+	UFUNCTION(BlueprintCallable, Category = "Stat|AblaParticle")
+	float GetMaxAblaParticle() const { return MaxAblaParticle; }
 
-	UFUNCTION(BlueprintCallable, Category = "Stat|Stamina")
-	float GetStaminaRatio() const { return MaxStamina > 0 ? CurrentStamina / MaxStamina : 0.f; }
+	UFUNCTION(BlueprintCallable, Category = "Stat|AblaParticle")
+	float GetAblaParticleRatio() const { return MaxAblaParticle > 0 ? CurrentAblaParticle / MaxAblaParticle : 0.f; }
 
-	UFUNCTION(BlueprintCallable, Category = "Stat|Stamina")
-	bool HasEnoughStamina(float Amount) const { return CurrentStamina >= Amount; }
+	UFUNCTION(BlueprintCallable, Category = "Stat|AblaParticle")
+	bool HasAblaParticle(float Amount) const { return CurrentAblaParticle >= Amount; }
 
-	// Stamina Modifiers
-	UFUNCTION(BlueprintCallable, Category = "Stat|Stamina")
-	bool UseStamina(float Amount);
+	// Abla Particle Modifiers
+	UFUNCTION(BlueprintCallable, Category = "Stat|AblaParticle")
+	bool ConsumeAblaParticle(float Amount);
 
-	UFUNCTION(BlueprintCallable, Category = "Stat|Stamina")
-	void RecoverStamina(float Amount);
+	UFUNCTION(BlueprintCallable, Category = "Stat|AblaParticle")
+	void GainAblaParticle(float Amount);
 
-	UFUNCTION(BlueprintCallable, Category = "Stat|Stamina")
-	void SetStaminaRecoveryRate(float Rate) { StaminaRecoveryRate = Rate; }
+	UFUNCTION(BlueprintCallable, Category = "Stat|AblaParticle")
+	void SetAblaParticleGainRate(float Rate) { AblaParticleGainRate = Rate; }
 
 private:
-	UPROPERTY(ReplicatedUsing = OnRep_StaminaChanged, EditAnywhere, Category = "Stat|Stamina")
-	float CurrentStamina = 100.f;
+	UPROPERTY(ReplicatedUsing = OnRep_AblaParticleChanged, EditAnywhere, Category = "Stat|AblaParticle")
+	float CurrentAblaParticle = 0.f;
 
-	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Stamina")
-	float MaxStamina = 100.f;
+	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|AblaParticle")
+	float MaxAblaParticle = 100.f;
 
-	// 초당 회복량
-	UPROPERTY(EditAnywhere, Category = "Stat|Stamina")
-	float StaminaRecoveryRate = 10.f;
-
-	// 스태미나 회복 대기 시간 (사용 후 이 시간 뒤에 회복 시작)
-	UPROPERTY(EditAnywhere, Category = "Stat|Stamina")
-	float StaminaRecoveryDelay = 2.f;
-
-	float TimeSinceLastStaminaUse = 0.f;
+	// 초당 증가량 (체내에 쌓이는 속도)
+	UPROPERTY(EditAnywhere, Category = "Stat|AblaParticle")
+	float AblaParticleGainRate = 0.1f;
 
 	UFUNCTION()
-	void OnRep_StaminaChanged();
+	void OnRep_AblaParticleChanged();
 
 	// ========================================
 	// 이동 관련 스탯
@@ -151,11 +145,11 @@ public:
 private:
 	// 기본 걷기 속도
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Movement")
-	float WalkSpeed = 600.f;
+	float WalkSpeed = 50.f;  // Walk 최대 속도 (Shift 누르지 않았을 때)
 
 	// 달리기 속도
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Movement")
-	float SprintSpeed = 900.f;
+	float SprintSpeed = 300.f;  // Sprint 최대 속도 (Shift 눌렀을 때)
 
 	// 앉은 상태 속도
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Movement")
@@ -202,6 +196,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stat|Combat")
 	void SetDefense(float NewDefense) { Defense = NewDefense; }
 
+	// 무기 장착 상태
+	UFUNCTION(BlueprintCallable, Category = "Stat|Combat")
+	bool IsArmed() const { return bIsArmed; }
+
+	UFUNCTION(BlueprintCallable, Category = "Stat|Combat")
+	void SetIsArmed(bool bNewIsArmed);
+
 private:
 	// 공격력
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Combat")
@@ -210,6 +211,10 @@ private:
 	// 방어력 (받는 데미지 감소)
 	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Combat")
 	float Defense = 5.f;
+
+	// 무기 장착 여부
+	UPROPERTY(Replicated, EditAnywhere, Category = "Stat|Combat")
+	uint8 bIsArmed : 1;
 
 	// ========================================
 	// 레벨 & 경험치 시스템 (향후 확장용)
@@ -244,9 +249,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Stat|Events")
 	FOnPlayerHPChanged OnHPChanged;
 
-	// 스태미나 변경 시 (UI 업데이트용)
+	// 에블라 입자 변경 시 (UI 업데이트용)
 	UPROPERTY(BlueprintAssignable, Category = "Stat|Events")
-	FOnPlayerStaminaChanged OnStaminaChanged;
+	FOnPlayerAblaParticleChanged OnAblaParticleChanged;
 
 	// 플레이어 사망 시
 	UPROPERTY(BlueprintAssignable, Category = "Stat|Events")
@@ -262,7 +267,7 @@ public:
 public:
 	// 모든 스탯 초기화
 	UFUNCTION(BlueprintCallable, Category = "Stat")
-	void InitializeStats(float InMaxHP, float InMaxStamina, float InWalkSpeed,
+	void InitializeStats(float InMaxHP, float InMaxAblaParticle, float InWalkSpeed,
 	                     float InSprintSpeed, int32 InMaxJumpCount, float InJumpPower);
 
 	// 스탯 리셋 (사망 후 부활 시)
