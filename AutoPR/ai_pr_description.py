@@ -20,7 +20,7 @@ BASE_SHA          = os.environ["BASE_SHA"]
 HEAD_SHA          = os.environ["HEAD_SHA"]
 BASE_BRANCH       = os.environ.get("BASE_BRANCH", "main")
 
-MAX_DIFF_CHARS    = 10_000
+MAX_DIFF_CHARS = 10_000
 
 GITHUB_HEADERS = {
     "Authorization": f"Bearer {GITHUB_TOKEN}",
@@ -31,7 +31,6 @@ GITHUB_HEADERS = {
 # ── 데이터 수집 ──────────────────────────────────────────────────────────────
 
 def get_commit_messages() -> str:
-    """base..head 사이의 커밋 메시지 수집"""
     result = subprocess.run(
         ["git", "log", f"{BASE_SHA}..{HEAD_SHA}", "--pretty=format:- %s%n%b"],
         capture_output=True, text=True, check=True,
@@ -40,27 +39,26 @@ def get_commit_messages() -> str:
     return result.stdout.strip()
 
 
+def get_changed_files() -> list[str]:
+    result = subprocess.run(
+        ["git", "diff", "--name-only", f"{BASE_SHA}...{HEAD_SHA}"],
+        capture_output=True, text=True, check=True,
+        encoding="utf-8", errors="replace",
+    )
+    return [f for f in result.stdout.strip().splitlines() if f]
+
+
 def get_diff() -> str:
-    """변경된 코드 diff 수집 (크기 제한 적용)"""
     result = subprocess.run(
         ["git", "diff", f"{BASE_SHA}...{HEAD_SHA}", "--unified=3",
-         "--diff-filter=ACMRT"],  # 삭제 전용 파일 제외
+         "--diff-filter=ACMRT"],
         capture_output=True, text=True, check=True,
         encoding="utf-8", errors="replace",
     )
     diff = result.stdout
     if len(diff) > MAX_DIFF_CHARS:
-        diff = diff[:MAX_DIFF_CHARS] + "\n\n[... 이하 생략 (크기 초과) ...]"
+        diff = diff[:MAX_DIFF_CHARS] + "\n\n[... 생략 ...]"
     return diff
-
-
-def get_changed_files() -> list[str]:
-    """변경된 파일 목록 수집"""
-    result = subprocess.run(
-        ["git", "diff", "--name-only", f"{BASE_SHA}...{HEAD_SHA}"],
-        capture_output=True, text=True, check=True,
-    )
-    return [f for f in result.stdout.strip().splitlines() if f]
 
 
 # ── Claude 호출 ──────────────────────────────────────────────────────────────
@@ -75,7 +73,7 @@ SYSTEM_PROMPT = """당신은 PR 설명 작성을 돕는 시니어 개발자입�
 ---
 
 ## 📌 변경 목적 / 배경
-> 이 PR이 왜 필요한지 서술합니다. 비즈니스 맥락이나 해결하려는 문제를 중심으로 작성하세요.
+> 이 PR이 왜 필요한지 서술합니다.
 
 (내용)
 
@@ -97,7 +95,6 @@ SYSTEM_PROMPT = """당신은 PR 설명 작성을 돕는 시니어 개발자입�
 
 def generate_description(title: str, commits: str, files: list[str], diff: str) -> str:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-
     user_content = f"""PR 제목: {title}
 
 커밋 메시지:
@@ -112,7 +109,6 @@ Git diff:
 {diff}
 ```
 """
-
     message = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=1500,

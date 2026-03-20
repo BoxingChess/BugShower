@@ -8,8 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - "리뷰 불가능"
-          - "리뷰 가능"
+          - "부재 시작"
+          - "복귀"
 
 jobs:
   toggle-absence:
@@ -44,7 +44,11 @@ jobs:
           # 현재 값 조회
           resp = requests.get(var_url, headers=headers)
           current = resp.json().get("value", "") if resp.ok else ""
-          absent_set = {r.strip() for r in current.split(",") if r.strip()}
+          # "none"은 빈 값을 의미하므로 제외
+          absent_set = {
+              r.strip() for r in current.split(",")
+              if r.strip() and r.strip() != "none"
+          }
 
           # 부재 목록 업데이트
           if action == "부재 시작":
@@ -54,9 +58,10 @@ jobs:
               absent_set.discard(username)
               msg = f"✅ @{username} 복귀 처리 완료"
 
+          # 빈 값은 "none"으로 대체 (GitHub Variables API는 빈 문자열 비허용)
           new_value = ",".join(sorted(absent_set)) if absent_set else "none"
 
-          # PATCH 먼저 시도 (name 필드 포함) → 404(없음)면 POST로 생성
+          # PATCH 먼저 시도 (name 필드 포함) → 404면 POST로 생성
           r = requests.patch(
               var_url,
               headers=headers,
@@ -71,5 +76,5 @@ jobs:
 
           r.raise_for_status()
           print(msg)
-          print(f"현재 부재 목록: {new_value if new_value else '(없음)'}")
+          print(f"현재 부재 목록: {new_value}")
           EOF

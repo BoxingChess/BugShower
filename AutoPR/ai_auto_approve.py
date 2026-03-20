@@ -1,10 +1,12 @@
 """
 AI Auto Approve Script
-PR의 Assignee(담당자)가 REVIEWER_ABSENT_LIST에 포함된 경우에만 자동 Approve & Merge합니다.
-담당자가 재직 중이면 아무것도 하지 않고 수동 Approve를 기다립니다.
+PR 작성자를 제외한 나머지 담당자가 전원 REVIEWER_ABSENT_LIST에 있을 때 자동 Approve & Merge합니다.
 
 REVIEWER_ABSENT_LIST 관리:
   GitHub Actions 탭 → "Toggle My Absence" 워크플로우 실행 → 부재 시작 / 복귀 선택
+
+현황 확인:
+  GitHub Actions 탭 → "Check Reviewer Status" 워크플로우 실행
 """
 
 import os
@@ -16,6 +18,8 @@ REPO                 = os.environ["REPO"]
 PR_NUMBER            = os.environ["PR_NUMBER"]
 PR_SHA               = os.environ["PR_SHA"]
 BUG_LEVEL            = os.environ.get("BUG_LEVEL", "none")
+
+# "none"은 빈 값을 의미하므로 제외
 REVIEWER_ABSENT_LIST = {
     r.strip()
     for r in os.environ.get("REVIEWER_ABSENT_LIST", "").split(",")
@@ -29,12 +33,15 @@ GITHUB_HEADERS = {
 }
 
 
-def get_pr_assignees() -> list[str]:
-    """PR의 현재 Assignee 목록 조회"""
+def get_pr_info() -> tuple[list[str], str]:
+    """Assignee 목록과 PR 작성자 반환"""
     url = f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}"
     resp = requests.get(url, headers=GITHUB_HEADERS)
     resp.raise_for_status()
-    return [a["login"] for a in resp.json().get("assignees", [])]
+    data = resp.json()
+    assignees = [a["login"] for a in data.get("assignees", [])]
+    author = data["user"]["login"]
+    return assignees, author
 
 
 def post_comment(body: str) -> None:
@@ -78,29 +85,30 @@ def merge_pr() -> None:
 def main():
     print(f"부재 목록: {REVIEWER_ABSENT_LIST or '(없음)'}")
 
-    # PR Assignee 조회
-    assignees = get_pr_assignees()
+    assignees, author = get_pr_info()
+    print(f"PR 작성자: @{author}")
     print(f"PR 담당자: {assignees or '(없음)'}")
-
-    # 담당자 중 부재 중인 사람 확인
-    absent_reviewers = [a for a in assignees if a in REVIEWER_ABSENT_LIST]
 
     if not assignees:
         print("담당자 미지정 — 수동 Approve 대기")
         sys.exit(0)
 
-    if not absent_reviewers:
-        print("담당자 재직 중 — 수동 Approve 대기")
+    # PR 작성자(나)를 제외한 나머지 담당자만 체크
+    other_assignees = [a for a in assignees if a != author]
+
+    if not other_assignees:
+        print("나 혼자만 담당자 — 수동 Approve 대기")
         sys.exit(0)
 
-    # 담당자 전원 부재 시에만 자동 승인
-    all_absent = len(absent_reviewers) == len(assignees)
-    if not all_absent:
-        present = [a for a in assignees if a not in REVIEWER_ABSENT_LIST]
-        print(f"일부 담당자 재직 중({present}) — 수동 Approve 대기")
+    absent_reviewers = [a for a in other_assignees if a in REVIEWER_ABSENT_LIST]
+    all_others_absent = len(absent_reviewers) == len(other_assignees)
+
+    if not all_others_absent:
+        present = [a for a in other_assignees if a not in REVIEWER_ABSENT_LIST]
+        print(f"다른 담당자 재직 중({present}) — 수동 Approve 대기")
         sys.exit(0)
 
-    print(f"담당자 전원 부재({absent_reviewers}) → 자동 승인 진행")
+    print(f"나를 제외한 담당자 전원 부재({absent_reviewers}) → 자동 승인 진행")
 
     print("1/3 부재 알림 코멘트 등록 중...")
     post_comment(
