@@ -8,8 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - "리뷰 불가능"
-          - "리뷰 가능"
+          - "부재 시작"
+          - "복귀"
 
 jobs:
   toggle-absence:
@@ -56,11 +56,18 @@ jobs:
 
           new_value = ",".join(sorted(absent_set))
 
-          # PATCH 먼저 시도 → 404(없음)면 POST로 생성
-          r = requests.patch(var_url, headers=headers, json={"value": new_value})
+          # PATCH 먼저 시도 (name 필드 포함) → 404(없음)면 POST로 생성
+          r = requests.patch(
+              var_url,
+              headers=headers,
+              json={"name": "REVIEWER_ABSENT_LIST", "value": new_value},
+          )
           if r.status_code == 404:
-              r = requests.post(list_url, headers=headers,
-                                json={"name": "REVIEWER_ABSENT_LIST", "value": new_value})
+              r = requests.post(
+                  list_url,
+                  headers=headers,
+                  json={"name": "REVIEWER_ABSENT_LIST", "value": new_value},
+              )
 
           r.raise_for_status()
           print(msg)
