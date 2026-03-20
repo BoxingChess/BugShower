@@ -83,7 +83,7 @@ AMonsterProjectile::AMonsterProjectile()
 
 	// Set up replication
 	bReplicates = true;
-	SetReplicateMovement(true);
+	SetReplicateMovement(false);
 
 	// Create collision component
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));

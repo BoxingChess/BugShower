@@ -8,6 +8,7 @@
 #include "NPC/Spawnable.h"
 #include "MonsterProjectile.generated.h"
 
+
 UCLASS()
 class BUGSHOWER_API AMonsterProjectile : public AActor, public ISpawnable
 {
@@ -74,5 +75,4 @@ private:
 
 	UPROPERTY()
 	float Life;
-
 };
