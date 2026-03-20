@@ -35,6 +35,7 @@ def get_commit_messages() -> str:
     result = subprocess.run(
         ["git", "log", f"{BASE_SHA}..{HEAD_SHA}", "--pretty=format:- %s%n%b"],
         capture_output=True, text=True, check=True,
+        encoding="utf-8", errors="replace",
     )
     return result.stdout.strip()
 
@@ -45,6 +46,7 @@ def get_diff() -> str:
         ["git", "diff", f"{BASE_SHA}...{HEAD_SHA}", "--unified=3",
          "--diff-filter=ACMRT"],  # 삭제 전용 파일 제외
         capture_output=True, text=True, check=True,
+        encoding="utf-8", errors="replace",
     )
     diff = result.stdout
     if len(diff) > MAX_DIFF_CHARS:
