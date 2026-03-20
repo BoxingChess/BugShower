@@ -42,6 +42,7 @@ def get_pr_diff() -> str:
     result = subprocess.run(
         ["git", "diff", f"{BASE_SHA}...{HEAD_SHA}", "--unified=5"],
         capture_output=True, text=True, check=True,
+        encoding="utf-8", errors="replace",
     )
     return result.stdout
 
