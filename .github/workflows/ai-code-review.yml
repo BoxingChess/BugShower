@@ -45,7 +45,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
-        run: python scripts/ai_pr_description.py
+        run: python AutoPR/ai_pr_description.py
 
   # ── Job 2: AI 코드 리뷰 ──────────────────────────────────────────────────
   ai-review:
@@ -78,18 +78,16 @@ jobs:
           REPO: ${{ github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python scripts/ai_review.py
+        run: python AutoPR/ai_review.py
 
-  # ── Job 3: 부재 시 자동 승인 & Merge ────────────────────────────────────
-  # 조건: REVIEWER_ABSENT=true + 버그 없음
-  # 재지정은 담당자가 GitHub에서 직접 수동으로 처리
+  # ── Job 3: 담당자 부재 시 자동 승인 & Merge ──────────────────────────────
+  # PR 담당자(Assignee)가 REVIEWER_ABSENT_LIST에 포함된 경우에만 실행
   ai-auto-approve:
     name: Auto Approve (Reviewer Absent)
     runs-on: ubuntu-latest
     needs: [ai-review]
     if: |
       always() &&
-      vars.REVIEWER_ABSENT == 'true' &&
       (needs.ai-review.outputs.bug_level == 'none' ||
        needs.ai-review.outputs.bug_level == 'style')
     steps:
@@ -101,11 +99,13 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Auto Approve & Merge
+      - name: Auto Approve & Merge (if reviewer absent)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
           BUG_LEVEL: ${{ needs.ai-review.outputs.bug_level }}
-        run: python scripts/ai_auto_approve.py
+          # 현재 부재 중인 사람 목록 (Toggle My Absence 워크플로우로 자동 관리)
+          REVIEWER_ABSENT_LIST: ${{ vars.REVIEWER_ABSENT_LIST }}
+        run: python AutoPR/ai_auto_approve.py
