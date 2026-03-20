@@ -38,12 +38,12 @@ jobs:
               "X-GitHub-Api-Version": "2022-11-28",
           }
 
-          var_url = f"https://api.github.com/repos/{repo}/actions/variables/REVIEWER_ABSENT_LIST"
+          var_url  = f"https://api.github.com/repos/{repo}/actions/variables/REVIEWER_ABSENT_LIST"
+          list_url = f"https://api.github.com/repos/{repo}/actions/variables"
 
           # 현재 값 조회
           resp = requests.get(var_url, headers=headers)
-          exists = resp.status_code == 200
-          current = resp.json().get("value", "") if exists else ""
+          current = resp.json().get("value", "") if resp.ok else ""
           absent_set = {r.strip() for r in current.split(",") if r.strip()}
 
           # 부재 목록 업데이트
@@ -56,15 +56,11 @@ jobs:
 
           new_value = ",".join(sorted(absent_set))
 
-          # 존재하면 PATCH, 없으면 POST
-          if exists:
-              r = requests.patch(var_url, headers=headers, json={"value": new_value})
-          else:
-              r = requests.post(
-                  f"https://api.github.com/repos/{repo}/actions/variables",
-                  headers=headers,
-                  json={"name": "REVIEWER_ABSENT_LIST", "value": new_value},
-              )
+          # PATCH 먼저 시도 → 404(없음)면 POST로 생성
+          r = requests.patch(var_url, headers=headers, json={"value": new_value})
+          if r.status_code == 404:
+              r = requests.post(list_url, headers=headers,
+                                json={"name": "REVIEWER_ABSENT_LIST", "value": new_value})
 
           r.raise_for_status()
           print(msg)
