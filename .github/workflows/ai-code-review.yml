@@ -81,7 +81,6 @@ jobs:
         run: python AutoPR/ai_review.py
 
   # ── Job 3: 담당자 부재 시 자동 승인 & Merge ──────────────────────────────
-  # PR 담당자(Assignee)가 REVIEWER_ABSENT_LIST에 포함된 경우에만 실행
   ai-auto-approve:
     name: Auto Approve (Reviewer Absent)
     runs-on: ubuntu-latest
@@ -109,6 +108,5 @@ jobs:
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
           BUG_LEVEL: ${{ needs.ai-review.outputs.bug_level }}
-          # 현재 부재 중인 사람 목록 (Toggle My Absence 워크플로우로 자동 관리)
           REVIEWER_ABSENT_LIST: ${{ vars.REVIEWER_ABSENT_LIST }}
         run: python AutoPR/ai_auto_approve.py

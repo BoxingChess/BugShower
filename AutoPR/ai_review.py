@@ -59,13 +59,25 @@ def filter_diff(raw_diff: str) -> str:
     return filtered
 
 
-# ── GitHub Review API ─────────────────────────────────────────────────────────
+# ── GitHub API ────────────────────────────────────────────────────────────────
 
 def post_pr_review(body: str, event: str) -> None:
     url = f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}/reviews"
     resp = requests.post(url, headers=GITHUB_HEADERS, json={"body": body, "event": event})
     resp.raise_for_status()
     print(f"리뷰 등록 완료 ({event}): {resp.json().get('html_url', '')}")
+
+
+def post_manual_review_comment(reason: str) -> None:
+    body = (
+        "## ⚠️ AI 리뷰 불가 — 수동 리뷰 필요\n\n"
+        f"AI 코드 리뷰를 진행할 수 없습니다.\n\n"
+        f"**사유**: {reason}\n\n"
+        "담당자가 직접 코드를 검토한 후 Approve해 주세요.\n\n"
+        "> 🤖 Claude AI"
+    )
+    url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
+    requests.post(url, headers=GITHUB_HEADERS, json={"body": body}).raise_for_status()
 
 
 # ── Claude 리뷰 ───────────────────────────────────────────────────────────────
@@ -124,13 +136,6 @@ def call_claude(diff: str) -> str:
 
 
 def detect_bug_level(review_body: str) -> str:
-    """
-    리뷰 결과에서 버그 심각도를 판별합니다.
-      high   → 🔴 존재
-      medium → 🟡 존재 (🔴 없음)
-      style  → 🔴🟡 없지만 스타일 이슈 존재
-      none   → 아무 이슈 없음
-    """
     if "🔴" in review_body:
         return "high"
     if "🟡" in review_body:
@@ -149,19 +154,6 @@ def set_github_output(key: str, value: str) -> None:
 
 
 # ── 메인 ─────────────────────────────────────────────────────────────────────
-
-def post_manual_review_comment(reason: str) -> None:
-    """API 오류 시 수동 리뷰 요청 코멘트 등록"""
-    body = (
-        "## ⚠️ AI 리뷰 불가 — 수동 리뷰 필요\n\n"
-        f"AI 코드 리뷰를 진행할 수 없습니다.\n\n"
-        f"**사유**: {reason}\n\n"
-        "담당자가 직접 코드를 검토한 후 Approve해 주세요.\n\n"
-        "> 🤖 Claude AI"
-    )
-    url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
-    requests.post(url, headers=GITHUB_HEADERS, json={"body": body}).raise_for_status()
-
 
 def main():
     print("1/3 PR diff 수집 중...")
