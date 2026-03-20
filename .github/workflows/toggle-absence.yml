@@ -8,8 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - "부재 시작"
-          - "복귀"
+          - "리뷰 불가능"
+          - "리뷰 가능"
 
 jobs:
   toggle-absence:
@@ -54,7 +54,7 @@ jobs:
               absent_set.discard(username)
               msg = f"✅ @{username} 복귀 처리 완료"
 
-          new_value = ",".join(sorted(absent_set))
+          new_value = ",".join(sorted(absent_set)) if absent_set else "none"
 
           # PATCH 먼저 시도 (name 필드 포함) → 404(없음)면 POST로 생성
           r = requests.patch(
