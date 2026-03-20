@@ -19,7 +19,7 @@ BUG_LEVEL            = os.environ.get("BUG_LEVEL", "none")
 REVIEWER_ABSENT_LIST = {
     r.strip()
     for r in os.environ.get("REVIEWER_ABSENT_LIST", "").split(",")
-    if r.strip()
+    if r.strip() and r.strip() != "none"
 }
 
 GITHUB_HEADERS = {
