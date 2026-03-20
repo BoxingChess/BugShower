@@ -45,7 +45,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
-        run: python scripts/ai_pr_description.py
+        run: python AutoPR/ai_pr_description.py
 
   # ── Job 2: AI 코드 리뷰 ──────────────────────────────────────────────────
   ai-review:
@@ -78,7 +78,7 @@ jobs:
           REPO: ${{ github.repository }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python scripts/ai_review.py
+        run: python AutoPR/ai_review.py
 
   # ── Job 3: 부재 시 자동 승인 & Merge ────────────────────────────────────
   # 조건: REVIEWER_ABSENT=true + 버그 없음
@@ -108,4 +108,4 @@ jobs:
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
           BUG_LEVEL: ${{ needs.ai-review.outputs.bug_level }}
-        run: python scripts/ai_auto_approve.py
+        run: python AutoPR/ai_auto_approve.py
