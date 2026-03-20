@@ -45,7 +45,6 @@ def get_diff() -> str:
         ["git", "diff", f"{BASE_SHA}...{HEAD_SHA}", "--unified=3",
          "--diff-filter=ACMRT"],  # 삭제 전용 파일 제외
         capture_output=True, text=True, check=True,
-        encoding="utf-8", errors="replace",
     )
     diff = result.stdout
     if len(diff) > MAX_DIFF_CHARS:
@@ -146,11 +145,22 @@ def main():
     print(f"    → {len(diff)} 자")
 
     print("4/4 Claude로 PR 설명 생성 중...")
-    description = generate_description(PR_TITLE, commits, files, diff)
-    print("    → 생성 완료")
-
-    update_pr_body(description)
-    print("✅ PR 설명 자동 등록 완료!")
+    try:
+        description = generate_description(PR_TITLE, commits, files, diff)
+        print("    → 생성 완료")
+        update_pr_body(description)
+        print("✅ PR 설명 자동 등록 완료!")
+    except anthropic.BadRequestError as e:
+        if "credit balance is too low" in str(e):
+            print("⚠️  크레딧 부족 → PR 설명 자동 생성 건너뜀. 작성자가 직접 작성해 주세요.")
+            sys.exit(0)
+        raise
+    except anthropic.APIStatusError as e:
+        print(f"⚠️  API 오류 ({e.status_code}) → PR 설명 자동 생성 건너뜀.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"⚠️  예상치 못한 오류 → PR 설명 자동 생성 건너뜀: {e}")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

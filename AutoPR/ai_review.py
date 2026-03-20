@@ -42,7 +42,6 @@ def get_pr_diff() -> str:
     result = subprocess.run(
         ["git", "diff", f"{BASE_SHA}...{HEAD_SHA}", "--unified=5"],
         capture_output=True, text=True, check=True,
-        encoding="utf-8", errors="replace",
     )
     return result.stdout
 
@@ -150,6 +149,19 @@ def set_github_output(key: str, value: str) -> None:
 
 # ── 메인 ─────────────────────────────────────────────────────────────────────
 
+def post_manual_review_comment(reason: str) -> None:
+    """API 오류 시 수동 리뷰 요청 코멘트 등록"""
+    body = (
+        "## ⚠️ AI 리뷰 불가 — 수동 리뷰 필요\n\n"
+        f"AI 코드 리뷰를 진행할 수 없습니다.\n\n"
+        f"**사유**: {reason}\n\n"
+        "담당자가 직접 코드를 검토한 후 Approve해 주세요.\n\n"
+        "> 🤖 Claude AI"
+    )
+    url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
+    requests.post(url, headers=GITHUB_HEADERS, json={"body": body}).raise_for_status()
+
+
 def main():
     print("1/3 PR diff 수집 중...")
     raw_diff = get_pr_diff()
@@ -162,8 +174,26 @@ def main():
     print(f"    → {len(diff)} 자 분량의 diff 준비 완료")
 
     print("2/3 Claude API 코드 리뷰 중...")
-    review_body = call_claude(diff)
-    print("    → 리뷰 생성 완료")
+    try:
+        review_body = call_claude(diff)
+        print("    → 리뷰 생성 완료")
+    except anthropic.BadRequestError as e:
+        if "credit balance is too low" in str(e):
+            print("⚠️  크레딧 부족 → 수동 리뷰로 전환")
+            post_manual_review_comment("Anthropic API 크레딧 부족 — console.anthropic.com에서 충전 필요")
+            set_github_output("bug_level", "none")
+            sys.exit(0)
+        raise
+    except anthropic.APIStatusError as e:
+        print(f"⚠️  API 오류 ({e.status_code}) → 수동 리뷰로 전환")
+        post_manual_review_comment(f"API 오류 발생 (status {e.status_code})")
+        set_github_output("bug_level", "none")
+        sys.exit(0)
+    except Exception as e:
+        print(f"⚠️  예상치 못한 오류 → 수동 리뷰로 전환: {e}")
+        post_manual_review_comment(f"예상치 못한 오류: {type(e).__name__}")
+        set_github_output("bug_level", "none")
+        sys.exit(0)
 
     bug_level = detect_bug_level(review_body)
     set_github_output("bug_level", bug_level)
