@@ -8,8 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - "부재 시작"
-          - "복귀"
+          - "리뷰 불가능"
+          - "리뷰 가능"
 
 permissions:
   actions: write   # Variables 수정에 필요
@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Update REVIEWER_ABSENT_LIST
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
           REPO: ${{ github.repository }}
           MY_USERNAME: ${{ github.actor }}          # 실행한 사람의 GitHub 유저명
           ACTION: ${{ github.event.inputs.action }}
