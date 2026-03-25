@@ -36,4 +36,5 @@ void UMonsterBaseAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	bIsWalk = !bIsDash && GroundSpeed > MovingThreshould;
 	bIsIdle = !bIsDash && !bIsWalk;
 	bIsFalling = Movement->IsFalling();
+	bIsThrow = Monster->bIsThrowingOrange;
 }

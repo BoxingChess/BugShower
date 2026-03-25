@@ -85,6 +85,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
 	uint8 bIsDashing : 1;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	uint8 bIsThrowingOrange : 1;
+
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

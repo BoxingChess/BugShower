@@ -51,7 +51,8 @@ EBTNodeResult::Type UBTTask_RangedAttack::ExecuteTask(UBehaviorTreeComponent& Ow
 	}
 
 	// Fire projectile at target
-	Monster->FireProjectile(Target);
+	//Monster->FireProjectile(Target);
+	Monster->bIsThrowingOrange = true;
 
 	LOG_BT(TEXT("BTTask_RangedAttack: Fired projectile at %s"), *Target->GetName());
 
