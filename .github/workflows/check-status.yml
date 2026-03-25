@@ -1,0 +1,60 @@
+name: Check Reviewer Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-status:
+    name: Current Reviewer Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show Status
+        env:
+          REVIEWER_TEAM: ${{ vars.REVIEWER_TEAM }}
+          REVIEWER_ABSENT_LIST: ${{ vars.REVIEWER_ABSENT_LIST }}
+        run: |
+          python3 - <<'EOF'
+          import os
+
+          team_raw   = os.environ.get("REVIEWER_TEAM", "")
+          absent_raw = os.environ.get("REVIEWER_ABSENT_LIST", "")
+
+          team   = [r.strip() for r in team_raw.split(",") if r.strip()]
+          absent = {
+              r.strip() for r in absent_raw.split(",")
+              if r.strip() and r.strip() != "none"
+          }
+
+          if not team:
+              print("⚠️  REVIEWER_TEAM 변수가 설정되지 않았습니다.")
+              print("Settings → Variables → Actions → REVIEWER_TEAM 에 팀원 목록을 등록해 주세요.")
+              print("예) dev-kim,dev-lee,dev-park")
+              exit(0)
+
+          print("=" * 40)
+          print("       리뷰어 현황")
+          print("=" * 40)
+
+          present = [m for m in team if m not in absent]
+          absent_members = [m for m in team if m in absent]
+
+          print(f"\n✅ 재직 중 ({len(present)}명)")
+          for m in present:
+              print(f"   • @{m}")
+
+          print(f"\n🔴 부재 중 ({len(absent_members)}명)")
+          if absent_members:
+              for m in absent_members:
+                  print(f"   • @{m}")
+          else:
+              print("   (없음)")
+
+          print("\n" + "=" * 40)
+
+          if not present:
+              print("⚠️  전원 부재 — PR 자동 승인 활성화 상태")
+          elif len(present) == 1:
+              print(f"ℹ️  @{present[0]} 혼자 재직 중")
+          else:
+              print(f"ℹ️  {len(present)}명 재직 중 — 정상 운영")
+          EOF
