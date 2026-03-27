@@ -246,6 +246,48 @@ void AMonsterBase::FireProjectile(AActor* Target)
 	PoolSys->FireProjectileAt(this, Target, BulletClass, SpawnLocation, ProjectileSpeed, Damage);
 }
 
+void AMonsterBase::FireProjectile(AActor* Target, AActor* FireActor)
+{
+	// Only execute on server
+	if (!HasAuthority())
+	{
+		LOG_LOGIC_WARNING(TEXT("FireProjectile: No authority"));
+		return;
+	}
+
+	// Validate target
+	if (!Target)
+	{
+		LOG_LOGIC_WARNING(TEXT("FireProjectile: Target is null"));
+		return;
+	}
+
+	// Get pooling subsystem
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: World is null"));
+		return;
+	}
+
+	// Calculate spawn location (slightly in front of monster)
+	FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.0f;
+	SpawnLocation.Z += 50.0f;  // Spawn at chest height
+
+	// Get damage from MonsterStatComponent
+	float Damage = MonsterStatComp ? MonsterStatComp->GetDamage() : 10.0f;
+
+
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (!PoolSys)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: PoolingSubsystem not found"));
+		return;
+	}
+
+	PoolSys->FireProjectileAt(this, Target, BulletClass, SpawnLocation, ProjectileSpeed, Damage, FireActor);
+}
+
 void AMonsterBase::OnDeath(AActor* DeadMonster)
 {
 	// Drop items before the monster is deactivated

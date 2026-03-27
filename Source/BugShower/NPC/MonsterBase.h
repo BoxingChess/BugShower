@@ -108,6 +108,7 @@ public:
 
 	// Fire projectile towards target (called from BT Task)
 	void FireProjectile(AActor* Target);
+	void FireProjectile(AActor* Target, AActor* FireActor);
 
 	void StartDash();
 	void StopDash();
