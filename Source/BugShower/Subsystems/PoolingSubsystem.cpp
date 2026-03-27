@@ -96,7 +96,7 @@ bool UPoolingSubsystem::FireProjectileAt(
 		SpawnLocation,
 		TargetLocation,
 		ProjectileSpeed,
-		true,  // High arc
+		false,  // High arc
 		0.0f,
 		0.0f,
 		ESuggestProjVelocityTraceOption::DoNotTrace
