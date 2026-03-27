@@ -270,9 +270,8 @@ void AMonsterBase::FireProjectile(AActor* Target, AActor* FireActor)
 		return;
 	}
 
-	// Calculate spawn location (slightly in front of monster)
-	FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 100.0f;
-	SpawnLocation.Z += 50.0f;  // Spawn at chest height
+	// FireActor가 이미 손 소켓 위치에 있으므로 해당 위치를 사용
+	FVector SpawnLocation = FireActor->GetActorLocation();
 
 	// Get damage from MonsterStatComponent
 	float Damage = MonsterStatComp ? MonsterStatComp->GetDamage() : 10.0f;

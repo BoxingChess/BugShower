@@ -14,8 +14,6 @@
 #include "Engine/SkeletalMesh.h"                 // USkeletalMesh, GetMeshOnlySocketList
 #include "Engine/SkeletalMeshSocket.h"           // USkeletalMeshSocket (���� ������Ƽ ���� ��)
 
-FString OrangeSocketName = TEXT("hand_LSocket");
-
 void UThrowOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
 	Super::Notify(MeshComp, Animation, EventReference);
@@ -43,15 +41,13 @@ void UThrowOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceB
 				// ���� ��� ���� (���� �� ������ ����)
 				AIC->StopMovement();
 
-
-
 				TArray<AActor*> AttachedActors;
 				Monster->GetAttachedActors(AttachedActors);
 
 				for (AActor* AttachedActor : AttachedActors)
 				{
 					// Ư�� ���Ͽ� �پ� �ִ��� Ȯ��
-					if (AttachedActor->GetRootComponent()->GetAttachSocketName() == OrangeSocketName)
+					if (AttachedActor->GetRootComponent()->GetAttachSocketName() == Monster->ProjectileSocketName)
 					{
 						// Ż�� ��Ģ ����
 						// Location, Rotation, Scale ��� KeepWorld�� �����Ͽ� 
@@ -185,7 +181,7 @@ void UAttachOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequence
 	{
 		OrangeRoot->SetSimulatePhysics(false);
 		OrangeRoot->SetEnableGravity(false);
-		OrangeRoot->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		OrangeRoot->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 
 	// Monster의 소켓 위치(예: 손가락)에 붙이기
@@ -195,7 +191,7 @@ void UAttachOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequence
 		EAttachmentRule::KeepRelative,  // Scale - 원본 스케일 유지
 		true
 	);
-	bool bAttached = Orange->AttachToComponent(Monster->GetMesh(), AttachRules, FName(OrangeSocketName));
+	bool bAttached = Orange->AttachToComponent(Monster->GetMesh(), AttachRules, Monster->ProjectileSocketName);
 
 	// 부착 후 CDO 기본 스케일로 복원
 	FVector DefaultScale = Orange->GetClass()->GetDefaultObject<AActor>()->GetActorScale3D();
@@ -212,7 +208,7 @@ void UAttachOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequence
 	}
 
 	// 소켓 월드 위치
-	FVector SocketLocation = Monster->GetMesh()->GetSocketLocation(FName(OrangeSocketName));
+	FVector SocketLocation = Monster->GetMesh()->GetSocketLocation(Monster->ProjectileSocketName);
 
 	// 부착 후 상태 디버그
 	UE_LOG(LogTemp, Warning, TEXT("Orange Attach: %s | Hidden: %d | OrangeLoc: %s | SocketLoc: %s | Scale: %s"),

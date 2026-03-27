@@ -68,6 +68,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "RangedStat")
 	TSubclassOf<AActor> BulletClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RangedStat")
+	FName ProjectileSocketName = TEXT("hand_LSocket");
+
 	// Drop configuration ID (references DataTable row)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DropStat")
 	FName MonsterDropID;
