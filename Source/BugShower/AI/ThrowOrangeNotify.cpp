@@ -10,7 +10,11 @@
 #include "Subsystems/PoolingSubsystem.h"
 #include "Projectile/MonsterProjectile.h"
 
-FString SocketName = TEXT("hand_LSocket");
+#include "Components/SkeletalMeshComponent.h"   // USkeletalMeshComponent, QuerySupportedSockets, GetAllSocketNames
+#include "Engine/SkeletalMesh.h"                 // USkeletalMesh, GetMeshOnlySocketList
+#include "Engine/SkeletalMeshSocket.h"           // USkeletalMeshSocket (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ¼ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)
+
+FString OrangeSocketName = TEXT("hand_LSocket");
 
 void UThrowOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
@@ -25,46 +29,66 @@ void UThrowOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceB
 
 	if (OwningPawn)
 	{
-		// ÆùÀ» Á¶Á¾ÇÏ´Â AI ÄÁÆ®·Ñ·¯ °¡Á®¿À±â
+		// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ AI ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		AAIController* AIC = Cast<AAIController>(OwningPawn->GetController());
 		if (AIC)
 		{
-			// AI ÄÁÆ®·Ñ·¯°¡ »ç¿ëÇÏ´Â ºí·¢º¸µå ÄÄÆ÷³ÍÆ® Á¢±Ù
+			// AI ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 			UBlackboardComponent* BB = AIC->GetBlackboardComponent();
 			if (BB)
 			{
 
 				AActor* Target = Cast<AActor>(BB->GetValueAsObject(MONSTER_BOARD_KEY_TARGETACTOR));
 
-				// ±âÁ¸ °æ·Î »èÁ¦ (°ø°İ ÈÄ Àç°è»êÀ» À§ÇØ)
+				// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
 				AIC->StopMovement();
+
+
 
 				TArray<AActor*> AttachedActors;
 				Monster->GetAttachedActors(AttachedActors);
 
 				for (AActor* AttachedActor : AttachedActors)
 				{
-					// Æ¯Á¤ ¼ÒÄÏ¿¡ ºÙ¾î ÀÖ´ÂÁö È®ÀÎ
-					if (AttachedActor->GetRootComponent()->GetAttachSocketName() == SocketName)
+					// Æ¯ï¿½ï¿½ ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½Ù¾ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½ È®ï¿½ï¿½
+					if (AttachedActor->GetRootComponent()->GetAttachSocketName() == OrangeSocketName)
 					{
-						// Å»Âø ±ÔÄ¢ ¼³Á¤
-						// Location, Rotation, Scale ¸ğµÎ KeepWorld·Î ¼³Á¤ÇÏ¿© 
-						// ¶³¾îÁö´Â ¼ø°£	¼ÒÄÏ¿¡ ÀÖ´ø ±× ÀÚ¸®¿¡ ±×´ë·Î ¸ØÃç ÀÖ°Ô ÇÕ´Ï´Ù.
+						// Å»ï¿½ï¿½ ï¿½ï¿½Ä¢ ï¿½ï¿½ï¿½ï¿½
+						// Location, Rotation, Scale ï¿½ï¿½ï¿½ KeepWorldï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ 
+						// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½	ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ ï¿½Ú¸ï¿½ï¿½ï¿½ ï¿½×´ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ö°ï¿½ ï¿½Õ´Ï´ï¿½.
 						FDetachmentTransformRules DetachRules(
 							EDetachmentRule::KeepWorld,
 							EDetachmentRule::KeepWorld,
 							EDetachmentRule::KeepWorld,
-							true // °¡¼Óµµ À¯Áö ¿©ºÎ
+							true // ï¿½ï¿½ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 						);
 
-						// ºÎÂøµÇ¾î ÀÖ´ø ¾×ÅÍ(¿¹: Orange)¿¡¼­ È£Ãâ
 						AttachedActor->DetachFromActor(DetachRules);
+
+						// íƒˆì°© í›„ CDO ê¸°ë³¸ ìŠ¤ì¼€ì¼ë¡œ ë³µì›
+						FVector DefaultScale = AttachedActor->GetClass()->GetDefaultObject<AActor>()->GetActorScale3D();
+						AttachedActor->SetActorScale3D(DefaultScale);
+
+						// ì¶©ëŒ ë³µì› (ë¶€ì°© ì¤‘ QueryOnlyë¡œ ì „í™˜í–ˆë˜ ê²ƒì„ ì›ë˜ëŒ€ë¡œ)
+						UPrimitiveComponent* Root = Cast<UPrimitiveComponent>(AttachedActor->GetRootComponent());
+						if (Root)
+						{
+							Root->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+						}
+
+						// ë°œì‚¬ë¥¼ ìœ„í•´ ì´ë™ ë³µì›
+						AMonsterProjectile* Projectile = Cast<AMonsterProjectile>(AttachedActor);
+						if (Projectile)
+						{
+							Projectile->ResumeMovement(true);
+						}
+
+						Monster->FireProjectile(Target, AttachedActor);
 					}
 				}
 
 
-				//¹ß»ç
-				Monster->FireProjectile(Target);
+				//ï¿½ß»ï¿½
 			}
 		}
 	}
@@ -88,17 +112,17 @@ void UThrowEndNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 
 	if (OwningPawn)
 	{
-		// ÆùÀ» Á¶Á¾ÇÏ´Â AI ÄÁÆ®·Ñ·¯ °¡Á®¿À±â
+		// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ AI ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		AAIController* AIC = Cast<AAIController>(OwningPawn->GetController());
 		if (AIC)
 		{
-			// AI ÄÁÆ®·Ñ·¯°¡ »ç¿ëÇÏ´Â ºí·¢º¸µå ÄÄÆ÷³ÍÆ® Á¢±Ù
+			// AI ï¿½ï¿½Æ®ï¿½Ñ·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
 			UBlackboardComponent* BB = AIC->GetBlackboardComponent();
 			if (BB)
 			{
 				FAIMoveRequest MoveReq(Monster->GetActorLocation());
 
-				//´øÁö±â ÃÊ±âÈ­
+				//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
 				BB->SetValueAsBool(MONSTER_BOARD_KEY_ISINRANGEDRANGE, false);
 			}
 		}
@@ -134,20 +158,67 @@ void UAttachOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequence
 		return;
 	}
 
-	//TScriptInterface<ISpawnable> Spawnable = PoolingManager->SpawnFromClass(Monster->BulletClass, FVector::Zero());
-	/*if (!Spawnable)
+	TScriptInterface<ISpawnable> Spawnable = PoolingManager->SpawnFromClass(Monster->BulletClass, FVector::Zero());
+	/*
+	*/
+	if (!Spawnable)
 	{
 		return;
 	}
 	AMonsterProjectile* Orange = Cast<AMonsterProjectile>(Spawnable.GetObject());
 
+
 	if (!Orange)
 	{
 		return;
-	}*/
+	}
 
-	// Monster°¡ µé°í ÀÖÀ» ¾×ÅÍ(¿¹: ¿À·»Áö)¸¦ ¼Õ ¼ÒÄÏ¿¡ ºÎÂø
-	//FAttachmentTransformRules AttachRules(EAttachmentRule::SnapToTarget, true);
-	//Orange->AttachToComponent(MeshComp, AttachRules, FName(SocketName));
+	// ì˜¤ë„ˆ ì„¤ì • - AttachToComponent ì „ì— í•´ì•¼ ëª¬ìŠ¤í„° ìº¡ìŠ Overlap ì˜¤íƒ ë°©ì§€
+	Orange->SetProjectileOwner(Monster);
 
+	// ì›€ì§ì„ ì¤‘ì§€
+	Orange->PauseMovement();
+
+	// ë¬¼ë¦¬ ë°”ë””ê°€ ì†Œì¼“ íŠ¸ëœìŠ¤í¼ ì¶”ì ì„ ë°©í•´í•˜ì§€ ì•Šë„ë¡ QueryOnlyë¡œ ì „í™˜
+	UPrimitiveComponent* OrangeRoot = Cast<UPrimitiveComponent>(Orange->GetRootComponent());
+	if (OrangeRoot)
+	{
+		OrangeRoot->SetSimulatePhysics(false);
+		OrangeRoot->SetEnableGravity(false);
+		OrangeRoot->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	}
+
+	// Monsterì˜ ì†Œì¼“ ìœ„ì¹˜(ì˜ˆ: ì†ê°€ë½)ì— ë¶™ì´ê¸°
+	FAttachmentTransformRules AttachRules(
+		EAttachmentRule::SnapToTarget,  // Location
+		EAttachmentRule::SnapToTarget,  // Rotation
+		EAttachmentRule::KeepRelative,  // Scale - ì›ë³¸ ìŠ¤ì¼€ì¼ ìœ ì§€
+		true
+	);
+	bool bAttached = Orange->AttachToComponent(Monster->GetMesh(), AttachRules, FName(OrangeSocketName));
+
+	// ë¶€ì°© í›„ CDO ê¸°ë³¸ ìŠ¤ì¼€ì¼ë¡œ ë³µì›
+	FVector DefaultScale = Orange->GetClass()->GetDefaultObject<AActor>()->GetActorScale3D();
+	Orange->SetActorScale3D(DefaultScale);
+
+	// AttachToComponentê°€ ë¶€ëª¨(Monster) ì»´í¬ë„ŒíŠ¸ì˜ bHiddenInGameì„ ì „íŒŒí•˜ë¯€ë¡œ ì•¡í„°/ì»´í¬ë„ŒíŠ¸ ë ˆë²¨ ëª¨ë‘ ë³µì›
+	Orange->SetActorHiddenInGame(false);
+	for (UActorComponent* Comp : Orange->GetComponents())
+	{
+		if (UPrimitiveComponent* Prim = Cast<UPrimitiveComponent>(Comp))
+		{
+			Prim->SetVisibility(true, false);
+		}
+	}
+
+	// ì†Œì¼“ ì›”ë“œ ìœ„ì¹˜
+	FVector SocketLocation = Monster->GetMesh()->GetSocketLocation(FName(OrangeSocketName));
+
+	// ë¶€ì°© í›„ ìƒíƒœ ë””ë²„ê·¸
+	UE_LOG(LogTemp, Warning, TEXT("Orange Attach: %s | Hidden: %d | OrangeLoc: %s | SocketLoc: %s | Scale: %s"),
+		bAttached ? TEXT("Success") : TEXT("Failed"),
+		Orange->IsHidden(),
+		*Orange->GetActorLocation().ToString(),
+		*SocketLocation.ToString(),
+		*Orange->GetActorScale3D().ToString());
 }
