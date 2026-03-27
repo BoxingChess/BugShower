@@ -13,6 +13,7 @@
 #include "Components/SkeletalMeshComponent.h"   // USkeletalMeshComponent, QuerySupportedSockets, GetAllSocketNames
 #include "Engine/SkeletalMesh.h"                 // USkeletalMesh, GetMeshOnlySocketList
 #include "Engine/SkeletalMeshSocket.h"           // USkeletalMeshSocket (���� ������Ƽ ���� ��)
+#include "BrainComponent.h"                      // PauseLogic, ResumeLogic
 
 void UThrowOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
@@ -110,6 +111,12 @@ void UThrowEndNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase
 	{
 		// ���� �����ϴ� AI ��Ʈ�ѷ� ��������
 		AAIController* AIC = Cast<AAIController>(OwningPawn->GetController());
+
+		// BT 재개 — 다음 프레임 TickTask가 FinishLatentTask 호출
+		if (AIC)
+		{
+			AIC->GetBrainComponent()->ResumeLogic(TEXT("ThrowingOrange"));
+		}
 		if (AIC)
 		{
 			// AI ��Ʈ�ѷ��� ����ϴ� �������� ������Ʈ ����
@@ -152,6 +159,13 @@ void UAttachOrangeNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequence
 	if (!Monster)
 	{
 		return;
+	}
+
+	// 부착 시점부터 BT 일시정지 — 데코레이터 abort 차단
+	AAIController* AIC = Cast<AAIController>(Monster->GetController());
+	if (AIC)
+	{
+		AIC->GetBrainComponent()->PauseLogic(TEXT("ThrowingOrange"));
 	}
 
 	TScriptInterface<ISpawnable> Spawnable = PoolingManager->SpawnFromClass(Monster->BulletClass, FVector::Zero());

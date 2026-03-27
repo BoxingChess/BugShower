@@ -12,7 +12,7 @@
 UBTTask_RangedAttack::UBTTask_RangedAttack()
 {
 	NodeName = TEXT("Ranged Attack");
-	bNotifyTick = false;  // No need for tick, instant attack
+	bNotifyTick = true;
 }
 
 EBTNodeResult::Type UBTTask_RangedAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -54,9 +54,17 @@ EBTNodeResult::Type UBTTask_RangedAttack::ExecuteTask(UBehaviorTreeComponent& Ow
 	//Monster->FireProjectile(Target);
 	Monster->bIsThrowingOrange = true;
 
-	LOG_BT(TEXT("BTTask_RangedAttack: Fired projectile at %s"), *Target->GetName());
+	LOG_BT(TEXT("BTTask_RangedAttack: Started throw at %s"), *Target->GetName());
 
-	// Task completes immediately after firing
-	return EBTNodeResult::Succeeded;
+	return EBTNodeResult::InProgress;
+}
+
+void UBTTask_RangedAttack::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+{
+	AMonsterBase* Monster = Cast<AMonsterBase>(OwnerComp.GetAIOwner()->GetPawn());
+	if (!Monster || !Monster->bIsThrowingOrange)
+	{
+		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+	}
 }
 
