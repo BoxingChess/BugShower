@@ -1,0 +1,104 @@
+name: Update Claude Model
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'   # 매월 1일 자정 자동 실행
+  workflow_dispatch:        # 수동 실행도 가능
+
+permissions:
+  contents: write
+
+jobs:
+  update-model:
+    name: Check & Update Claude Model
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install anthropic requests
+
+      - name: Check and update model
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 - <<'EOF'
+          import os
+          import re
+          import subprocess
+          import anthropic
+
+          client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+          # Anthropic API에서 사용 가능한 모델 목록 조회
+          models = client.models.list()
+          model_ids = [m.id for m in models.data]
+          print(f"사용 가능한 모델 목록: {model_ids}")
+
+          # Sonnet 계열 최신 모델 선택 (sonnet 우선, 없으면 opus)
+          def get_latest_model(model_ids):
+              sonnet = [m for m in model_ids if "sonnet" in m.lower()]
+              opus   = [m for m in model_ids if "opus" in m.lower()]
+              candidates = sonnet if sonnet else opus
+              return sorted(candidates, reverse=True)[0] if candidates else None
+
+          latest = get_latest_model(model_ids)
+          if not latest:
+              print("⚠️  적합한 모델을 찾을 수 없습니다.")
+              exit(0)
+
+          print(f"선택된 최신 모델: {latest}")
+
+          # AutoPR 폴더의 Python 파일에서 현재 모델명 확인 및 교체
+          target_files = ["AutoPR/ai_review.py", "AutoPR/ai_pr_description.py"]
+          pattern = re.compile(r'model="([^"]+)"')
+          updated = []
+
+          for filepath in target_files:
+              if not os.path.exists(filepath):
+                  print(f"  ⚠️  파일 없음: {filepath}")
+                  continue
+
+              with open(filepath, "r", encoding="utf-8") as f:
+                  content = f.read()
+
+              match = pattern.search(content)
+              if not match:
+                  print(f"  ⚠️  모델명 패턴 없음: {filepath}")
+                  continue
+
+              current = match.group(1)
+              if current == latest:
+                  print(f"  ✅ {filepath} — 이미 최신 ({current})")
+                  continue
+
+              # 모델명 업데이트
+              new_content = pattern.sub(f'model="{latest}"', content)
+              with open(filepath, "w", encoding="utf-8") as f:
+                  f.write(new_content)
+
+              print(f"  🔄 {filepath} — {current} → {latest}")
+              updated.append(filepath)
+
+          if not updated:
+              print("\n모든 파일이 최신 모델을 사용 중입니다. 커밋 없음.")
+              exit(0)
+
+          # 변경된 파일 커밋 & 푸시
+          subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
+          subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
+          for f in updated:
+              subprocess.run(["git", "add", f], check=True)
+          subprocess.run([
+              "git", "commit", "-m",
+              f"chore: Claude 모델 자동 업데이트 → {latest}"
+          ], check=True)
+          subprocess.run(["git", "push"], check=True)
+          print(f"\n✅ 모델 업데이트 완료: {latest}")
+          EOF
