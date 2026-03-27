@@ -24,22 +24,14 @@ void AItemActor::Spawn(const FVector pos)
 	// IMPORTANT: Clear lifespan FIRST to prevent immediate expiration!
 	SetLifeSpan(0.0f);
 
-	// For physics-enabled actors, need special handling
-	if (MeshComponent && MeshComponent->IsSimulatingPhysics())
+	Activate(this, pos);
+
+	// 물리 시뮬레이션 복원 (Deactivate에서 꺼진 상태이므로 항상 재활성화)
+	if (MeshComponent)
 	{
-		// Temporarily disable physics, set location, then re-enable
-		MeshComponent->SetSimulatePhysics(false);
-		SetActorLocation(pos);
-		SetActorHiddenInGame(false);
-		SetActorEnableCollision(true);
-		SetActorTickEnabled(true);
 		MeshComponent->SetSimulatePhysics(true);
-		MeshComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);  // Reset velocity
-		MeshComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);  // Reset rotation
-	}
-	else
-	{
-		Activate(this, pos);
+		MeshComponent->SetPhysicsLinearVelocity(FVector::ZeroVector);
+		MeshComponent->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
 	}
 
 	// Set data from StaticItemInfo if available
