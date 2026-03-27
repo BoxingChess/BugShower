@@ -38,6 +38,11 @@ public:
 
 	virtual void LifeSpanExpired() override;
 
+	void PauseMovement();
+	void ResumeMovement(bool bReset);
+	void SetProjectileOwner(AActor* InOwner) { ProjectileOwner = InOwner; }
+
+
 protected:
 	UFUNCTION()
 	void OnProjectileOverlap(
@@ -68,6 +73,9 @@ private:
 	class UStaticMeshComponent* ProjectileMesh;
 
 	TWeakObjectPtr<AActor> ProjectileOwner;
+
+	// 풀 반환 전 공통 정리 — 모든 반환 경로에서 호출
+	void ResetProjectileState();
 
 	// Damage to deal on hit
 	UPROPERTY()
