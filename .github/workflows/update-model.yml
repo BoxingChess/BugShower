@@ -1,9 +1,9 @@
 name: Update Claude Model
 
 on:
-  schedule:
-    - cron: '0 0 1 * *'   # 매월 1일 자정 자동 실행
   workflow_dispatch:        # 수동 실행도 가능
+  # schedule:
+  #   - cron: '0 0 1 * *'   # 매월 1일 자정 자동 실행
 
 permissions:
   contents: write
