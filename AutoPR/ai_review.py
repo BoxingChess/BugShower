@@ -171,20 +171,36 @@ def main():
         review_body = call_claude(diff)
         print("    → 리뷰 생성 완료")
     except anthropic.BadRequestError as e:
-        if "credit balance is too low" in str(e):
+        err_msg = str(e)
+        print(f"⚠️  BadRequestError 상세: {err_msg}")
+        if "credit balance is too low" in err_msg:
             print("⚠️  크레딧 부족 → 수동 리뷰로 전환")
-            post_manual_review_comment("Anthropic API 크레딧 부족 — console.anthropic.com에서 충전 필요")
-            set_github_output("bug_level", "none")
-            sys.exit(0)
-        raise
+            post_manual_review_comment(
+                f"Anthropic API 크레딧 부족 — console.anthropic.com에서 충전 필요\n\n"
+                f"```\n{err_msg[:500]}\n```"
+            )
+        else:
+            print("⚠️  잘못된 요청 → 수동 리뷰로 전환")
+            post_manual_review_comment(
+                f"잘못된 API 요청 (BadRequestError)\n\n```\n{err_msg[:500]}\n```"
+            )
+        set_github_output("bug_level", "none")
+        sys.exit(0)
     except anthropic.APIStatusError as e:
-        print(f"⚠️  API 오류 ({e.status_code}) → 수동 리뷰로 전환")
-        post_manual_review_comment(f"API 오류 발생 (status {e.status_code})")
+        err_msg = f"status={e.status_code} body={str(e)}"
+        print(f"⚠️  APIStatusError 상세: {err_msg}")
+        post_manual_review_comment(
+            f"API 오류 발생 (status {e.status_code})\n\n```\n{err_msg[:500]}\n```"
+        )
         set_github_output("bug_level", "none")
         sys.exit(0)
     except Exception as e:
-        print(f"⚠️  예상치 못한 오류 → 수동 리뷰로 전환: {e}")
-        post_manual_review_comment(f"예상치 못한 오류: {type(e).__name__}")
+        import traceback
+        err_msg = traceback.format_exc()
+        print(f"⚠️  예상치 못한 오류 상세:\n{err_msg}")
+        post_manual_review_comment(
+            f"예상치 못한 오류: {type(e).__name__}\n\n```\n{err_msg[:500]}\n```"
+        )
         set_github_output("bug_level", "none")
         sys.exit(0)
 

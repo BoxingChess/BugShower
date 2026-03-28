@@ -149,15 +149,15 @@ def main():
         update_pr_body(description)
         print("✅ PR 설명 자동 등록 완료!")
     except anthropic.BadRequestError as e:
-        if "credit balance is too low" in str(e):
-            print("⚠️  크레딧 부족 → PR 설명 자동 생성 건너뜀. 작성자가 직접 작성해 주세요.")
-            sys.exit(0)
-        raise
+        err_msg = str(e)
+        print(f"⚠️  BadRequestError 상세: {err_msg}")
+        sys.exit(0)
     except anthropic.APIStatusError as e:
-        print(f"⚠️  API 오류 ({e.status_code}) → PR 설명 자동 생성 건너뜀.")
+        print(f"⚠️  APIStatusError 상세: status={e.status_code} body={str(e)}")
         sys.exit(0)
     except Exception as e:
-        print(f"⚠️  예상치 못한 오류 → PR 설명 자동 생성 건너뜀: {e}")
+        import traceback
+        print(f"⚠️  예상치 못한 오류 상세:\n{traceback.format_exc()}")
         sys.exit(0)
 
 
