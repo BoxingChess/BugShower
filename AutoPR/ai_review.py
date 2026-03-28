@@ -124,7 +124,7 @@ SYSTEM_PROMPT = """당신은 시니어 소프트웨어 엔지니어입니다.
 def call_claude(diff: str) -> str:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-opus-4-5",
+        model="claude-sonnet-4-6",
         max_tokens=2048,
         system=SYSTEM_PROMPT,
         messages=[{
