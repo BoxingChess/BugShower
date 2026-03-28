@@ -1,12 +1,15 @@
 name: AI Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths-ignore:
-      - '.github/**'
-      - 'AutoPR/**'
-      - 'SETUP_GUIDE.md'
+  workflow_dispatch:  # 자동 트리거 비활성화
+
+  #자동 트리거 활성화
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   paths-ignore:
+  #     - '.github/**'
+  #     - 'AutoPR/**'
+  #     - 'SETUP_GUIDE.md'
 
 permissions:
   contents: write
