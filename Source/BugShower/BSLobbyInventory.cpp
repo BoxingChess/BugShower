@@ -224,8 +224,7 @@ void UBSClickPopUp::OnSellItems()
 		return;
 	}
 
-	//여기에 선택한 아이템을 게임 인스턴스에 전달하는 로직 추가 필요
-	int SelectAmount = FCString::Atoi(*EditingSelectCounting->GetText().ToString());
+	int32 SelectAmount = FMath::RoundToInt(CountingSlider->GetValue());
 	BSGameInstance->SellItems(ItemData, SelectAmount);
 
 	UpdateDisplay(ItemData);
@@ -263,9 +262,9 @@ void UBSClickPopUp::OnBuyItems()
 		return;
 	}
 
-	//여기에 선택한 아이템을 게임 인스턴스에 전달하는 로직 추가 필요
-	int SelectAmount = FCString::Atoi(*EditingSelectCounting->GetText().ToString());
+	int32 SelectAmount = FMath::RoundToInt(CountingSlider->GetValue());
 	BSGameInstance->BuyItems(ItemData, SelectAmount);
+	BSGameInstance->SetTicket(SelectAmount);
 
 	UpdateDisplay(ItemData);
 
@@ -356,19 +355,7 @@ void UBSTileItem::UpdateDisplay()
 	TObjectPtr<const UBSStaticItemDataAsset> StaticData = ItemData->GetItemStaticData();
 	FBS_Item DynmicData = ItemData->GetItemData();
 
-	// StaticData가 nullptr인 경우 (테스트용 더미 데이터)
-	if (StaticData == nullptr)
-	{
-		// 기본 텍스트 표시
-		ItemName->SetText(FText::FromString(FString::Printf(TEXT("Test Item #%d"), DynmicData.ItemID)));
-		// 아이콘은 비워둠
-		ItemIcon->SetBrushFromTexture(nullptr);
-	}
-	else
-	{
-		ItemIcon->SetBrushFromTexture(StaticData->Icon);
-		ItemName->SetText(StaticData->DisplayName);
-	}
+	ItemIcon->SetBrushFromTexture(StaticData->Icon);
 }
 
 void UBSTileItem::OnItemClicked()
@@ -679,6 +666,7 @@ bool UBSTileItem::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent
 	UListViewBase* ItemTileView = GetOwningListView();
 	UBSLobbyInventory* ParentInventory = ItemTileView->GetTypedOuter<UBSLobbyInventory>();
 
+
 	if (!ParentInventory)
 	{
 		LOG_LOGIC_INFO(TEXT("TileItem: Could not find parent inventory"));
@@ -763,10 +751,6 @@ void UBSLobbyInventory::NativeConstruct()
 
 		// 마우스 휠 스크롤 속도 설정
 		Inventory->SetWheelScrollMultiplier(WheelScrollMultiplier);
-
-		// 타일 크기 설정
-		Inventory->SetEntryWidth(EntryWidth);
-		Inventory->SetEntryHeight(EntryHeight);
 	}
 
 	// GameInstance의 인벤토리 변경 델리게이트 구독

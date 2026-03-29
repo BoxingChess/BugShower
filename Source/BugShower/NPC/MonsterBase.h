@@ -45,23 +45,10 @@ public:
 	virtual void DeSpawn() override;
 
 	virtual void ReturnPool() override;
-	virtual void SetPoolActive(bool bActive) override;
 
-protected:
-	// Pool active state (replicated for client sync)
-	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
-	bool bPoolActive = false;
-
-	UFUNCTION()
-	void OnRep_PoolActive();
-
-	// No longer needed - use GetWorld()->GetSubsystem<UPoolingSubsystem>() instead
-	// TWeakObjectPtr<AActor> OwningPool;
 public:
 	// Sets default values for this character's properties
 	AMonsterBase();
-
-	virtual void PostNetInit() override;
 
 	//fixed value for monster stats
 	UPROPERTY(EditAnywhere, Category = "MeleeStat")
@@ -81,6 +68,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "RangedStat")
 	TSubclassOf<AActor> BulletClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RangedStat")
+	FName ProjectileSocketName = TEXT("hand_LSocket");
+
 	// Drop configuration ID (references DataTable row)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DropStat")
 	FName MonsterDropID;
@@ -91,8 +81,16 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EMonsterGrade Grade;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BaseStat")
 	EAttackType Type;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	uint8 bIsDashing : 1;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Animation")
+	uint8 bIsThrowingOrange : 1;
+
 
 protected:
 	// Called when the game starts or when spawned
@@ -100,10 +98,7 @@ protected:
 
 	virtual void PostInitializeComponents() override;
 
-	// Replication
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -116,8 +111,13 @@ public:
 
 	// Fire projectile towards target (called from BT Task)
 	void FireProjectile(AActor* Target);
+	void FireProjectile(AActor* Target, AActor* FireActor);
 
-	// Drop item on death
+	void StartDash();
+	void StopDash();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	UFUNCTION()
 	void OnDeath(AActor* DeadMonster);
 
@@ -127,12 +127,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	TSubclassOf<class AMonsterProjectile> ProjectileClass;
 
-	// Drop items at monster location
 	void DropItems();
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	class UMonsterStatComponent* MonsterStatComp;
-
-	//need animation comp
 };

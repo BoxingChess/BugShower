@@ -9,7 +9,7 @@
 #include "Logging/BugShowerLog.h"
 #include "Engine/DataTable.h"
 #include "PoolingSetting.h"
-
+#include "Engine/World.h"
 
 
 void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -39,15 +39,37 @@ void UPoolingSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		LOG_POOLING_INFO(TEXT("Tables loaded - PoolConfigTable: %s, MonsterDropTable: %s"),
 			PoolConfigTable ? *PoolConfigTable->GetName() : TEXT("None"),
 			MonsterDropTable ? *MonsterDropTable->GetName() : TEXT("None"));
+
+		FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UPoolingSubsystem::OnActorsInitialized);
 	}
 }
 
 void UPoolingSubsystem::Deinitialize()
 {
+	//풀 제거
+	for (auto& [Class, PoolData] : ClassPools)
+	{
+		for (TScriptInterface<ISpawnable>& Spawnable : PoolData.All)
+		{
+			if (AActor* Actor = Cast<AActor>(Spawnable.GetObject()))
+			{
+				if (IsValid(Actor))
+				{
+					Actor->Destroy();
+				}
+			}
+		}
+	}
+
 	ClassPools.Empty();
 	LOG_POOLING_INFO(TEXT("PoolingSubsystem deinitialized"));
 
 	Super::Deinitialize();
+}
+
+void UPoolingSubsystem::OnWorldBeginPlay(UWorld& InWorld)
+{
+	//InitializePoolsFromTable();
 }
 
 bool UPoolingSubsystem::FireProjectileAt(
@@ -56,7 +78,7 @@ bool UPoolingSubsystem::FireProjectileAt(
 	TSubclassOf<AActor> ActorClass,
 	const FVector& SpawnLocation,
 	float ProjectileSpeed,
-	float Damage)
+	float Damage, AActor* ProjectileActor/*= nullptr*/)
 {
 	if (!Shooter || !Target)
 	{
@@ -74,7 +96,7 @@ bool UPoolingSubsystem::FireProjectileAt(
 		SpawnLocation,
 		TargetLocation,
 		ProjectileSpeed,
-		true,  // High arc
+		false,  // High arc
 		0.0f,
 		0.0f,
 		ESuggestProjVelocityTraceOption::DoNotTrace
@@ -86,24 +108,43 @@ bool UPoolingSubsystem::FireProjectileAt(
 		return false;
 	}
 
-	// Get projectile from pool
-	TScriptInterface<ISpawnable> SpawnedObj = SpawnFromClass(ActorClass, SpawnLocation);
-	if (!SpawnedObj)
+	//특정 액터를 발사하는 경우
+	if (ProjectileActor != nullptr)
 	{
-		LOG_POOLING_ERROR(TEXT("FireProjectileAt: Failed to get projectile from pool"));
-		return false;
+		// Initialize projectile
+		AMonsterProjectile* Projectile = Cast<AMonsterProjectile>(ProjectileActor);
+		if (Projectile)
+		{
+			Projectile->InitializeProjectileWithVelocity(LaunchVelocity, Damage, Shooter);
+			LOG_POOLING_INFO(TEXT("Fired projectile from %s at %s"), *Shooter->GetName(), *Target->GetName());
+			return true;
+		}
+
+		LOG_POOLING_ERROR(TEXT("FireProjectileAt: Failed to cast to MonsterProjectile"));
+	}
+	else //풀에서 발사하는 경우
+	{
+
+		// Get projectile from pool
+		TScriptInterface<ISpawnable> SpawnedObj = SpawnFromClass(ActorClass, SpawnLocation);
+		if (!SpawnedObj)
+		{
+			LOG_POOLING_ERROR(TEXT("FireProjectileAt: Failed to get projectile from pool"));
+			return false;
+		}
+
+		// Initialize projectile
+		AMonsterProjectile* Projectile = Cast<AMonsterProjectile>(SpawnedObj.GetObject());
+		if (Projectile)
+		{
+			Projectile->InitializeProjectileWithVelocity(LaunchVelocity, Damage, Shooter);
+			LOG_POOLING_INFO(TEXT("Fired projectile from %s at %s"), *Shooter->GetName(), *Target->GetName());
+			return true;
+		}
+
+		LOG_POOLING_ERROR(TEXT("FireProjectileAt: Failed to cast to MonsterProjectile"));
 	}
 
-	// Initialize projectile
-	AMonsterProjectile* Projectile = Cast<AMonsterProjectile>(SpawnedObj.GetObject());
-	if (Projectile)
-	{
-		Projectile->InitializeProjectileWithVelocity(LaunchVelocity, Damage, Shooter);
-		LOG_POOLING_INFO(TEXT("Fired projectile from %s at %s"), *Shooter->GetName(), *Target->GetName());
-		return true;
-	}
-
-	LOG_POOLING_ERROR(TEXT("FireProjectileAt: Failed to cast to MonsterProjectile"));
 	return false;
 }
 
@@ -185,10 +226,6 @@ void UPoolingSubsystem::RegisterPoolForClass(TSubclassOf<AActor> ActorClass, int
 				SpawnedActor->Destroy();
 				continue;
 			}
-
-			// NOTE: Do NOT set dormancy here!
-			// Clients joining after pool initialization won't receive dormant actors
-			// Use bPoolActive replication for client sync instead
 
 			Spawnable.SetInterface(InterfacePtr);
 
@@ -579,4 +616,15 @@ void UPoolingSubsystem::SpawnDroppedItems(
 			LOG_POOLING_WARNING(TEXT("Failed to spawn drop item %s - pool may be empty"), *ItemClass->GetName());
 		}
 	}
+}
+
+void UPoolingSubsystem::OnActorsInitialized(const FActorsInitializedParams& Params)
+{
+	// 자신의 월드인지 확인
+	if (Params.World != GetWorld())
+	{
+		return;
+	}
+
+	InitializePoolsFromTable();
 }

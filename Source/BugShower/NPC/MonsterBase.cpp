@@ -20,11 +20,7 @@ void AMonsterBase::Spawn(const FVector pos)
 	MonsterStatComp->ResetHP();
 
 	AAIController* AI = Cast<AAIController>(GetController());
-	if (AI)
-	{
-		
-	}
-	else
+	if (!AI)
 	{
 		SpawnDefaultController();
 	}
@@ -43,8 +39,8 @@ void AMonsterBase::Spawn(const FVector pos)
 
 
 
-}
 
+}
 void AMonsterBase::DeSpawn()
 {
 	Deactivate(this);
@@ -105,6 +101,7 @@ AMonsterBase::AMonsterBase()
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	bIsDashing = false;
 	bReplicates = true;	//Replicate setting
 	SetReplicateMovement(true);	//sync with position
 
@@ -115,7 +112,7 @@ AMonsterBase::AMonsterBase()
 	MonsterStatComp = CreateDefaultSubobject<UMonsterStatComponent>(TEXT("MonsterStatComponent"));
 
 	// Default fixed value settings
-	DashSpeed = 600.f;
+	DashSpeed = 1600.f;
 	DashDistance = 600.f;
 	AttackRange = 1500.f;
 	ProjectileSpeed = 1000.f;
@@ -137,71 +134,17 @@ void AMonsterBase::BeginPlay()
 	}
 }
 
-void AMonsterBase::PostNetInit()
-{
-	Super::PostNetInit();
-
-	// Client: Apply pool state after network replication is complete
-	UE_LOG(LogTemp, Warning, TEXT("[MonsterBase::PostNetInit] %s - bPoolActive: %s"),
-		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
-
-	OnRep_PoolActive();
-}
-
-
 
 void AMonsterBase::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
+	GetCharacterMovement()->MaxAcceleration = DashSpeed * 2.0f;
 
 	// Drop ID defaults to monster class name
 	MonsterDropID = FName(*GetClass()->GetName());
 }
 
-// ========================================
-// Replication
-// ========================================
-void AMonsterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	// REPNOTIFY_Always: OnRep is called even on initial replication
-	DOREPLIFETIME_CONDITION_NOTIFY(AMonsterBase, bPoolActive, COND_None, REPNOTIFY_Always);
-}
-
-void AMonsterBase::OnRep_PoolActive()
-{
-	FString msg = GetWorld()->GetNetMode() == NM_Client ? TEXT("Client") : TEXT("Server");
-
-	UE_LOG(LogTemp, Warning, TEXT("%s - [MonsterBase::OnRep_PoolActive] %s - bPoolActive: %s"),*msg,
-		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
-
-	if (bPoolActive)
-	{
-		// Activate visuals on client
-		SetActorHiddenInGame(false);
-		SetActorEnableCollision(true);
-		SetActorTickEnabled(true);
-	}
-	else
-	{
-		// Deactivate visuals on client
-		SetActorHiddenInGame(true);
-		SetActorEnableCollision(false);
-		SetActorTickEnabled(false);
-	}
-}
-
-void AMonsterBase::SetPoolActive(bool bActive)
-{
-	if (HasAuthority())
-	{
-		bPoolActive = bActive;
-		// Server also applies immediately (OnRep is only called on clients)
-		OnRep_PoolActive();
-	}
-}
 
 // Called every frame
 void AMonsterBase::Tick(float DeltaTime)
@@ -241,6 +184,24 @@ float AMonsterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEve
 	MonsterStatComp->ApplyDamage(DamageAmount);
 
 	return DamageAmount;
+}
+
+void AMonsterBase::StartDash()
+{
+	bIsDashing = true;
+	GetCharacterMovement()->MaxWalkSpeed = DashSpeed;
+}
+
+void AMonsterBase::StopDash()
+{
+	bIsDashing = false;
+	GetCharacterMovement()->MaxWalkSpeed = MonsterStatComp->GetMoveSpeed();
+}
+
+void AMonsterBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AMonsterBase, bIsDashing);
 }
 
 void AMonsterBase::FireProjectile(AActor* Target)
@@ -283,6 +244,47 @@ void AMonsterBase::FireProjectile(AActor* Target)
 	}
 
 	PoolSys->FireProjectileAt(this, Target, BulletClass, SpawnLocation, ProjectileSpeed, Damage);
+}
+
+void AMonsterBase::FireProjectile(AActor* Target, AActor* FireActor)
+{
+	// Only execute on server
+	if (!HasAuthority())
+	{
+		LOG_LOGIC_WARNING(TEXT("FireProjectile: No authority"));
+		return;
+	}
+
+	// Validate target
+	if (!Target)
+	{
+		LOG_LOGIC_WARNING(TEXT("FireProjectile: Target is null"));
+		return;
+	}
+
+	// Get pooling subsystem
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: World is null"));
+		return;
+	}
+
+	// FireActor가 이미 손 소켓 위치에 있으므로 해당 위치를 사용
+	FVector SpawnLocation = FireActor->GetActorLocation();
+
+	// Get damage from MonsterStatComponent
+	float Damage = MonsterStatComp ? MonsterStatComp->GetDamage() : 10.0f;
+
+
+	UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>();
+	if (!PoolSys)
+	{
+		LOG_LOGIC_ERROR(TEXT("FireProjectile: PoolingSubsystem not found"));
+		return;
+	}
+
+	PoolSys->FireProjectileAt(this, Target, BulletClass, SpawnLocation, ProjectileSpeed, Damage, FireActor);
 }
 
 void AMonsterBase::OnDeath(AActor* DeadMonster)

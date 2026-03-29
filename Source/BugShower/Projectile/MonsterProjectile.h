@@ -8,6 +8,7 @@
 #include "NPC/Spawnable.h"
 #include "MonsterProjectile.generated.h"
 
+
 UCLASS()
 class BUGSHOWER_API AMonsterProjectile : public AActor, public ISpawnable
 {
@@ -20,19 +21,6 @@ public:
 	virtual UPrimitiveComponent* GetPrimaryRenderComponent() override;
 	UFUNCTION()
 	virtual void DeSpawn() override;
-	virtual void SetPoolActive(bool bActive) override;
-
-protected:
-	// Pool active state (replicated for client sync)
-	UPROPERTY(ReplicatedUsing = OnRep_PoolActive)
-	bool bPoolActive = false;
-
-	UFUNCTION()
-	void OnRep_PoolActive();
-
-	// Replication
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
 protected:
 
 public:
@@ -49,6 +37,11 @@ public:
 	void InitializeProjectileWithVelocity(const FVector& Velocity, float InDamage, AActor* InOwner);
 
 	virtual void LifeSpanExpired() override;
+
+	void PauseMovement();
+	void ResumeMovement(bool bReset);
+	void SetProjectileOwner(AActor* InOwner) { ProjectileOwner = InOwner; }
+
 
 protected:
 	UFUNCTION()
@@ -81,11 +74,13 @@ private:
 
 	TWeakObjectPtr<AActor> ProjectileOwner;
 
+	// 풀 반환 전 공통 정리 — 모든 반환 경로에서 호출
+	void ResetProjectileState();
+
 	// Damage to deal on hit
 	UPROPERTY()
 	float Damage;
 
 	UPROPERTY()
 	float Life;
-
 };

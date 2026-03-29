@@ -23,6 +23,8 @@
 #include "Game/BSGameModeBase.h"
 #include "Animation/BSAnimInstance.h"									// 애니메이션 인스턴스
 #include "Item/ItemEnum.h"												// 아이템 ID enum
+#include "Projectile/MonsterProjectile.h"								// 피격 이펙트 트리거 판별용
+#include "Camera/PlayerCameraManager.h"									// 모디파이어 등록
 
 
 ABSCharacterPlayer::ABSCharacterPlayer()
@@ -940,6 +942,12 @@ float ABSCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 			DamageCauser ? *DamageCauser->GetName() : TEXT("Unknown"));
 	}
 
+	// MonsterProjectile 피격 시 해당 플레이어 클라이언트에게 이펙트 재생 요청
+	if (DamageCauser && DamageCauser->IsA<AMonsterProjectile>())
+	{
+		ClientShowHitEffect();
+	}
+
 	return ActualDamage;
 }
 
@@ -960,6 +968,47 @@ void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
 	{
 		ClientUpdateHealthUI(CurrentHP, MaxHP);
 	}
+}
+
+void ABSCharacterPlayer::ClientShowHitEffect_Implementation()
+{
+
+	APlayerController* PC = GetController<APlayerController>();
+	if (!PC || !PC->PlayerCameraManager) return;
+
+
+	FString EffectName = "HitOrangeEffect";
+	static int MaxEffectIndex = 5; // HitOrangeEffect1 ~ HitOrangeEffect5
+	static int CurEffectIndex = 0; // HitOrangeEffect1 ~ HitOrangeEffect5
+
+	EffectName += FString::FromInt(CurEffectIndex); // HitOrangeEffect1 ~ HitOrangeEffect5 중 랜덤 선택
+
+	UBSUIManager* UIManager = GetGameInstance<UBSGameInstance>()->GetSubsystem<UBSUIManager>();
+
+	if (CurEffectIndex >= MaxEffectIndex)
+	{
+		return;
+	}
+
+	UIManager->ShowWidget(FName(*EffectName));
+	CurEffectIndex++;
+
+	FTimerHandle TimeHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimeHandle, [UIManager,EffectName]()
+		{
+			// 1.5초 뒤 UIManager가 여전히 유효한지 확인 후 실행
+			if (IsValid(UIManager))
+			{
+				UIManager->HideWidget(FName(*EffectName));
+
+				// 3. 안전하게 카운트 감소 (static 변수이므로 직접 접근)
+				if (CurEffectIndex > 0)
+				{
+					CurEffectIndex--;
+				}
+			}
+		},
+		1.5f,false);
 }
 
 void ABSCharacterPlayer::ClientUpdateHealthUI_Implementation(float CurrentHP, float MaxHP)

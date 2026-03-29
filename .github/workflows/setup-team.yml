@@ -1,0 +1,67 @@
+name: Setup Reviewer Team
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-team:
+    name: Auto Setup Reviewer Team
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch collaborators and set REVIEWER_TEAM
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'EOF'
+          import os
+          import requests
+
+          token = os.environ["GH_PAT"]
+          repo  = os.environ["REPO"]
+
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          # 레포 Collaborators 목록 조회 (bot 제외)
+          url = f"https://api.github.com/repos/{repo}/collaborators"
+          resp = requests.get(url, headers=headers, params={"per_page": 100})
+          resp.raise_for_status()
+
+          members = [
+              u["login"] for u in resp.json()
+              if u.get("type") != "Bot" and "[bot]" not in u["login"]
+          ]
+
+          if not members:
+              print("⚠️  Collaborators를 찾을 수 없습니다.")
+              exit(1)
+
+          team_value = ",".join(sorted(members))
+
+          # REVIEWER_TEAM Variable 등록 (PATCH 먼저, 없으면 POST)
+          var_url  = f"https://api.github.com/repos/{repo}/actions/variables/REVIEWER_TEAM"
+          list_url = f"https://api.github.com/repos/{repo}/actions/variables"
+
+          r = requests.patch(
+              var_url,
+              headers=headers,
+              json={"name": "REVIEWER_TEAM", "value": team_value},
+          )
+          if r.status_code == 404:
+              r = requests.post(
+                  list_url,
+                  headers=headers,
+                  json={"name": "REVIEWER_TEAM", "value": team_value},
+              )
+
+          r.raise_for_status()
+
+          print(f"✅ REVIEWER_TEAM 등록 완료 ({len(members)}명)")
+          for m in sorted(members):
+              print(f"   • @{m}")
+          print(f"\nValue: {team_value}")
+          EOF

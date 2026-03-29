@@ -1,0 +1,80 @@
+name: Toggle My Absence
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "부재 설정"
+        required: true
+        type: choice
+        options:
+          - "부재 시작"
+          - "복귀"
+
+jobs:
+  toggle-absence:
+    name: Toggle Absence Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update REVIEWER_ABSENT_LIST
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          REPO: ${{ github.repository }}
+          MY_USERNAME: ${{ github.actor }}
+          ACTION: ${{ github.event.inputs.action }}
+        run: |
+          python3 - <<'EOF'
+          import os
+          import requests
+
+          token    = os.environ["GH_PAT"]
+          repo     = os.environ["REPO"]
+          username = os.environ["MY_USERNAME"]
+          action   = os.environ["ACTION"]
+
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          var_url  = f"https://api.github.com/repos/{repo}/actions/variables/REVIEWER_ABSENT_LIST"
+          list_url = f"https://api.github.com/repos/{repo}/actions/variables"
+
+          # 현재 값 조회
+          resp = requests.get(var_url, headers=headers)
+          current = resp.json().get("value", "") if resp.ok else ""
+          # "none"은 빈 값을 의미하므로 제외
+          absent_set = {
+              r.strip() for r in current.split(",")
+              if r.strip() and r.strip() != "none"
+          }
+
+          # 부재 목록 업데이트
+          if action == "부재 시작":
+              absent_set.add(username)
+              msg = f"✅ @{username} 부재 등록 완료"
+          else:
+              absent_set.discard(username)
+              msg = f"✅ @{username} 복귀 처리 완료"
+
+          # 빈 값은 "none"으로 대체 (GitHub Variables API는 빈 문자열 비허용)
+          new_value = ",".join(sorted(absent_set)) if absent_set else "none"
+
+          # PATCH 먼저 시도 (name 필드 포함) → 404면 POST로 생성
+          r = requests.patch(
+              var_url,
+              headers=headers,
+              json={"name": "REVIEWER_ABSENT_LIST", "value": new_value},
+          )
+          if r.status_code == 404:
+              r = requests.post(
+                  list_url,
+                  headers=headers,
+                  json={"name": "REVIEWER_ABSENT_LIST", "value": new_value},
+              )
+
+          r.raise_for_status()
+          print(msg)
+          print(f"현재 부재 목록: {new_value}")
+          EOF
