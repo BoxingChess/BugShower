@@ -9,6 +9,7 @@
 #include "Logging/BugShowerLog.h"
 #include "Subsystems/PoolingSubsystem.h"
 #include "Player/BSCharacterPlayer.h"
+#include "NPC/MonsterBase.h"
 
 void AMonsterProjectile::Spawn(const FVector pos)
 {
@@ -33,11 +34,36 @@ void AMonsterProjectile::Spawn(const FVector pos)
 	SetLifeSpan(Life);	// Reset lifespan timer
 }
 
+void AMonsterProjectile::ResetProjectileState()
+{
+	// 부착 상태에서 반환 시 먼저 분리
+	if (GetAttachParentActor() != nullptr)
+	{
+		FDetachmentTransformRules DetachRules(EDetachmentRule::KeepWorld, true);
+		DetachFromActor(DetachRules);
+	}
+
+	if (CollisionComp)
+	{
+		CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	if (ProjectileMovement)
+	{
+		ProjectileMovement->Velocity = FVector::ZeroVector;
+		ProjectileMovement->StopMovementImmediately();
+	}
+
+	ProjectileOwner = nullptr;
+	Damage = 0.0f;
+
+	Deactivate(this);
+}
+
 void AMonsterProjectile::ReturnPool()
 {
-	Deactivate(this);
+	ResetProjectileState();
 
-	// Return to pool via subsystem
 	if (UWorld* World = GetWorld())
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
@@ -49,25 +75,8 @@ void AMonsterProjectile::ReturnPool()
 
 void AMonsterProjectile::DeSpawn()
 {
-	// Disable collision before returning to pool
-	if (CollisionComp)
-	{
-		CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
+	ResetProjectileState();
 
-	// Reset state
-	Deactivate(this);
-	ProjectileOwner = nullptr;
-	Damage = 0.0f;
-
-	// Stop movement
-	if (ProjectileMovement)
-	{
-		ProjectileMovement->Velocity = FVector::ZeroVector;
-		ProjectileMovement->StopMovementImmediately();
-	}
-
-	// Return to pool via subsystem
 	if (UWorld* World = GetWorld())
 	{
 		if (UPoolingSubsystem* PoolSys = World->GetSubsystem<UPoolingSubsystem>())
@@ -83,7 +92,7 @@ AMonsterProjectile::AMonsterProjectile()
 
 	// Set up replication
 	bReplicates = true;
-	SetReplicateMovement(true);
+	SetReplicateMovement(false);
 
 	// Create collision component
 	CollisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComp"));
@@ -126,62 +135,8 @@ AMonsterProjectile::AMonsterProjectile()
 void AMonsterProjectile::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// Client: Apply initial pool state (OnRep may not be called on initial replication)
-	if (!HasAuthority())
-	{
-		OnRep_PoolActive();
-	}
 }
 
-// ========================================
-// Replication
-// ========================================
-void AMonsterProjectile::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(AMonsterProjectile, bPoolActive);
-}
-
-void AMonsterProjectile::OnRep_PoolActive()
-{
-	UE_LOG(LogTemp, Warning, TEXT("[MonsterProjectile::OnRep_PoolActive] %s - bPoolActive: %s"),
-		*GetName(), bPoolActive ? TEXT("TRUE") : TEXT("FALSE"));
-
-	if (bPoolActive)
-	{
-		// Activate visuals on client
-		SetActorHiddenInGame(false);
-		SetActorEnableCollision(true);
-
-		if (CollisionComp)
-		{
-			CollisionComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		}
-	}
-	else
-	{
-		// Deactivate visuals on client
-		SetActorHiddenInGame(true);
-		SetActorEnableCollision(false);
-
-		if (CollisionComp)
-		{
-			CollisionComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}
-	}
-}
-
-void AMonsterProjectile::SetPoolActive(bool bActive)
-{
-	if (HasAuthority())
-	{
-		bPoolActive = bActive;
-		// Server also applies immediately (OnRep is only called on clients)
-		OnRep_PoolActive();
-	}
-}
 
 UPrimitiveComponent* AMonsterProjectile::GetPrimaryRenderComponent()
 {
@@ -237,6 +192,26 @@ void AMonsterProjectile::LifeSpanExpired()
 	DeSpawn();
 }
 
+void AMonsterProjectile::PauseMovement()
+{
+	ProjectileMovement->StopMovementImmediately();
+	ProjectileMovement->ProjectileGravityScale = 0.0f;
+	ProjectileMovement->SetComponentTickEnabled(false);
+	ProjectileMovement->Deactivate();
+	CollisionComp->SetEnableGravity(false);
+}
+
+void AMonsterProjectile::ResumeMovement(bool bReset)
+{
+	CollisionComp->SetEnableGravity(true);
+	ProjectileMovement->ProjectileGravityScale = 1.0f;
+	ProjectileMovement->Activate(bReset);
+	ProjectileMovement->SetComponentTickEnabled(true);
+
+	// 발사 시점에 lifespan 리셋 (손에 붙어있던 시간 제외)
+	SetLifeSpan(Life);
+}
+
 void AMonsterProjectile::OnProjectileOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	// 디버그: 모든 충돌 출력
@@ -266,6 +241,11 @@ void AMonsterProjectile::OnProjectileOverlap(UPrimitiveComponent* OverlappedComp
 		return;
 	}
 
+	// 몬스터는 판정 제외 (발사 전 캡슐 겹침, 인접 몬스터 오탐 방지)
+	if (Cast<AMonsterBase>(OtherActor))
+	{
+		return;
+	}
 
 	ABSCharacterPlayer* PlayerCharacter = Cast<ABSCharacterPlayer>(OtherActor);
 	if (PlayerCharacter)

@@ -17,13 +17,14 @@
 
 #include "DrawDebugHelpers.h" // ����� ���ο�
 #include "Kismet/GameplayStatics.h" // ��������
-// #include "Projectile/Grenade.h"  // 주석처리: Projectile 파일 없음
 #include "Weapon/WeaponActor.h"
 #include "Weapon/Component/WeaponComponent.h"
 #include "Weapon/Data/WeaponDataAsset.h"
 #include "Game/BSGameModeBase.h"
 #include "Animation/BSAnimInstance.h"									// 애니메이션 인스턴스
 #include "Item/ItemEnum.h"												// 아이템 ID enum
+#include "Projectile/MonsterProjectile.h"								// 피격 이펙트 트리거 판별용
+#include "Camera/PlayerCameraManager.h"									// 모디파이어 등록
 
 
 ABSCharacterPlayer::ABSCharacterPlayer()
@@ -113,6 +114,11 @@ ABSCharacterPlayer::ABSCharacterPlayer()
 	}
 
 
+	// 화면 효과용 PostProcess 컴포넌트
+	ScreenEffectPostProcess = CreateDefaultSubobject<UPostProcessComponent>(TEXT("ScreenEffectPostProcess"));
+	ScreenEffectPostProcess->SetupAttachment(RootComponent);
+	ScreenEffectPostProcess->bUnbound = true; // 화면 전체에 적용
+
 	bUseControllerRotationPitch = false;
 
 	CurrentViewMode = ECameraViewMode::ThirdPerson;
@@ -198,7 +204,7 @@ void ABSCharacterPlayer::BeginPlay()
 	// ========================================
 	// Inventory Camera: Add Player Mesh to ShowOnlyList
 	// ========================================
-	UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] BeginPlay - Adding Mesh to ShowOnlyList"));
+	UE_LOG(LogTemp, Log, TEXT("[INVENTORY CAMERA] BeginPlay - Adding Mesh to ShowOnlyList"));
 
 	if (!InventoryCamera)
 	{
@@ -206,7 +212,7 @@ void ABSCharacterPlayer::BeginPlay()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] InventoryCamera found: %s"), *InventoryCamera->GetName());
+		UE_LOG(LogTemp, Log, TEXT("[INVENTORY CAMERA] InventoryCamera found: %s"), *InventoryCamera->GetName());
 	}
 
 	if (!GetMesh())
@@ -215,10 +221,10 @@ void ABSCharacterPlayer::BeginPlay()
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] Mesh found: %s"), *GetMesh()->GetName());
+		UE_LOG(LogTemp, Log, TEXT("[INVENTORY CAMERA] Mesh found: %s"), *GetMesh()->GetName());
 		if (GetMesh()->GetSkeletalMeshAsset())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[INVENTORY CAMERA] SkeletalMeshAsset: %s"), *GetMesh()->GetSkeletalMeshAsset()->GetName());
+			UE_LOG(LogTemp, Log, TEXT("[INVENTORY CAMERA] SkeletalMeshAsset: %s"), *GetMesh()->GetSkeletalMeshAsset()->GetName());
 		}
 		else
 		{
@@ -229,13 +235,42 @@ void ABSCharacterPlayer::BeginPlay()
 	// InventoryCamera 설정은 InventoryWidget에서 처리
 
 	// ========================================
+	// 화면 효과 초기화 (비네트, 글리치)
+	// ========================================
+	if (IsLocallyControlled() && ScreenEffectPostProcess)
+	{
+		if (VignetteMaterial)
+		{
+			VignetteMID = UMaterialInstanceDynamic::Create(VignetteMaterial, this);
+			VignetteMID->SetScalarParameterValue(TEXT("Intensity"), 0.f);
+			ScreenEffectPostProcess->Settings.WeightedBlendables.Array.Add(FWeightedBlendable(1.f, VignetteMID));
+			UE_LOG(LogTemp, Log, TEXT("ScreenEffect - Vignette material initialized"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ScreenEffect - VignetteMaterial is not set! Assign M_PP_Vignette in Blueprint."));
+		}
+
+		if (GlitchMaterial)
+		{
+			GlitchMID = UMaterialInstanceDynamic::Create(GlitchMaterial, this);
+			GlitchMID->SetScalarParameterValue(TEXT("Intensity"), 0.f);
+			ScreenEffectPostProcess->Settings.WeightedBlendables.Array.Add(FWeightedBlendable(1.f, GlitchMID));
+			UE_LOG(LogTemp, Log, TEXT("ScreenEffect - Glitch material initialized"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ScreenEffect - GlitchMaterial is not set! Assign M_PP_Glitch in Blueprint."));
+		}
+	}
+
+	// ========================================
 	// 스탯 컴포넌트 초기화
 	// ========================================
 	if (StatComponent)
 	{
 		// 플레이어 초기 스탯 설정
-		// HP: 100, 에블라 입자: 100, 걷기 속도: 600, 달리기 속도: 900, 더블 점프, 점프력: 600
-		StatComponent->InitializeStats(100.f, 100.f, 600.f, 900.f, 2, 600.f);
+		StatComponent->InitializeStats(DefaultMaxHP, DefaultMaxAblaParticle, DefaultWalkSpeed, DefaultSprintSpeed, DefaultMaxJumpCount, DefaultJumpPower);
 
 		// HP 변경 이벤트 바인딩 (UI 업데이트용)
 		StatComponent->OnHPChanged.AddDynamic(this, &ABSCharacterPlayer::OnPlayerHPChanged);
@@ -351,7 +386,7 @@ void ABSCharacterPlayer::BeginPlay()
 
 void ABSCharacterPlayer::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-	UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent Initing..."));
+	UE_LOG(LogTemp, Log, TEXT("SetupPlayerInputComponent Initing..."));
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 	// MovementComponent 입력 바인딩
@@ -397,22 +432,6 @@ void ABSCharacterPlayer::SetupPlayerInputComponent(class UInputComponent* Player
 		UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent - IA_ReloadWeapon is not set! Please set it in Blueprint."));
 	}
 
-	// ========================================
-	// 수류탄 입력 바인딩 (주석처리)
-	// ========================================
-
-	/*
-	// 수류탄 발사 (우클릭)
-	if (FireAction)
-	{
-		EnhancedInput->BindAction(FireAction, ETriggerEvent::Started, this, &ABSCharacterPlayer::Fire);
-		UE_LOG(LogTemp, Log, TEXT("SetupPlayerInputComponent - FireAction (Grenade) bound"));
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent - FireAction (Grenade) is not set!"));
-	}
-	*/
 }
 
 void ABSCharacterPlayer::SetCurrentViewMode(ECameraViewMode _newMode)
@@ -526,75 +545,6 @@ void ABSCharacterPlayer::OnRep_Controller()
 
 }
 
-/*
-// ========================================
-// 수류탄 발사 함수 (주석처리)
-// ========================================
-
-void ABSCharacterPlayer::Fire()
-{
-	// Check if projectile class is set
-	if (!ProjectileClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("ProjectileClass is not set! Cannot fire."));
-		return;
-	}
-
-	// Get spawn location (from hand socket or camera)
-	FVector SpawnLocation = GetMesh()->GetSocketLocation(TEXT("hand_r"));
-
-	// Get spawn rotation (from camera forward vector)
-	FRotator SpawnRotation = ThirdPersonCamera->GetForwardVector().Rotation();
-
-	// Set spawn parameters
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.Instigator = GetInstigator();
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-	// Spawn projectile
-	AProjectileBase* Projectile = GetWorld()->SpawnActor<AProjectileBase>(
-		ProjectileClass,
-		SpawnLocation,
-		SpawnRotation,
-		SpawnParams
-	);
-
-	if (Projectile)
-	{
-		// Initialize projectile velocity
-		FVector LaunchDirection = ThirdPersonCamera->GetForwardVector();
-		Projectile->InitVelocity(LaunchDirection);
-
-		UE_LOG(LogTemp, Log, TEXT("Projectile fired! Class: %s"), *ProjectileClass->GetName());
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to spawn projectile!"));
-	}
-
-	// OLD LINE TRACE CODE - Keep for reference if needed
-	// FVector Start = GetMesh()->GetSocketLocation(TEXT("hand_r"));
-	// FVector End = Start + (ThirdPersonCamera->GetForwardVector() * 10000.0f);
-	//
-	// FCollisionQueryParams Params;
-	// Params.AddIgnoredActor(this);
-	//
-	// FHitResult HitResult;
-	// bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params);
-	//
-	// FColor LineColor = bHit ? FColor::Red : FColor::Green;
-	// FVector LineEnd = bHit ? HitResult.ImpactPoint : End;
-	// DrawDebugLine(GetWorld(), Start, LineEnd, LineColor, false, 1.0f, 0, 1.0f);
-	//
-	// if (bHit && HitResult.GetActor())
-	// {
-	// 	UE_LOG(LogTemp, Warning, TEXT("Hit: %s"), *HitResult.GetActor()->GetName());
-	// 	UGameplayStatics::ApplyDamage(HitResult.GetActor(), 10.0f, GetController(), this, nullptr);
-	// }
-}
-*/
-
 // ========================================
 // 무기 시스템 구현
 // ========================================
@@ -652,25 +602,10 @@ void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 	// 이미 InitializeWeapon이 호출된 경우 (BeginPlay에서 스폰한 무기) 중복 호출되지만 문제없음
 	if (UWeaponDataAsset* WeaponData = CurrentWeapon->GetWeaponData())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
-		UE_LOG(LogTemp, Warning, TEXT("%s BSCharacterPlayer::EquipWeapon - START"), *NetRole);
-		UE_LOG(LogTemp, Warning, TEXT("%s   Weapon: %s"), *NetRole, *WeaponData->WeaponName.ToString());
+		UE_LOG(LogTemp, Log, TEXT("%s BSCharacterPlayer::EquipWeapon - Weapon: %s"), *NetRole, *WeaponData->WeaponName.ToString());
 
 		// 인벤토리 상태 확인
-		if (InventoryComponent)
-		{
-			TArray<UBSItemInstance*> Items = InventoryComponent->GetItemInventory();
-			UE_LOG(LogTemp, Warning, TEXT("%s   InventoryComponent found: %d items"), *NetRole, Items.Num());
-			for (int32 i = 0; i < Items.Num(); i++)
-			{
-				if (Items[i] && Items[i]->StaticData)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("%s     [%d] ItemID: %d, Quantity: %d"),
-						*NetRole, i, Items[i]->StaticData->ItemID, Items[i]->Dynamic.Quantity);
-				}
-			}
-		}
-		else
+		if (!InventoryComponent)
 		{
 			UE_LOG(LogTemp, Error, TEXT("%s   InventoryComponent is NULL!"), *NetRole);
 		}
@@ -702,12 +637,10 @@ void ABSCharacterPlayer::EquipWeapon(AWeaponActor* Weapon)
 			// 인벤토리에서 해당 ItemID의 총 개수 가져오기
 			if (AmmoItemID != 0)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("%s   Looking for AmmoItemID: %d"), *NetRole, AmmoItemID);
 				ReserveAmmo = InventoryComponent->GetItemCountByID(AmmoItemID);
-				UE_LOG(LogTemp, Warning, TEXT("%s   Found ReserveAmmo: %d"), *NetRole, ReserveAmmo);
+				UE_LOG(LogTemp, Log, TEXT("%s   AmmoItemID: %d, ReserveAmmo: %d"), *NetRole, AmmoItemID, ReserveAmmo);
 			}
 		}
-		UE_LOG(LogTemp, Warning, TEXT("%s ========================================"), *NetRole);
 
 		// 무기 초기화 (CurrentAmmo=0, ReserveAmmo=인벤토리 탄약 개수)
 		CurrentWeapon->InitializeWeapon(WeaponData, CurrentAmmo, ReserveAmmo);
@@ -1009,6 +942,12 @@ float ABSCharacterPlayer::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 			DamageCauser ? *DamageCauser->GetName() : TEXT("Unknown"));
 	}
 
+	// MonsterProjectile 피격 시 해당 플레이어 클라이언트에게 이펙트 재생 요청
+	if (DamageCauser && DamageCauser->IsA<AMonsterProjectile>())
+	{
+		ClientShowHitEffect();
+	}
+
 	return ActualDamage;
 }
 
@@ -1031,6 +970,47 @@ void ABSCharacterPlayer::OnPlayerHPChanged(float CurrentHP, float MaxHP)
 	}
 }
 
+void ABSCharacterPlayer::ClientShowHitEffect_Implementation()
+{
+
+	APlayerController* PC = GetController<APlayerController>();
+	if (!PC || !PC->PlayerCameraManager) return;
+
+
+	FString EffectName = "HitOrangeEffect";
+	static int MaxEffectIndex = 5; // HitOrangeEffect1 ~ HitOrangeEffect5
+	static int CurEffectIndex = 0; // HitOrangeEffect1 ~ HitOrangeEffect5
+
+	EffectName += FString::FromInt(CurEffectIndex); // HitOrangeEffect1 ~ HitOrangeEffect5 중 랜덤 선택
+
+	UBSUIManager* UIManager = GetGameInstance<UBSGameInstance>()->GetSubsystem<UBSUIManager>();
+
+	if (CurEffectIndex >= MaxEffectIndex)
+	{
+		return;
+	}
+
+	UIManager->ShowWidget(FName(*EffectName));
+	CurEffectIndex++;
+
+	FTimerHandle TimeHandle;
+	GetWorld()->GetTimerManager().SetTimer(TimeHandle, [UIManager,EffectName]()
+		{
+			// 1.5초 뒤 UIManager가 여전히 유효한지 확인 후 실행
+			if (IsValid(UIManager))
+			{
+				UIManager->HideWidget(FName(*EffectName));
+
+				// 3. 안전하게 카운트 감소 (static 변수이므로 직접 접근)
+				if (CurEffectIndex > 0)
+				{
+					CurEffectIndex--;
+				}
+			}
+		},
+		1.5f,false);
+}
+
 void ABSCharacterPlayer::ClientUpdateHealthUI_Implementation(float CurrentHP, float MaxHP)
 {
 	// 클라이언트에서만 실행됨 (서버가 호출)
@@ -1041,6 +1021,13 @@ void ABSCharacterPlayer::ClientUpdateHealthUI_Implementation(float CurrentHP, fl
 			UIManager->UpdateHealthUI(CurrentHP, MaxHP);
 			UE_LOG(LogTemp, Log, TEXT("[Client] HP UI Updated: %.1f / %.1f"), CurrentHP, MaxHP);
 		}
+	}
+
+	// 비네트 효과 업데이트: HP가 낮을수록 강해짐
+	if (VignetteMID)
+	{
+		float HPRatio = MaxHP > 0.f ? CurrentHP / MaxHP : 0.f;
+		VignetteMID->SetScalarParameterValue(TEXT("Intensity"), 1.f - HPRatio);
 	}
 }
 
@@ -1073,6 +1060,19 @@ void ABSCharacterPlayer::ClientUpdateAblaParticleUI_Implementation(float Current
 			UIManager->UpdateAblaParticleUI(CurrentAblaParticle, MaxAblaParticle);
 			// UE_LOG(LogTemp, Log, TEXT("[Client] Abla UI Updated: %.1f / %.1f"), CurrentAblaParticle, MaxAblaParticle);
 		}
+	}
+
+	// 글리치 효과 업데이트: 에블라 70% 이상부터 효과 시작
+	// 70%: 4초 정상 + 1초 떨림 (5초 주기), 100%: 계속 떨림
+	if (GlitchMID)
+	{
+		float AblaRatio = MaxAblaParticle > 0.f ? CurrentAblaParticle / MaxAblaParticle : 0.f;
+		// 70% → 0.33 (세기 1), 100% → 1.0 (세기 3)
+		float GlitchIntensity = AblaRatio >= 0.7f ? FMath::Lerp(0.333f, 1.f, (AblaRatio - 0.7f) / 0.3f) : 0.f;
+		// 70% → 0.8 (20% 떨림), 100% → 0.0 (100% 떨림)
+		float PulseThreshold = FMath::Clamp(0.8f - (AblaRatio - 0.7f) * 2.667f, 0.f, 0.8f);
+		GlitchMID->SetScalarParameterValue(TEXT("Intensity"), GlitchIntensity);
+		GlitchMID->SetScalarParameterValue(TEXT("PulseThreshold"), PulseThreshold);
 	}
 }
 
@@ -1162,7 +1162,7 @@ void ABSCharacterPlayer::OnItemUsed(const UBSStaticItemDataAsset* ItemData)
 	// ========================================
 	if (ItemData->AblaGainRateMultiplier < 1.0f)
 	{
-		const float BaseRate = 0.1f; // 기본 증가율
+		const float BaseRate = DefaultAblaGainRate;
 		float NewRate = BaseRate * ItemData->AblaGainRateMultiplier;
 		StatComponent->SetAblaParticleGainRate(NewRate);
 
@@ -1215,7 +1215,7 @@ int32 ABSCharacterPlayer::GetMaxJumpCount() const
 	{
 		return StatComponent->GetMaxJumpCount();
 	}
-	return 2; // 기본값: 더블 점프
+	return DefaultMaxJumpCount;
 }
 
 /**
@@ -1227,7 +1227,7 @@ float ABSCharacterPlayer::GetJumpPower() const
 	{
 		return StatComponent->GetJumpPower();
 	}
-	return 600.f; // 기본값
+	return DefaultJumpPower;
 }
 
 /**
@@ -1239,7 +1239,7 @@ float ABSCharacterPlayer::GetWalkSpeed() const
 	{
 		return StatComponent->GetWalkSpeed();
 	}
-	return 600.f; // 기본값
+	return DefaultWalkSpeed;
 }
 
 /**
@@ -1251,7 +1251,7 @@ float ABSCharacterPlayer::GetSprintSpeed() const
 	{
 		return StatComponent->GetSprintSpeed();
 	}
-	return 900.f; // 기본값
+	return DefaultSprintSpeed;
 }
 
 /**

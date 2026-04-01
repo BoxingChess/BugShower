@@ -71,7 +71,8 @@ public:
 		TSubclassOf<AActor> ActorClass,
 		const FVector& SpawnLocation,
 		float ProjectileSpeed,
-		float Damage
+		float Damage,
+		AActor* ProjectileActor = nullptr
 	);
 
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+#include "NPC/MonsterBase.h"
 #include "MonsterBaseAnimInstance.generated.h"
 
 /**
@@ -16,6 +17,22 @@ class BUGSHOWER_API UMonsterBaseAnimInstance : public UAnimInstance
 public:
 	UMonsterBaseAnimInstance();
 	
+	//state flag
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	uint8 bIsIdle : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	uint8 bIsWalk : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	uint8 bIsDash : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	uint8 bIsThrow : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
+	uint8 bIsFalling : 1;
+
 protected:
 	virtual void NativeInitializeAnimation() override;
 
@@ -23,14 +40,10 @@ protected:
 
 
 protected:
-	TObjectPtr<class ACharacter> Owner;
 	TObjectPtr<class UCharacterMovementComponent> Movement;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	float MovingThreshould;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
-	float DashThreshould;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	float GroundSpeed;
@@ -38,19 +51,11 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
 	FVector Velocity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
-	uint8 bIsIdle : 1;
+	
 
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
-	uint8 bIsFalling : 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Character)
-	uint8 bIsDash : 1;
 
 
 	//Base Attack Montage
 	FName CurrentSectionName;
 	FName NextSectionName;
-	uint8 bIsCombo : 1;
 };

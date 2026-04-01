@@ -650,7 +650,7 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 	}
 
 	// DEBUG: Before getting from pool
-	UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] ⚪ About to get actor from pool..."));
+	UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] About to get actor from pool..."));
 
 	// Get item from pool
 	TScriptInterface<ISpawnable> SpawnedObj = PoolSys->SpawnFromClass(ActorClass, SpawnLocation);
@@ -659,7 +659,7 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 	if (SpawnedActor)
 	{
 		// DEBUG: Log actor pointer to track reuse
-		UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] 🔵 Got actor from pool: %p, Location: %s, Hidden: %d"),
+		UE_LOG(LogTemp, Warning, TEXT("[DiscardItemByIndex] Got actor from pool: %p, Location: %s, Hidden: %d"),
 			SpawnedActor, *SpawnLocation.ToString(), SpawnedActor->IsHidden());
 
 		// Set item data (discarded quantity)
@@ -670,7 +670,7 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 		SpawnedActor->SetOwner(nullptr);
 		SpawnedActor->SetPooled(true);  // Mark as pooled item
 
-		UE_LOG(LogTemp, Log, TEXT("[DiscardItemByIndex] ✅ Item spawned from pool: %s (ItemID: %d, Quantity: %d) at %s"),
+		UE_LOG(LogTemp, Log, TEXT("[DiscardItemByIndex] Item spawned from pool: %s (ItemID: %d, Quantity: %d) at %s"),
 			*ActorClass->GetName(),
 			DroppedItem->Dynamic.ItemID,
 			Count,
@@ -678,7 +678,7 @@ void UInventoryComponent::DiscardItemByIndex(int32 ItemIndex, int32 Count /*= 1*
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] ❌❌❌ POOL EXHAUSTED! Failed to spawn item! ❌❌❌"));
+		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] ❌ POOL EXHAUSTED! Failed to spawn item! "));
 		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Item NOT removed from inventory (ItemID: %d, Count: %d)"),
 			DroppedItem->Dynamic.ItemID, Count);
 		UE_LOG(LogTemp, Error, TEXT("[DiscardItemByIndex] Solution: Increase pool size in GameMode or wait for items to be picked up"));

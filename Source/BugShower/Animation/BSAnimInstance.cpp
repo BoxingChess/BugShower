@@ -59,6 +59,15 @@ void UBSAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 		}
 	}
 
+	// 에임 Pitch 계산: Controller가 바라보는 방향과 Actor 방향의 Pitch 차이
+	if (Owner)
+	{
+		FRotator AimRotation = Owner->GetBaseAimRotation();
+		FRotator ActorRotation = Owner->GetActorRotation();
+		FRotator DeltaRotation = (AimRotation - ActorRotation).GetNormalized();
+		AimPitch = FMath::Clamp(-DeltaRotation.Pitch, -90.f, 90.f);
+	}
+
 	// 무기 장착 상태를 Owner(BSCharacterPlayer)로부터 가져오기
 	if (Owner)
 	{
